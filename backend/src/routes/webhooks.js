@@ -10,7 +10,7 @@ const db = require('../db');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const metricsEmitter = require('../services/metricsEmitter');
-const { getWhatsAppCredentials } = require('../services/messageQueue');
+const { getProvider } = require('../services/messaging/providerFactory');
 const EmailService = require('../services/emailService');
 
 // ===== CONFIGURATION =====
@@ -742,6 +742,158 @@ router.post('/email', (req, res) => {
     console.error('❌ Email webhook error:', error);
     logWebhookEvent('email_ses', 'error', { error: error.message }, 'error');
     res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
+});
+
+/**
+ * POST /webhooks/twilio
+ * Twilio status callback for SMS and WhatsApp messages
+ *
+ * Twilio sends form-urlencoded data with:
+ * - MessageSid: Provider message ID
+ * - MessageStatus: sent, delivered, failed, undelivered, read
+ * - AccountSid: Twilio account identifier
+ * - To/From: Phone numbers
+ */
+router.post('/twilio', express.urlencoded({ extended: true }), async (req, res) => {
+  try {
+    // 1. Log incoming webhook
+    logWebhookEvent('twilio', req.body, req.headers);
+
+    // 2. Extract message info
+    const { MessageSid, MessageStatus } = req.body;
+
+    if (!MessageSid || !MessageStatus) {
+      console.warn('[Webhook] Twilio: Missing MessageSid or MessageStatus');
+      return res.status(400).send('Missing MessageSid or MessageStatus');
+    }
+
+    // 3. Find message by provider_message_id
+    const message = db.prepare(`
+      SELECT m.id, m.tenant_id, m.campaign_id, m.status, m.channel
+      FROM messages m
+      WHERE m.provider_message_id = ?
+      LIMIT 1
+    `).get(MessageSid);
+
+    if (!message) {
+      console.log(`[Webhook] Twilio: Message not found for MessageSid: ${MessageSid}`);
+      return res.status(200).send('OK'); // Acknowledge but don't process
+    }
+
+    // 4. Get provider for signature verification
+    let provider;
+    try {
+      provider = await getProvider(message.tenant_id, message.channel);
+    } catch (error) {
+      console.error(`[Webhook] Twilio: Failed to get provider for message:`, error.message);
+      return res.status(200).send('OK'); // Acknowledge but can't verify
+    }
+
+    // 5. Verify webhook signature if enabled
+    if (process.env.ENABLE_WEBHOOK_VERIFICATION === 'true') {
+      const signature = req.headers['x-twilio-signature'];
+      const webhookUrl = `${process.env.BACKEND_URL || 'http://localhost:5173'}/webhooks/twilio`;
+
+      try {
+        const isValid = provider.verifyWebhookSignature(req.body, signature, webhookUrl);
+
+        if (!isValid) {
+          console.error('[Webhook] Twilio: Invalid signature for MessageSid:', MessageSid);
+          return res.status(403).send('Invalid signature');
+        }
+      } catch (error) {
+        console.warn('[Webhook] Twilio: Signature verification error:', error.message);
+        // Continue anyway, might not have webhook URL configured
+      }
+    }
+
+    // 6. Parse webhook using provider
+    let parsed;
+    try {
+      parsed = provider.parseWebhook(req.body, req.headers['x-twilio-signature']);
+
+      if (parsed.error) {
+        console.error('[Webhook] Twilio: Parsing failed:', parsed.error);
+        return res.status(200).send('OK'); // Acknowledge but can't parse
+      }
+    } catch (error) {
+      console.error('[Webhook] Twilio: Parsing exception:', error.message);
+      return res.status(200).send('OK');
+    }
+
+    // 7. Update message status
+    const now = new Date().toISOString();
+    const statusReason = req.body.ErrorCode ? `Error ${req.body.ErrorCode}: ${req.body.ErrorMessage}` : null;
+
+    // Check for duplicate webhook event
+    const isDuplicate = db.prepare(`
+      SELECT id FROM message_status_events
+      WHERE message_id = ? AND new_status = ? AND created_at > datetime('now', '-60 seconds')
+    `).get(message.id, parsed.status);
+
+    if (isDuplicate) {
+      console.log(`[Webhook] Twilio: Duplicate event for message ${message.id}, ignoring`);
+      return res.status(200).send('OK');
+    }
+
+    // Update messages table
+    db.prepare(`
+      UPDATE messages
+      SET status = ?, updated_at = ?
+      WHERE id = ?
+    `).run(parsed.status, now, message.id);
+
+    // Log event
+    const eventId = uuidv4();
+    db.prepare(`
+      INSERT INTO message_status_events (id, message_id, provider_message_id, old_status, new_status, event_timestamp, webhook_received_at, status_reason)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(eventId, message.id, MessageSid, message.status, parsed.status, parsed.timestamp.toISOString(), now, statusReason);
+
+    // Update timestamp columns based on status
+    const updates = {};
+    if (parsed.status === 'sent') updates.sent_at = now;
+    if (parsed.status === 'delivered') updates.delivered_at = now;
+    if (parsed.status === 'read') updates.read_at = now;
+    if (parsed.status === 'failed') updates.failed_at = now;
+
+    if (Object.keys(updates).length > 0) {
+      const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ');
+      db.prepare(`UPDATE messages SET ${setClauses} WHERE id = ?`).run(...Object.values(updates), message.id);
+    }
+
+    // 8. Broadcast metrics update via SSE
+    if (message.campaign_id) {
+      try {
+        // Get campaign metrics
+        const campaignMetrics = db.prepare(`
+          SELECT
+            COUNT(*) as total,
+            SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) as sent,
+            SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered,
+            SUM(CASE WHEN status = 'read' THEN 1 ELSE 0 END) as read,
+            SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed
+          FROM messages
+          WHERE campaign_id = ?
+        `).get(message.campaign_id);
+
+        metricsEmitter.emit('campaign:metrics', {
+          campaign_id: message.campaign_id,
+          tenant_id: message.tenant_id,
+          ...campaignMetrics
+        });
+      } catch (error) {
+        console.error('[Webhook] Twilio: Failed to broadcast metrics:', error.message);
+      }
+    }
+
+    console.log(`✓ [Webhook] Twilio: Updated message ${message.id} to status ${parsed.status}`);
+    res.status(200).send('OK');
+
+  } catch (error) {
+    console.error('[Webhook] Twilio: Unexpected error:', error);
+    res.status(500).send('Internal server error');
   }
 });
 
