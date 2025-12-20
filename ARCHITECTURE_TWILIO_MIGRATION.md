@@ -17,6 +17,8 @@ This document outlines the architecture for migrating EngageNinja to use Twilio 
 - **Verification flow**: Trigger 10DLC submission when tenant tries to send first SMS
 - **Multi-channel**: Same 10DLC brand can be used for both SMS and WhatsApp
 - **Provider abstraction**: New provider pattern to support Twilio (SMS/WhatsApp) and AWS SES (Email)
+- **Message Queue**: AWS SQS + Lambda for reliable, scalable message processing
+- **Demo Mode**: Full workflow simulation for sales/platform testing without sending real messages
 
 ---
 
@@ -240,6 +242,15 @@ ALTER TABLE messages ADD COLUMN provider_account_sid TEXT;  -- Twilio SID
 ```sql
 ALTER TABLE campaigns ADD COLUMN channel TEXT;      -- 'sms', 'whatsapp', 'email'
 ALTER TABLE campaigns ADD COLUMN provider TEXT;     -- 'twilio', 'aws_ses'
+```
+
+#### `tenants` table - Add columns:
+```sql
+ALTER TABLE tenants ADD COLUMN is_demo BOOLEAN DEFAULT 0;  -- Demo account flag
+ALTER TABLE tenants ADD COLUMN demo_created_by TEXT;        -- User ID who created demo
+ALTER TABLE tenants ADD COLUMN demo_created_at TIMESTAMP;
+
+CREATE INDEX idx_tenants_is_demo ON tenants(is_demo);
 ```
 
 #### `contacts` table - Already has consent flags, add:
@@ -548,7 +559,459 @@ async function provisionPhoneNumber(tenantId, brandSid) {
 
 ---
 
-## Part 3: SMS Sending Architecture
+## Part 2.5: Demo Mode Implementation
+
+### Overview
+
+Demo tenants experience the full workflow end-to-end without sending real SMS/WhatsApp/Email messages. They see realistic simulated status updates. Demo mode is **only available to sales and platform staff**.
+
+### Demo Tenant Characteristics
+
+**When is_demo = true**:
+- ✅ Create campaigns
+- ✅ Configure business info (10DLC simulation)
+- ✅ Submit for 10DLC approval (auto-approved in 30 seconds)
+- ✅ Send campaigns
+- ✅ See message statuses (sent → delivered → read)
+- ✅ View all reporting/metrics
+- ❌ No real SMS/WhatsApp/Email sent
+- ❌ No charges to Twilio/SES
+- ❌ Can't upgrade to real sending
+
+### Demo Tenant Creation
+
+**Admin Endpoint** (platform staff only):
+```
+POST /api/admin/demo-tenants
+Request: {
+  name: "Acme Corp Demo",
+  created_by: "admin-user-id"
+}
+Response: {
+  tenant_id: "...",
+  is_demo: true,
+  access_url: "...",
+  cleanup_scheduled: "2025-12-27T14:30:00Z"  // Auto-delete after 7 days
+}
+```
+
+**Database Record**:
+```javascript
+INSERT INTO tenants (id, name, plan_id, is_demo, demo_created_by, demo_created_at)
+VALUES (uuid(), "Acme Corp Demo", "demo_plan", 1, "admin-user-id", NOW())
+
+// Also create demo users
+INSERT INTO users (id, email, tenant_id, role)
+VALUES (uuid(), "demo@acme.local", tenant_id, "owner")
+
+INSERT INTO user_tenants (id, user_id, tenant_id, role)
+VALUES (uuid(), user_id, tenant_id, "owner")
+```
+
+### Demo Mode 10DLC Flow
+
+**Timeline**:
+1. **T+0s**: Demo tenant submits business info form
+2. **T+0s**: Backend immediately creates `tenant_10dlc_brands` record with status = 'pending'
+3. **T+30s**: Scheduled Lambda auto-updates status to 'approved'
+4. **T+30s**: Generate fake phone number (e.g., `+1-555-0100-{tenantId}`)
+5. **T+30s**: Frontend shows "✓ SMS approved and ready!"
+
+**Backend Logic** (in 10DLC submission):
+```javascript
+async function submitBusinessInfo(tenantId, businessInfo) {
+  const tenant = await getTenant(tenantId);
+
+  if (tenant.is_demo) {
+    // Demo mode: simulate approval
+    const fakePhoneNumber = `+1-555-0100-${tenantId.substring(0, 4)}`;
+
+    const brandRecord = {
+      id: uuidv4(),
+      tenant_id: tenantId,
+      twilio_brand_status: 'pending',
+      twilio_phone_number: fakePhoneNumber,
+      twilio_phone_status: 'active',
+      ...businessInfo
+    };
+
+    db.prepare(`
+      INSERT INTO tenant_10dlc_brands (...) VALUES (...)
+    `).run(...);
+
+    // Schedule auto-approval in 30 seconds
+    await scheduleAutoApproval(tenantId, 30000);
+
+    return {
+      status: 'pending',
+      message: 'Business verification in progress... (demo mode)',
+      estimated_time: '30 seconds'
+    };
+  } else {
+    // Real mode: submit to Twilio
+    return submitToTwilio(tenantId, businessInfo);
+  }
+}
+
+async function scheduleAutoApproval(tenantId, delayMs) {
+  // Use EventBridge to schedule approval
+  const eventBridge = new AWS.EventBridge();
+
+  await eventBridge.putEvents({
+    Entries: [{
+      Source: 'engageninja.demo',
+      DetailType: 'DemoTenantApproveNow',
+      Detail: JSON.stringify({ tenantId }),
+      Time: new Date(Date.now() + delayMs)
+    }]
+  }).promise();
+}
+```
+
+**Lambda Function** (auto-approve demo 10DLC):
+```javascript
+// lambda/functions/demo-tenant-approve/index.js
+
+exports.handler = async (event) => {
+  const { tenantId } = JSON.parse(event.detail);
+
+  db.prepare(`
+    UPDATE tenant_10dlc_brands
+    SET twilio_brand_status = 'approved',
+        twilio_phone_status = 'active',
+        twilio_approved_at = NOW()
+    WHERE tenant_id = ?
+  `).run(tenantId);
+
+  // Broadcast via SSE
+  await broadcastViaSSE(tenantId, {
+    type: '10dlc_approved',
+    message: 'SMS is now ready to use!'
+  });
+
+  return { success: true };
+};
+```
+
+### Demo Mode Message Sending
+
+**When demo tenant sends campaign**:
+1. No Twilio API call made
+2. Generate fake `provider_message_id` (e.g., `demo-{tenantId}-{timestamp}`)
+3. Store in message_provider_mappings
+4. Mark message as 'sent' immediately
+5. Schedule async status updates at realistic intervals
+
+**Lambda** (`handleDemoSend` in SendCampaignMessage):
+```javascript
+async function handleDemoSend(messageId, tenantId, channel) {
+  const fakeProviderId = `demo-${tenantId}-${Date.now()}`;
+
+  // Update to 'sent' immediately
+  await updateMessageStatus(messageId, 'sent', {
+    provider_message_id: fakeProviderId
+  });
+
+  // Schedule 'delivered' in 3-5 seconds
+  const deliveredDelay = 3000 + Math.random() * 2000;
+  await scheduleStatusUpdate(messageId, tenantId, 'delivered', deliveredDelay);
+
+  // Schedule 'read' in 5-10 seconds total
+  const readDelay = 5000 + Math.random() * 5000;
+  await scheduleStatusUpdate(messageId, tenantId, 'read', readDelay);
+}
+```
+
+**Result**: Demo tenant sees:
+- T+0s: Message marked "Sent" ✓
+- T+3-5s: Message marked "Delivered" ✓
+- T+5-10s: Message marked "Read" ✓
+
+### Demo Mode UI Badge
+
+**Every page showing tenant info**:
+```
+┌─────────────────────────────────────┐
+│ Acme Corp Demo                      │
+│ ⚠️ DEMO ACCOUNT - Messages Not Sent │
+│ Cleanup scheduled: Dec 27           │
+└─────────────────────────────────────┘
+```
+
+**Campaign sending UI**:
+```
+Pre-send validation:
+├─ ✓ Channel enabled
+├─ ✓ Phone numbers valid
+├─ ⚠️ DEMO MODE: Messages will be simulated (not actually sent)
+└─ [Send Campaign (Demo)]
+```
+
+### Demo Tenant Cleanup
+
+**Scheduled Job** (runs daily):
+```javascript
+// Clean up demo tenants older than 7 days
+const demoTenants = db.prepare(`
+  SELECT id FROM tenants
+  WHERE is_demo = 1
+  AND demo_created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)
+`).all();
+
+demoTenants.forEach(tenant => {
+  // Delete all related data
+  db.prepare('DELETE FROM messages WHERE tenant_id = ?').run(tenant.id);
+  db.prepare('DELETE FROM campaigns WHERE tenant_id = ?').run(tenant.id);
+  db.prepare('DELETE FROM contacts WHERE tenant_id = ?').run(tenant.id);
+  db.prepare('DELETE FROM users WHERE tenant_id = ?').run(tenant.id);
+  db.prepare('DELETE FROM tenants WHERE id = ?').run(tenant.id);
+
+  console.log(`Cleaned up demo tenant: ${tenant.id}`);
+});
+```
+
+---
+
+## Part 3: Message Queue Architecture (AWS SQS + Lambda)
+
+### Overview
+
+Instead of in-memory polling, use AWS SQS + Lambda for reliable, scalable message processing:
+
+```
+Campaign Send
+    ↓
+INSERT to messages table (status='queued')
+    ↓
+PUT message to SQS Queue
+    ↓
+Lambda triggered by SQS
+    ├─ Get message details
+    ├─ Decrypt credentials
+    ├─ Check if demo tenant
+    │  ├─ YES → Mock send (store fake provider_message_id)
+    │  └─ NO  → Call Twilio/SES API
+    ├─ Update message status
+    └─ Delete from SQS (or DLQ if failed)
+    ↓
+Schedule Lambda for async status updates
+    ├─ sent: 1 second delay
+    ├─ delivered: 3-5 second delay
+    └─ read: 5-10 second delay
+    ↓
+Update message status in DB
+    ↓
+Broadcast via SSE
+```
+
+### SQS Queue Setup
+
+**Queue Name**: `engageninja-messages-{environment}`
+**Type**: Standard (FIFO optional if ordering critical)
+**Message Retention**: 14 days
+**Visibility Timeout**: 300 seconds (5 minutes - Lambda execution time)
+**Dead Letter Queue**: `engageninja-messages-dlq`
+
+**Queue Policy** (allow Lambda to receive messages):
+```json
+{
+  "Effect": "Allow",
+  "Principal": {
+    "Service": "lambda.amazonaws.com"
+  },
+  "Action": "sqs:*",
+  "Resource": "arn:aws:sqs:region:account:engageninja-messages-*"
+}
+```
+
+### Lambda Function: SendCampaignMessage
+
+**Trigger**: SQS Queue (batch size 10, 300 second timeout)
+**Runtime**: Node.js 18+
+**Environment Variables**:
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `AWS_SES_REGION`
+- `WEBHOOK_BASE_URL`
+- `DATABASE_URL`
+
+**Code Structure**:
+```javascript
+// lambda/functions/send-campaign-message/index.js
+
+const AWS = require('aws-sdk');
+const sqs = new AWS.SQS();
+const lambda = new AWS.Lambda();
+const TwilioSmsProvider = require('./providers/TwilioSmsProvider');
+const AwsSesProvider = require('./providers/AwsSesProvider');
+
+exports.handler = async (event) => {
+  console.log('Processing', event.Records.length, 'messages');
+
+  for (const record of event.Records) {
+    try {
+      const message = JSON.parse(record.body);
+      const { messageId, tenantId, channel, provider } = message;
+
+      // Get tenant (check if demo)
+      const tenant = await getTenant(tenantId);
+
+      if (tenant.is_demo) {
+        // Mock send
+        await handleDemoSend(messageId, tenantId, channel);
+      } else {
+        // Real send
+        await handleRealSend(messageId, tenantId, channel, provider);
+      }
+
+      // Delete from queue
+      await sqs.deleteMessage({
+        QueueUrl: process.env.SQS_QUEUE_URL,
+        ReceiptHandle: record.receiptHandle
+      }).promise();
+
+    } catch (error) {
+      console.error('Error processing message:', error);
+      // Leave in queue for retry (or move to DLQ after 3 retries)
+    }
+  }
+
+  return { batchItemFailures: [] };
+};
+
+async function handleDemoSend(messageId, tenantId, channel) {
+  // Generate fake provider message ID
+  const fakeProviderId = `demo-${tenantId}-${Date.now()}`;
+
+  // Update to 'sent' status
+  await updateMessageStatus(messageId, 'sent', { provider_message_id: fakeProviderId });
+
+  // Schedule async status updates (via EventBridge)
+  await scheduleStatusUpdate(messageId, tenantId, 'delivered', 3000 + Math.random() * 2000);
+  await scheduleStatusUpdate(messageId, tenantId, 'read', 5000 + Math.random() * 5000);
+}
+
+async function handleRealSend(messageId, tenantId, channel, provider) {
+  const message = await getMessageFromDb(messageId);
+  const credentials = await getCredentials(tenantId, channel);
+  const contact = await getContact(message.contact_id);
+
+  let providerInstance;
+  if (provider === 'twilio') {
+    providerInstance = new TwilioSmsProvider(credentials);
+  } else if (provider === 'aws_ses') {
+    providerInstance = new AwsSesProvider(credentials);
+  }
+
+  const result = await providerInstance.send(
+    contact.phone_number,
+    message.content_snapshot,
+    { fromNumber: message.phone_number }
+  );
+
+  if (result.success) {
+    await updateMessageStatus(messageId, 'sent', {
+      provider_message_id: result.providerId
+    });
+  } else {
+    await updateMessageStatus(messageId, 'failed', {
+      status_reason: result.error
+    });
+  }
+}
+
+async function scheduleStatusUpdate(messageId, tenantId, newStatus, delayMs) {
+  // Use EventBridge to schedule Lambda execution
+  const eventBridge = new AWS.EventBridge();
+
+  await eventBridge.putEvents({
+    Entries: [{
+      Source: 'engageninja.messaging',
+      DetailType: 'MockStatusUpdate',
+      Detail: JSON.stringify({
+        messageId,
+        tenantId,
+        newStatus
+      }),
+      RoleArn: process.env.EVENT_BRIDGE_ROLE_ARN,
+      Time: new Date(Date.now() + delayMs)
+    }]
+  }).promise();
+}
+```
+
+**Lambda Permission** (for SQS):
+```bash
+aws lambda add-permission \
+  --function-name SendCampaignMessage \
+  --statement-id AllowSQSInvoke \
+  --action lambda:InvokeFunction \
+  --principal sqs.amazonaws.com \
+  --source-arn arn:aws:sqs:region:account:engageninja-messages-prod
+```
+
+### Lambda Function: UpdateMessageStatus (Async)
+
+**Trigger**: EventBridge rule (for scheduled mock status updates)
+**Execution**: Updates message status to 'delivered' or 'read'
+
+```javascript
+// lambda/functions/update-message-status/index.js
+
+exports.handler = async (event) => {
+  const { messageId, tenantId, newStatus } = JSON.parse(event.detail);
+
+  // Update message status
+  await updateMessageStatus(messageId, newStatus);
+
+  // Broadcast via SSE
+  await broadcastViaSSE(tenantId, {
+    message_id: messageId,
+    status: newStatus
+  });
+
+  return { success: true };
+};
+```
+
+### Backend: Queue Message on Campaign Send
+
+**Modified** `backend/src/routes/campaigns.js`:
+
+```javascript
+async function queueCampaignMessages(campaignId, tenantId, channel, contacts) {
+  const sqs = new AWS.SQS();
+  const queueUrl = process.env.SQS_QUEUE_URL;
+
+  // Batch insert to SQS (max 10 per request)
+  const batches = chunk(contacts, 10);
+
+  for (const batch of batches) {
+    const entries = batch.map((contact, index) => ({
+      Id: `${campaignId}-${contact.id}-${index}`,
+      MessageBody: JSON.stringify({
+        messageId: uuidv4(),
+        tenantId,
+        campaignId,
+        contactId: contact.id,
+        channel,
+        content: campaign.content,
+        phoneNumber: contact.phone_number,
+        timestamp: new Date().toISOString()
+      })
+    }));
+
+    await sqs.sendMessageBatch({
+      QueueUrl: queueUrl,
+      Entries: entries
+    }).promise();
+  }
+}
+```
+
+---
+
+## Part 4: SMS Sending Architecture
 
 ### Provider Abstraction Pattern
 
