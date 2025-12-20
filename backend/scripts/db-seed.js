@@ -474,10 +474,10 @@ function copyGlobalTagsToTenant(tenantUuid) {
   console.log('📧 Seeding tenant channel settings (Email SES)...');
   const emailCreds = encryptCredentials({
     provider: 'ses',
-    accessKeyId: '[REDACTED]',
-    secretAccessKey: '[REDACTED]',
-    region: 'us-east-2',
-    verifiedSenderEmail: 'jigsd0007@gmail.com'
+    accessKeyId: process.env.SEED_AWS_ACCESS_KEY_ID || '[REDACTED]',
+    secretAccessKey: process.env.SEED_AWS_SECRET_ACCESS_KEY || '[REDACTED]',
+    region: process.env.SEED_AWS_REGION || 'us-east-2',
+    verifiedSenderEmail: process.env.SEED_SES_VERIFIED_EMAIL || 'jigsd0007@gmail.com'
   });
 
   const existingEmail = db.prepare(`
