@@ -631,7 +631,7 @@ router.get('/whatsapp', (req, res) => {
  *   "click": {...}
  * }
  */
-router.post('/email', (req, res) => {
+router.post('/email', async (req, res) => {
   try {
     const bodyString = Buffer.isBuffer(req.body)
       ? req.body.toString('utf8')
@@ -681,55 +681,97 @@ router.post('/email', (req, res) => {
       recipients: mail.destination
     });
 
+    // Find the message and get tenant_id
+    const message = db.prepare(`
+      SELECT tenant_id, campaign_id, status FROM messages WHERE provider_message_id = ?
+    `).get(messageId);
+
+    if (!message) {
+      console.warn(`⚠️  Message not found for SES: ${messageId}`);
+      return res.status(200).json({
+        success: true,
+        messageId,
+        eventType,
+        message: 'Message not found'
+      });
+    }
+
+    // Check for duplicates
+    if (isDuplicateWebhookEvent(messageId, eventType)) {
+      console.log(`[Webhook] SES: Duplicate event for message ${messageId}, ignoring`);
+      return res.status(200).json({
+        success: true,
+        messageId,
+        eventType,
+        message: 'Duplicate event'
+      });
+    }
+
+    // Get provider and use parseWebhook for consistent status normalization
+    let parsed;
+    try {
+      const provider = await getProvider(message.tenant_id, 'email');
+      parsed = provider.parseWebhook(sesEvent, signature);
+
+      if (parsed.error) {
+        console.warn(`[Webhook] SES: Provider parsing failed for message ${messageId}`);
+        return res.status(200).json({
+          success: true,
+          messageId,
+          eventType,
+          message: 'Parse error, will retry'
+        });
+      }
+    } catch (error) {
+      console.warn(`[Webhook] SES: Failed to get provider or parse: ${error.message}`);
+      // Fall back to manual mapping if provider unavailable
+      parsed = null;
+    }
+
+    // Determine status update (using provider parsing or fallback manual mapping)
     let statusUpdate = null;
 
-    // Map SES event types to our status values
-    switch (eventType) {
-      case 'Send':
-        statusUpdate = { newStatus: 'sent', eventTimestamp: mail.timestamp };
-        break;
-      case 'Delivery':
-        statusUpdate = { newStatus: 'delivered', eventTimestamp: sesEvent.delivery?.timestamp };
-        break;
-      case 'Open':
-        statusUpdate = { newStatus: 'read', eventTimestamp: sesEvent.open?.timestamp };
-        break;
-      case 'Bounce':
-      case 'Reject':
-        statusUpdate = { newStatus: 'failed', eventTimestamp: sesEvent.bounce?.timestamp || mail.timestamp };
-        break;
-      case 'Click':
-        // Clicks don't change status, but we could track them separately
-        statusUpdate = null;
-        break;
-      case 'Complaint':
-        // Mark as failed on complaints
-        statusUpdate = { newStatus: 'failed', eventTimestamp: sesEvent.complaint?.timestamp };
-        break;
-      default:
-        console.log(`⚠️  Unhandled SES event type: ${eventType}`);
-        statusUpdate = null;
+    if (parsed && parsed.status) {
+      // Use provider's normalized status
+      statusUpdate = { newStatus: parsed.status, eventTimestamp: parsed.timestamp };
+    } else {
+      // Manual fallback mapping
+      switch (eventType) {
+        case 'Send':
+          statusUpdate = { newStatus: 'sent', eventTimestamp: mail.timestamp };
+          break;
+        case 'Delivery':
+          statusUpdate = { newStatus: 'delivered', eventTimestamp: sesEvent.delivery?.timestamp };
+          break;
+        case 'Open':
+          statusUpdate = { newStatus: 'read', eventTimestamp: sesEvent.open?.timestamp };
+          break;
+        case 'Bounce':
+        case 'Reject':
+          statusUpdate = { newStatus: 'failed', eventTimestamp: sesEvent.bounce?.timestamp || mail.timestamp };
+          break;
+        case 'Click':
+          // Clicks don't change status, but we could track them separately
+          statusUpdate = null;
+          break;
+        case 'Complaint':
+          // Mark as failed on complaints
+          statusUpdate = { newStatus: 'failed', eventTimestamp: sesEvent.complaint?.timestamp };
+          break;
+        default:
+          console.log(`⚠️  Unhandled SES event type: ${eventType}`);
+          statusUpdate = null;
+      }
     }
 
     if (statusUpdate) {
-      // Check for duplicates
-      if (!isDuplicateWebhookEvent(messageId, statusUpdate.newStatus)) {
-        // Find the message and get tenant_id
-        const message = db.prepare(`
-          SELECT tenant_id, campaign_id FROM messages WHERE provider_message_id = ?
-        `).get(messageId);
+      // Update message status
+      updateMessageStatus(message.tenant_id, messageId, statusUpdate.newStatus, statusUpdate.eventTimestamp);
+      updateCampaignMetrics(message.campaign_id, message.tenant_id);
 
-        if (message) {
-          updateMessageStatus(message.tenant_id, messageId, statusUpdate.newStatus, statusUpdate.eventTimestamp);
-          updateCampaignMetrics(message.campaign_id, message.tenant_id);
-
-          // Broadcast metrics update to SSE clients
-          metricsEmitter.emit(`campaign:${message.campaign_id}:metrics`);
-          console.log(`📡 Metrics broadcast for campaign ${message.campaign_id}`);
-        } else {
-          console.warn(`⚠️  Message not found for SES: ${messageId}`);
-        }
-      }
+      // Broadcast metrics update to SSE clients
+      metricsEmitter.emit(`campaign:${message.campaign_id}:metrics`);
+      console.log(`📡 [Webhook] SES: Metrics broadcast for campaign ${message.campaign_id}`);
     }
 
     res.status(200).json({
