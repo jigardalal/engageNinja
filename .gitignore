@@ -91,6 +91,10 @@ Terraform/*.tfstate.*
 .terraformrc
 terraform.rc
 
+# Git rewrite artifacts
+.git-rewrite/
+refs-original/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
