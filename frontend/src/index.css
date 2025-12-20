@@ -1,0 +1,120 @@
+@import './styles/toast.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global styles */
+:root {
+  --bg: #f5f7fb;
+  --bg-gradient: radial-gradient(circle at 20% 20%, rgba(47,125,255,0.08), transparent 25%),
+                  radial-gradient(circle at 80% 0%, rgba(124,58,237,0.08), transparent 20%),
+                  linear-gradient(180deg, #f8fafc 0%, #eef2ff 45%, #f8fafc 100%);
+  --card: rgba(255,255,255,0.9);
+  --border: rgba(15,23,42,0.08);
+  --text: #0f172a;
+  --text-muted: #475569;
+  --accent-from: #2f7dff;
+  --accent-to: #5c99ff;
+}
+
+.dark {
+  --bg: #0b1224;
+  --bg-gradient: radial-gradient(circle at 20% 20%, rgba(47,125,255,0.12), transparent 25%),
+                  radial-gradient(circle at 80% 0%, rgba(124,58,237,0.18), transparent 20%),
+                  linear-gradient(180deg, #0b1224 0%, #0f172a 45%, #0b1224 100%);
+  --card: rgba(255,255,255,0.06);
+  --border: rgba(255,255,255,0.15);
+  --text: #e5e7eb;
+  --text-muted: #cbd5e1;
+  --accent-from: #2f7dff;
+  --accent-to: #a78bfa;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply font-sans;
+  color: var(--text);
+  background: var(--bg-gradient);
+}
+
+* {
+  @apply transition-colors duration-200;
+}
+
+/* Component base styles */
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-4 py-2 bg-gradient-to-r from-[var(--accent-from)] to-[var(--accent-to)] text-white rounded-lg font-medium shadow-lg hover:from-primary-600 hover:to-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-900;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-4 py-2 bg-white/5 text-white rounded-lg font-medium border border-white/10 hover:border-white/30 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-900;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-slate-900;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2 border border-white/10 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white/5 text-white placeholder:text-gray-400;
+  }
+
+  .card {
+    @apply rounded-xl shadow-lg p-6 backdrop-blur;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .glass {
+    @apply rounded-xl backdrop-blur;
+    background: var(--card);
+    border: 1px solid var(--border);
+  }
+
+  .badge {
+    @apply inline-block px-3 py-1 text-sm font-medium rounded-full;
+  }
+
+  .badge-primary {
+    @apply badge bg-primary-500/20 text-primary-100 border border-primary-500/40;
+  }
+
+  .badge-success {
+    @apply badge bg-green-500/20 text-green-100 border border-green-500/40;
+  }
+
+  .badge-warning {
+    @apply badge bg-yellow-500/20 text-yellow-100 border border-yellow-500/40;
+  }
+
+  .badge-error {
+    @apply badge bg-red-500/20 text-red-100 border border-red-500/40;
+  }
+
+  .required-badge {
+    @apply text-[11px] uppercase font-semibold tracking-wide text-red-600;
+  }
+
+  .dropdown-item {
+    @apply w-full text-left px-3 py-2 rounded-lg text-sm text-[var(--text)] transition-colors;
+    @apply hover:bg-black/5 hover:text-primary-600;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500;
+  }
+}
+
+/* Light-mode overrides for text-heavy utility classes */
+.light .text-white { color: #0f172a !important; }
+.light .text-gray-100 { color: #111827 !important; }
+.light .text-gray-200 { color: #1f2937 !important; }
+.light .text-gray-300 { color: #374151 !important; }
+.light .text-gray-400 { color: #475569 !important; }
+.light .text-gray-500 { color: #64748b !important; }
+.light .bg-white\/5 { background-color: rgba(255,255,255,0.9) !important; }
+.light .border-white\/10 { border-color: rgba(15,23,42,0.08) !important; }
+.light .btn-secondary { @apply text-gray-900 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300; }
+.light .btn-primary { @apply focus:ring-offset-white; }
+.light .input-field { @apply bg-white text-gray-900 border border-gray-200 placeholder:text-gray-500; }

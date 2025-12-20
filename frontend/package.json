@@ -1,0 +1,38 @@
+{
+  "name": "engageninja-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@radix-ui/react-toast": "^1.2.15",
+    "class-variance-authority": "^0.7.1",
+    "lucide-react": "^0.562.0",
+    "papaparse": "^5.5.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-google-recaptcha": "^3.1.0",
+    "react-quill": "^2.0.0",
+    "react-router-dom": "^6.20.1",
+    "tailwind-merge": "^3.4.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.56.0",
+    "eslint-plugin-react": "^7.33.2",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.1",
+    "terser": "^5.44.1",
+    "vite": "^5.0.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

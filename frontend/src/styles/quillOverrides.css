@@ -1,0 +1,33 @@
+.ql-toolbar {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.ql-toolbar .ql-picker,
+.ql-toolbar .ql-stroke {
+  color: var(--text);
+  stroke: var(--text);
+}
+
+.ql-picker-options {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.ql-container {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.ql-editor {
+  min-height: 220px;
+  color: var(--text);
+}
+
+.ql-editor.ql-blank::before {
+  color: var(--text-muted);
+  opacity: 0.8;
+}

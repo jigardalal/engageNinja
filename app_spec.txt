@@ -1,0 +1,1650 @@
+<project_specification>
+  <project_name>EngageNinja - WhatsApp-First Customer Engagement Platform</project_name>
+
+  <overview>
+    EngageNinja is an AI-first, WhatsApp-first customer engagement platform for WhatsApp-heavy SMBs and teams who manage messaging at scale. It differentiates with WhatsApp-first UX (not "email-first retrofitted"), AI campaign generation (assistive, optional), one-click resend to non-readers, built-in uplift/ROI proof snapshots, and multi-tenant access through user-to-tenant association. The hero loop is: Connect WhatsApp → Import contacts → Send campaign → Resend non-readers → See uplift.
+  </overview>
+
+  <technology_stack>
+    <frontend>
+      <framework>React with Vite</framework>
+      <styling>Tailwind CSS</styling>
+      <state_management>React hooks and context (no Redux)</state_management>
+      <routing>React Router</routing>
+      <runtime>pnpm</runtime>
+      <port>Configurable (default 3173), set via environment variable</port>
+    </frontend>
+
+    <backend>
+      <runtime>Node.js with Express</runtime>
+      <database_mvp>SQLite via better-sqlite3 (file-based)</database_mvp>
+      <database_production>Postgres (future migration, same logical schema)</database_production>
+      <api>REST (GraphQL later)</api>
+      <streaming>Server-Sent Events (SSE) for message status updates</streaming>
+      <port>Configurable (default 5173), set via environment variable</port>
+    </backend>
+    
+    <external_services>
+      <whatsapp>Meta WhatsApp Cloud API</whatsapp>
+      <email_primary>Amazon SES</email_primary>
+      <email_optional>Brevo (optional Phase 1, ready for future use)</email_optional>
+      <ai>Anthropic Claude API (for message generation)</ai>
+    </external_services>
+    
+    <authentication>
+      <method>Email + password (MVP)</method>
+      <session_management>Cookie-based (httpOnly, Secure, SameSite=Lax)</session_management>
+      <future_auth>Auth0 for enterprise SSO (Phase 2+)</future_auth>
+    </authentication>
+
+    <data_seeding>
+      <seeding_approach>Database seeding script (seed.sql or seed.js) runs as part of npm run db:init</seeding_approach>
+      <seeding_location>Backend: /backend/db/seeds/ directory</seeding_location>
+      <seeding_execution>npm run db:seed (or automatic: npm run db:init calls db:seed)</seeding_execution>
+      <test_credentials>
+        - Super Admin: admin@engageninja.local / AdminPassword123
+        - Regular User: user@engageninja.local / UserPassword123
+        - These are test credentials for development only (not used in production)
+      </test_credentials>
+      <seed_data_includes>Plans (all tiers), Super Admin user, Regular user, Demo Tenant, User-Tenant associations, Sample contacts (10-20), Tags, Usage counters, Channel settings (optional), WhatsApp templates (optional)</seed_data_includes>
+    </data_seeding>
+  </technology_stack>
+
+  <prerequisites>
+    <environment_setup>
+      - Repository structure: /frontend and /backend directories
+      - .env file with API keys, database path, port numbers (never committed)
+      - .env.example provided with placeholder values
+      - Frontend dependencies: pnpm install (already done, no additional installs needed for MVP)
+      - Backend dependencies: npm install (agents install as needed)
+      - SQLite database initialized via npm run db:init
+      - init.sh script to start both servers
+    </environment_setup>
+  </prerequisites>
+
+  <database_setup_and_seeding>
+    <overview>
+      Database initialization happens in two steps:
+      1. Create schema (tables, relationships, indexes)
+      2. Seed data (populate with test users, contacts, plans, etc.)
+      
+      Both happen automatically when developers run: npm run db:init
+      This creates database.sqlite with complete schema + seed data, enabling immediate testing.
+    </overview>
+
+    <database_schema>
+      SQLite database with 16 tables (run in /backend/db/migrations/ or equivalent):
+
+      CREATE TABLE users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE plans (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        whatsapp_messages_per_month INTEGER NOT NULL,
+        email_messages_per_month INTEGER NOT NULL,
+        max_users INTEGER NOT NULL,
+        contacts_limit INTEGER NOT NULL DEFAULT 0,
+        sms_messages_per_month INTEGER NOT NULL DEFAULT 0,
+        api_tokens_per_month INTEGER NOT NULL DEFAULT 0,
+        ai_features_enabled BOOLEAN DEFAULT 0,
+        api_enabled BOOLEAN DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE tenants (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        plan_id TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (plan_id) REFERENCES plans(id)
+      );
+
+      CREATE TABLE user_tenants (
+        user_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        role TEXT DEFAULT 'admin',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, tenant_id),
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+      );
+
+      CREATE TABLE password_reset_tokens (
+        token TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      );
+
+      CREATE TABLE tenant_channel_settings (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        credentials_encrypted TEXT,
+        verified_sender_email TEXT,
+        is_connected BOOLEAN DEFAULT 0,
+        connected_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+        UNIQUE(tenant_id, channel)
+      );
+
+      CREATE TABLE tags (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+        UNIQUE(tenant_id, name)
+      );
+
+      CREATE TABLE contacts (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        phone TEXT,
+        email TEXT,
+        name TEXT,
+        consent_whatsapp BOOLEAN DEFAULT 0,
+        consent_email BOOLEAN DEFAULT 0,
+        consent_source TEXT DEFAULT 'manual',
+        consent_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        deleted_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+        UNIQUE(tenant_id, phone)
+      );
+
+      CREATE TABLE contact_tags (
+        contact_id TEXT NOT NULL,
+        tag_id TEXT NOT NULL,
+        PRIMARY KEY (contact_id, tag_id),
+        FOREIGN KEY (contact_id) REFERENCES contacts(id),
+        FOREIGN KEY (tag_id) REFERENCES tags(id)
+      );
+
+      CREATE TABLE campaigns (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        channel TEXT NOT NULL,
+        template_id TEXT,
+        audience_filters TEXT,
+        message_content TEXT,
+        status TEXT DEFAULT 'draft',
+        sent_by TEXT,
+        sent_at TIMESTAMP,
+        completed_at TIMESTAMP,
+        resend_of_campaign_id TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+        FOREIGN KEY (sent_by) REFERENCES users(id),
+        FOREIGN KEY (resend_of_campaign_id) REFERENCES campaigns(id)
+      );
+
+      CREATE TABLE messages (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        campaign_id TEXT NOT NULL,
+        contact_id TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        provider_message_id TEXT,
+        status TEXT DEFAULT 'queued',
+        status_reason TEXT,
+        attempts INTEGER DEFAULT 1,
+        content_snapshot TEXT,
+        sent_at TIMESTAMP,
+        delivered_at TIMESTAMP,
+        read_at TIMESTAMP,
+        failed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+        FOREIGN KEY (campaign_id) REFERENCES campaigns(id),
+        FOREIGN KEY (contact_id) REFERENCES contacts(id),
+        UNIQUE(provider_message_id)
+      );
+
+      CREATE TABLE message_status_events (
+        id TEXT PRIMARY KEY,
+        message_id TEXT NOT NULL,
+        provider_message_id TEXT,
+        old_status TEXT,
+        new_status TEXT,
+        event_timestamp TIMESTAMP,
+        webhook_received_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (message_id) REFERENCES messages(id)
+      );
+
+      CREATE TABLE whatsapp_templates (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        variable_count INTEGER DEFAULT 0,
+        body_template TEXT,
+        synced_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+      );
+
+      CREATE TABLE usage_counters (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        year_month TEXT NOT NULL,
+        whatsapp_messages_sent INTEGER DEFAULT 0,
+        email_messages_sent INTEGER DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+        UNIQUE(tenant_id, year_month)
+      );
+
+      CREATE TABLE ai_generation_logs (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        input_prompt TEXT,
+        model TEXT,
+        generated_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      );
+
+      All tables include proper indexes on foreign keys, tenant_id, phone, email, and status fields.
+    </database_schema>
+
+    <seed_data>
+      After schema is created, seed the following data automatically:
+
+      1. PLANS (5 rows - all pricing tiers):
+         - id: 'free', name: 'Free Plan', whatsapp_messages_per_month: 1000, email: 0, max_users: 1, contacts_limit: 1000, sms_messages_per_month: 0, api_tokens_per_month: 0, ai: false, api: false
+         - id: 'starter', name: 'Starter Plan', whatsapp_messages_per_month: 10000, email: 0, max_users: 3, contacts_limit: 5000, sms_messages_per_month: 1000, api_tokens_per_month: 1000, ai: false, api: false
+         - id: 'growth', name: 'Growth Plan', whatsapp_messages_per_month: 100000, email: 100000, max_users: 10, contacts_limit: 25000, sms_messages_per_month: 5000, api_tokens_per_month: 10000, ai: true, api: true
+         - id: 'pro', name: 'Pro Plan', whatsapp_messages_per_month: 500000, email: 500000, max_users: 50, contacts_limit: 100000, sms_messages_per_month: 20000, api_tokens_per_month: 50000, ai: true, api: true
+         - id: 'enterprise', name: 'Enterprise Plan', whatsapp_messages_per_month: 2000000, email: 2000000, max_users: 250, contacts_limit: 250000, sms_messages_per_month: 100000, api_tokens_per_month: 200000, ai: true, api: true
+
+      2. SUPER ADMIN USER (1 row):
+         - email: 'admin@engageninja.local'
+         - password: bcrypt hash of 'AdminPassword123' (plaintext provided for login: AdminPassword123)
+         - Role: Can manage all tenants, users, settings
+         - Use case: Testing multi-tenant features, admin operations
+
+      3. REGULAR USER (1 row):
+         - email: 'user@engageninja.local'
+         - password: bcrypt hash of 'UserPassword123' (plaintext provided for login: UserPassword123)
+         - Role: Tenant admin (can manage contacts, campaigns, settings)
+         - Use case: Testing standard user workflows
+
+      4. DEMO TENANT (1 row):
+         - name: 'Demo Tenant'
+         - plan_id: 'free' (starts on free plan)
+         - Purpose: Baseline environment for testing all features
+
+      5. USER-TENANT ASSOCIATIONS (2 rows):
+         - admin user → Demo Tenant (role: admin/owner)
+         - regular user → Demo Tenant (role: admin)
+         - Both users can immediately log in and access Demo Tenant
+
+      6. TAGS (5 rows):
+         - 'vip' - for VIP customers
+         - 'newsletter' - for newsletter subscribers
+         - 'active' - for active users
+         - 'new' - for newly imported contacts
+         - 'beta_tester' - for beta program participants
+
+      7. SAMPLE CONTACTS (20 rows, realistic data):
+         Examples:
+         - John Doe, +12155552671, john.doe@example.com, tags: vip,active, consent_whatsapp: true, consent_email: true
+         - Jane Smith, +12155552672, jane.smith@example.com, tags: newsletter, consent_whatsapp: true, consent_email: false
+         - Michael Johnson, +12155552673, michael.johnson@example.com, no tags, consent_whatsapp: false, consent_email: true
+         - ... (20 total, mix of consent statuses and tag assignments)
+         
+         All phones in E.164 format (+1-area-exchange-subscriber)
+         All emails realistic format (firstname.lastname@example.com)
+         Mix of consent combinations: both true, only WA true, only email true, both false
+         Tags distributed to enable filtering tests (vip ~30%, newsletter ~40%, active ~50%, etc.)
+
+      8. CONTACT-TAG ASSOCIATIONS (32 rows):
+         Distribute tags across contacts to enable testing:
+         - Some contacts have 1 tag (e.g., only 'vip')
+         - Some have 2-3 tags (e.g., 'vip' + 'active')
+         - Some have no tags (for testing "all contacts" vs filtered)
+
+      9. USAGE COUNTER (1 row, current month):
+         - year_month: '2025-01' (current month in YYYY-MM format)
+         - whatsapp_messages_sent: 0
+         - email_messages_sent: 0
+         - Purpose: Developers immediately see usage tracking in /usage page
+
+      Total seed data: ~60 rows providing a complete, immediately-testable environment
+    </seed_data>
+
+    <implementation>
+      Backend developers implement seeding in one of two ways:
+
+      OPTION 1 - SQL File (Recommended for clarity):
+      Create /backend/db/seeds.sql with all INSERT statements
+      Called by: npm run db:init (which executes schema, then seeds.sql)
+
+      OPTION 2 - JavaScript/Node Script:
+      Create /backend/scripts/seed.js using database library
+      Called by: npm run db:seed (or as part of db:init)
+
+      Seeding script MUST:
+      - Hash all passwords with bcrypt (10+ rounds) before inserting
+      - Generate UUIDs for all id fields
+      - Use ISO timestamps (CURRENT_TIMESTAMP)
+      - Encrypt any sensitive credentials (provider API keys) at rest
+      - Be idempotent (check if data exists before inserting, no duplicates on re-run)
+
+      Example bcrypt hash (Node.js):
+      const bcrypt = require('bcrypt');
+      const hash = bcrypt.hashSync('AdminPassword123', 10);
+      // Store hash in database, not plaintext
+    </implementation>
+
+    <project_setup_steps>
+      For developers on their first day:
+
+      1. Clone repository
+         git clone https://github.com/your-org/engageninja.git
+         cd engageninja
+
+      2. Install dependencies
+         pnpm install  # frontend
+         cd backend && npm install && cd ..
+
+      3. Create environment files
+         cp backend/.env.example backend/.env
+         # Edit backend/.env with database path, API keys, ports
+
+      4. Initialize database (schema + seed data)
+         npm run db:init
+         # This creates database.sqlite and populates seed data automatically
+
+      5. Verify database setup
+         npm run db:verify  # Optional: verify seed data was created correctly
+         # Check: 4 plans, 2 users, 1 tenant, 20 contacts exist
+
+      6. Start development servers
+         npm run dev
+         # Starts frontend (port 3173) + backend (port 5173)
+
+      7. Test application
+         - Open http://localhost:3173
+         - Login as: admin@engageninja.local / AdminPassword123
+         - Or login as: user@engageninja.local / UserPassword123
+         - Navigate to /contacts → see 20 sample contacts
+         - Navigate to /usage → see usage counter (0 messages)
+         - Create new campaign → see tags (vip, newsletter, etc.) available
+
+      8. Verify no errors
+         - DevTools Console: no errors/warnings
+         - Server logs: clean startup, no exceptions
+         - Database: all tables created, seed data present
+
+      Typical time to complete: 10-15 minutes (including npm installs)
+    </project_setup_steps>
+
+    <troubleshooting>
+      If developers encounter issues:
+
+      Database file not created:
+      - Check database path in .env is writable
+      - Verify node_modules/better-sqlite3 is installed (npm install better-sqlite3)
+      - Run: npm run db:init again
+
+      Seed data not inserted:
+      - Check .env database path matches npm run db:init expectation
+      - Verify no previous database.sqlite with conflicting data
+      - Run: rm database.sqlite && npm run db:init (fresh init)
+
+      Login fails:
+      - Verify user seed data inserted: npm run db:verify
+      - Check credentials: admin@engageninja.local / AdminPassword123
+      - Ensure password hashing is correct (bcrypt 10+ rounds)
+
+      Contacts not visible in UI:
+      - Check tenant association (both users linked to Demo Tenant)
+      - Verify contact inserts include correct tenant_id
+      - Check SQL: SELECT COUNT(*) FROM contacts; should be 20
+
+      Ports already in use:
+      - Edit .env: change {frontend_port} or {backend_port}
+      - Or kill existing process: lsof -i :3173 and lsof -i :5173
+
+      Database locked:
+      - SQLite file-based, ensure single process accessing it
+      - Close any other instances of app
+      - Restart: npm run dev
+    </troubleshooting>
+
+    <initial_state>
+      After npm run db:init and npm run dev, developers have:
+      - ✅ Complete database schema (16 tables, relationships, indexes)
+      - ✅ 4 pricing plans ready for testing
+      - ✅ 2 test users (admin + regular) with known credentials
+      - ✅ 1 demo tenant on free plan
+      - ✅ 20 sample contacts with realistic data
+      - ✅ 5 tags for filtering/segmentation
+      - ✅ Usage counter initialized to 0
+      - ✅ Ready to log in and test all features immediately
+      - ✅ No manual setup needed
+      - ✅ No missing data or configuration
+
+      Developers can immediately:
+      - Log in with test credentials
+      - Browse /contacts (see 20 sample contacts)
+      - Create campaigns targeting sample contacts
+      - Test filtering by tags
+      - View /usage (see usage metering)
+      - Implement new features as per Linear issues
+    </initial_state>
+  </database_setup_and_seeding>
+
+  <core_features>
+    <authentication>
+      <signup>
+        User can register with email and password. Auto-creates tenant on "free" plan. Password hashed with bcrypt (≥10 rounds). Session cookie set for 30 days (refreshed on each request).
+        
+        Test Steps:
+        1. Navigate to /signup
+        2. Enter email and password
+        3. Click "Sign up"
+        4. Verify: redirect to /dashboard
+        5. Verify: session cookie exists (httpOnly, Secure)
+        6. Verify: user + tenant created in database
+        7. Verify: no plaintext password in logs or database
+        8. No console errors
+      </signup>
+      
+      <login>
+        User can log in with email and password. Returns all tenants associated with user. Sets session cookie for 30 days. If user has >1 tenant, show tenant selector; if only 1 tenant, auto-select and skip selector.
+        
+        Test Steps:
+        1. Navigate to /login
+        2. Enter email and password
+        3. Click "Log in"
+        4. Verify: session cookie set
+        5. Verify: redirect to /dashboard (or tenant selector if multi-tenant)
+        6. Verify: password validated correctly (wrong password rejected)
+        7. Verify: all tenants returned in response
+        8. No console errors
+      </login>
+      
+      <logout>
+        User can click "Log out" button. Clears session cookie. Redirects to /login. User cannot access authenticated pages after logout.
+        
+        Test Steps:
+        1. Log in
+        2. Click "Log out"
+        3. Verify: session cookie cleared
+        4. Verify: redirect to /login
+        5. Try to access /dashboard → redirected to /login
+        6. No console errors
+      </logout>
+      
+      <forgot_password>
+        User can request password reset. System generates 6-character alphanumeric token, stores with 1-hour expiry. Sends email with reset link (app.engageNinja.com/reset-password?token=ABC123). Token is one-time use.
+        
+        Test Steps:
+        1. Navigate to /forgot-password
+        2. Enter email
+        3. Click "Send Reset Email"
+        4. Verify: email sent (can mock in dev)
+        5. Verify: token created in database with 1-hour expiry
+        6. Verify: token valid for exactly 1 hour, then expires
+        7. No console errors
+      </forgot_password>
+      
+      <reset_password>
+        User clicks reset link from email, enters new password. System validates token (exists, not expired, not used), hashes new password, updates user, marks token as used (can't be reused).
+        
+        Test Steps:
+        1. Receive reset link with token
+        2. Navigate to /reset-password?token=ABC123
+        3. Enter new password
+        4. Click "Reset Password"
+        5. Verify: password updated in database (hashed)
+        6. Verify: token marked as used
+        7. Verify: can log in with new password
+        8. Verify: same token can't be used twice
+        9. Verify: expired token rejected with error message
+        10. No console errors
+      </reset_password>
+      
+      <session_management>
+        Session validated on every request. Tenant context extracted from session (never from client). Session timeout is 30 days of inactivity (refreshed on each request). CSRF protection via Content-Type validation.
+        
+        Test Steps:
+        1. Log in
+        2. Make authenticated request (e.g., GET /contacts)
+        3. Verify: tenant_id in response is user's tenant (not client-controlled)
+        4. Verify: session refresh timestamp updated
+        5. Wait 30 days of inactivity (or simulate) → session expires
+        6. Try to access authenticated page → redirected to /login
+        7. POST request without application/json Content-Type → rejected
+        8. No console errors
+      </session_management>
+      
+      <multi_tenant_switching>
+        If user has >1 tenant, show tenant selector in app header. User can click to switch active tenant. Warning if unsaved changes exist. Next requests use new tenant context.
+        
+        Test Steps:
+        1. Log in as user with 2+ tenants
+        2. Verify: tenant selector visible in header
+        3. Switch to different tenant
+        4. Verify: warning shown if form has unsaved changes
+        5. Verify: active_tenant_id in session updated
+        6. Verify: all subsequent requests scoped to new tenant
+        7. Verify: user cannot access data from previous tenant
+        8. No console errors
+      </multi_tenant_switching>
+    </authentication>
+
+    <contacts>
+      <csv_import>
+        User uploads CSV file. System validates file (MIME type, <10 MB size), parses columns (phone, email, name, tags, consent_whatsapp, consent_email), normalizes phone to E.164 format (+1234567890), deduplicates by phone (update if exists), deduplicates by email (skip if exists), returns summary (created/updated/skipped counts + first 10 error messages).
+        
+        Test Steps:
+        1. Navigate to /contacts/import
+        2. Upload valid CSV (3+ rows, mix of valid/invalid data)
+        3. Verify: file accepted (MIME type, size checked)
+        4. Verify: CSV parsed correctly
+        5. Verify: phone numbers normalized to E.164
+        6. Verify: duplicates handled (update if phone exists, skip if email exists)
+        7. Verify: summary returned (created/updated/skipped counts)
+        8. Verify: error list shows first 10 errors with line numbers
+        9. Verify: contacts appear in /contacts list
+        10. Verify: temp file deleted after import
+        11. No console errors
+      </csv_import>
+      
+      <contact_list_search_filter>
+        User views /contacts page. Can search by name/phone/email (substring match). Can filter by tags (AND logic, multiple tags supported). Can sort by created_at/updated_at/name. Pagination (50 per page default). Excludes soft-deleted contacts.
+        
+        Test Steps:
+        1. Navigate to /contacts
+        2. Verify: list displays all contacts (50 per page)
+        3. Search by name → matching contacts shown
+        4. Search by phone → matching contacts shown
+        5. Search by email → matching contacts shown
+        6. Filter by tag (single) → only contacts with tag shown
+        7. Filter by multiple tags → only contacts with ALL tags shown
+        8. Sort by created_at → list reordered
+        9. Pagination: click next page → new contacts shown
+        10. Delete contact → not shown in list
+        11. No console errors
+      </contact_list_search_filter>
+      
+      <consent_tracking>
+        User can see consent flags (consent_whatsapp, consent_email) for each contact. Can view consent_source (import_csv, manual, api). Can see consent_updated_at timestamp. Cannot downgrade consent (false→true allowed, true→false not allowed).
+        
+        Test Steps:
+        1. Navigate to /contacts/:id
+        2. Verify: consent_whatsapp, consent_email flags visible
+        3. Verify: consent_source shown (e.g., "import_csv")
+        4. Verify: consent_updated_at timestamp shown
+        5. Edit contact: attempt to change consent_whatsapp true→false
+        6. Verify: system prevents downgrade (shows error or disables toggle)
+        7. Verify: can change false→true (upgrade)
+        8. Verify: consent_updated_at timestamp updates
+        9. No console errors
+      </consent_tracking>
+      
+      <contact_crud>
+        User can manually add contact (POST /contacts), edit contact (PATCH /contacts/:id), delete contact (soft delete). Form validation: phone unique per tenant (if changing), email format validated. Cannot change phone to conflict with existing.
+        
+        Test Steps:
+        1. Add contact: fill form (phone, email, name, tags, consent) → click "Add"
+        2. Verify: contact created in database
+        3. Verify: appears in contact list
+        4. Edit contact: change name, email, tags
+        5. Verify: updates in database
+        6. Try to change phone to existing phone → error message
+        7. Delete contact: click delete → confirmation modal
+        8. Verify: contact soft-deleted (deleted_at set)
+        9. Verify: not shown in list
+        10. No console errors
+      </contact_crud>
+    </contacts>
+
+    <tenant_settings>
+      <whatsapp_configuration>
+        User navigates to /settings/channels/whatsapp. Enters Meta API credentials (phone_number_id, business_account_id, access_token). System validates credentials with Meta API before saving. Credentials encrypted and stored in database. Cannot view credentials after saving (redacted in UI). User can click "Sync Templates" to fetch WhatsApp templates from Meta API.
+        
+        Test Steps:
+        1. Navigate to /settings/channels/whatsapp
+        2. Enter Meta credentials (phone number ID, business account ID, access token)
+        3. Click "Connect"
+        4. Verify: credentials validated with Meta API
+        5. Verify: credentials encrypted + stored in database
+        6. Verify: success message shown
+        7. Verify: credentials not visible in UI (redacted)
+        8. Click "Sync Templates"
+        9. Verify: templates fetched from Meta API
+        10. Verify: stored in whatsapp_templates table
+        11. Verify: template list shows name, status (approved/pending/rejected), variable count
+        12. Click "Disconnect"
+        13. Verify: credentials deleted, is_connected=false
+        14. No console errors
+      </whatsapp_configuration>
+      
+      <email_configuration>
+        User navigates to /settings/channels/email. Selects provider (SES or Brevo). For SES: enters AWS access key, secret key, region, verified sender email. For Brevo: enters API key + verified sender email. System validates credentials before saving. Credentials encrypted + stored. Cannot view credentials after saving. Status shows "Connected" or "Not Connected".
+        
+        Test Steps:
+        1. Navigate to /settings/channels/email
+        2. Select "SES" provider
+        3. Enter AWS credentials + verified sender email
+        4. Click "Connect"
+        5. Verify: credentials validated with SES API
+        6. Verify: credentials encrypted + stored
+        7. Verify: "Connected" status shown
+        8. Verify: credentials not visible (redacted)
+        9. Click "Disconnect"
+        10. Verify: credentials deleted, status shows "Not Connected"
+        11. (Repeat for Brevo if implementing)
+        12. No console errors
+      </email_configuration>
+      
+      <settings_display>
+        User navigates to /settings/channels. Sees status of all channels: WhatsApp (provider, is_connected, connected_at), Email (provider, is_connected, verified_sender email). No credentials exposed. Shows connection buttons if not connected, disconnect buttons if connected.
+        
+        Test Steps:
+        1. Navigate to /settings/channels
+        2. Verify: WhatsApp status shown (connected/not connected)
+        3. Verify: Email status shown (connected/not connected)
+        4. Verify: no API keys, tokens, or secrets visible
+        5. Verify: verified sender email shown (if email configured)
+        6. Verify: templates count shown (if WhatsApp connected)
+        7. Click "Connect" button (if not connected)
+        8. Click "Disconnect" button (if connected)
+        9. No console errors
+      </settings_display>
+    </tenant_settings>
+
+    <campaigns>
+      <create_campaign>
+        User navigates to /campaigns/new. Selects channel (WhatsApp or Email). For WhatsApp: selects template from synced templates, maps variables (contact fields or static values), previews message. For Email: enters subject + body (plain text + optional HTML). Selects audience: all contacts or filtered by tags. System calculates audience preview count. User can review before saving.
+        
+        Test Steps:
+        1. Navigate to /campaigns/new
+        2. Select channel "WhatsApp"
+        3. Select template from dropdown
+        4. Verify: template variables shown (e.g., {{name}}, {{offer_code}})
+        5. Map variables: {{name}} → contact.name, {{offer_code}} → "NEWYEAR25"
+        6. Verify: preview message with sample contact data
+        7. Verify: all variables mapped (no unmapped variables)
+        8. Select audience: filter by tags (e.g., "vip")
+        9. Verify: audience preview count updated
+        10. Click "Save Draft"
+        11. Verify: campaign saved (status="draft")
+        12. Verify: appears in /campaigns list
+        13. No console errors
+      </create_campaign>
+      
+      <send_campaign>
+        User navigates to /campaigns/:id. Clicks "Send" button. System checks usage limits (hard block if over limit, return error: "You've reached X/Y messages. Upgrade to continue."). Creates message records (one per recipient) with status "queued". Queues to provider (WhatsApp Cloud API or SES). Sets campaign status="sending". Returns live metrics counter that polls every 5 seconds for updates.
+        
+        Test Steps:
+        1. Navigate to /campaigns/:id (draft campaign)
+        2. Click "Send"
+        3. Verify: usage limits checked
+        4. If under limit:
+           a. Verify: message records created in database (status="queued")
+           b. Verify: campaign status changed to "sending"
+           c. Verify: metrics counter displayed (sent, delivered, read counts)
+           d. Verify: page polls every 5 seconds for metric updates
+        5. If over limit:
+           a. Verify: error message shown: "You've reached X/Y messages..."
+           b. Verify: campaign NOT sent
+           c. Verify: link to upgrade shown
+        6. No console errors
+      </send_campaign>
+      
+      <campaign_metrics>
+        User views /campaigns/:id/metrics. Shows metrics for original send: sent count, delivered count, read count, failed count, read rate %. If resend exists, shows resend metrics + uplift calculation: (incremental_reads) + (uplift %). Uplift calculated as: (read_after - read_before) / read_before * 100%.
+        
+        Test Steps:
+        1. Send campaign
+        2. Wait for webhook updates (status: sent, delivered, read)
+        3. Navigate to /campaigns/:id/metrics
+        4. Verify: metrics displayed (sent, delivered, read, failed counts)
+        5. Verify: read rate calculated correctly
+        6. Resend campaign (after 24h)
+        7. Verify: resend metrics shown
+        8. Verify: uplift calculation shown
+        9. Verify: comparison message: "65 additional people read your message after resend (+36.1%)"
+        10. No console errors
+      </campaign_metrics>
+      
+      <campaign_list>
+        User navigates to /campaigns. Sees list of campaigns: name, channel, status, audience count, last sent date, metrics summary. Pagination (50 per page). Click to view detail.
+        
+        Test Steps:
+        1. Navigate to /campaigns
+        2. Verify: list displays campaigns
+        3. Verify: columns show name, channel, status, metrics
+        4. Verify: pagination controls visible
+        5. Click campaign → detail page opens
+        6. No console errors
+      </campaign_list>
+      
+      <resend_to_nonreaders>
+        User views completed WhatsApp campaign detail. If 24+ hours since original send AND campaign not yet resent, "Resend to Non-Readers" button visible. Clicking button creates new campaign (resend_of_campaign_id set to original campaign ID). Targets only contacts with message status "delivered" but not "read". Sends same message (no editing). Records resend separately for metrics.
+        
+        Test Steps:
+        1. Send WhatsApp campaign
+        2. Wait for delivery (webhook confirms "delivered")
+        3. View campaign detail immediately → "Resend" button disabled, shows "Available after [timestamp]"
+        4. Wait 24+ hours
+        5. Refresh page → "Resend to Non-Readers" button enabled
+        6. Click "Resend"
+        7. Verify: confirmation dialog shown
+        8. Click "Confirm"
+        9. Verify: new campaign created (linked to original via resend_of_campaign_id)
+        10. Verify: targeted only non-readers (message status "delivered" + not "read")
+        11. Verify: resend metrics tracked separately
+        12. Verify: can only resend once per original campaign
+        13. No console errors
+      </resend_to_nonreaders>
+    </campaigns>
+
+    <email_campaigns>
+      <email_send>
+        User creates email campaign (subject, body plain text + optional HTML). Selects audience (all contacts or filtered by tags). Excludes contacts with consent_email=false. Clicks "Send". System checks usage limits (hard block if over). Sends via SES (or Brevo). Creates message records per recipient. Tracks sends, bounces, complaints from provider webhooks.
+        
+        Test Steps:
+        1. Navigate to /campaigns/new
+        2. Select channel "Email"
+        3. Enter subject + body
+        4. Verify: preview shown
+        5. Select audience (filter by tags if desired)
+        6. Click "Send"
+        7. Verify: usage limits checked
+        8. Verify: contacts with consent_email=false excluded
+        9. Verify: SES (or Brevo) API called
+        10. Verify: message records created (status="queued")
+        11. Wait for webhooks
+        12. Verify: status updates (sent, delivered, bounce, complaint)
+        13. No console errors
+      </email_send>
+    </email_campaigns>
+
+    <webhooks>
+      <whatsapp_webhook>
+        Provider (Meta) sends webhook to POST /webhooks/whatsapp. System validates Meta webhook signature. Parses status updates (sent, delivered, read). Maps provider_message_id to internal message record. Updates message status. Handles out-of-order webhooks (status machine: only upgrade status, never downgrade).
+        
+        Test Steps:
+        1. Send WhatsApp campaign
+        2. Provider (Meta) sends webhook with status="sent"
+        3. Verify: message status updated to "sent" in database
+        4. Provider sends status="delivered"
+        5. Verify: message status updated to "delivered"
+        6. Provider sends status="read"
+        7. Verify: message status updated to "read"
+        8. Simulate out-of-order webhook: receive "delivered" after "read"
+        9. Verify: status stays "read" (not downgraded)
+        10. Verify: webhook signature validated (invalid signature rejected)
+        11. Verify: campaign metrics updated (sent/delivered/read counts)
+        12. No console errors
+      </whatsapp_webhook>
+      
+      <email_webhook>
+        Provider (SES or Brevo) sends webhook to POST /webhooks/email/ses or /webhooks/email/brevo. System parses events (sent, delivered, bounce, complaint). Updates message status. Handles idempotency (same provider_message_id + status processed only once).
+        
+        Test Steps:
+        1. Send email campaign
+        2. Provider sends webhook: event="sent"
+        3. Verify: message status updated to "sent"
+        4. Provider sends event="delivered"
+        5. Verify: message status updated to "delivered"
+        6. Provider sends bounce event
+        7. Verify: message status updated to "bounce"
+        8. Simulate duplicate webhook (same provider_message_id + status)
+        9. Verify: processed only once (no duplicate status entries)
+        10. Verify: campaign metrics updated
+        11. No console errors
+      </email_webhook>
+    </webhooks>
+
+    <usage_and_plan_limits>
+      <usage_tracking>
+        System tracks messages sent per tenant per month (calendar month: Jan 1-31, etc.). Increments counter on message creation (one per message sent, including resends). Stores in usage_counters table (tenant_id, year_month, whatsapp_messages_sent, email_messages_sent).
+        
+        Test Steps:
+        1. Create tenant on "free" plan (1,000 WhatsApp messages/month limit)
+        2. Send campaign (10 recipients)
+        3. Verify: usage_counters table updated (whatsapp_messages_sent=10)
+        4. Send 5 more campaigns (90 more messages)
+        5. Verify: counter now shows 100
+        6. Navigate to /usage page
+        7. Verify: current usage shown (100/1000 messages)
+        8. Wait for calendar month to change (or simulate)
+        9. Verify: counter resets at month boundary
+        10. No console errors
+      </usage_tracking>
+      
+      <plan_limits_enforcement>
+        When sending campaign, system checks: is (current_usage + messages_to_send) > plan_limit? If yes, return error: "You've reached 1,000 WhatsApp messages this month. Upgrade to continue." Hard block (no partial sends). If no, allow send.
+        
+        Test Steps:
+        1. Create tenant on "free" plan (1,000 limit)
+        2. Send campaign until usage=1,000
+        3. Attempt to send more campaign (10 recipients)
+        4. Verify: error returned: "You've reached 1,000 messages. Upgrade to continue."
+        5. Verify: campaign NOT sent (no message records created)
+        6. Upgrade plan to "starter" (10,000 limit)
+        7. Verify: can now send campaign (under new limit)
+        8. No console errors
+      </plan_limits_enforcement>
+      
+      <usage_display>
+        User navigates to /usage page. Sees: plan name, messages limit per month, current month usage, usage progress bar (% of limit). Shows warning at 80% usage: "You have 200 messages remaining this month". Shows warning when at/over limit: "You've reached your plan limit. Upgrade to continue." Link to /upgrade prominent.
+        
+        Test Steps:
+        1. Navigate to /usage
+        2. Verify: plan name shown
+        3. Verify: current month + usage displayed
+        4. Verify: progress bar shown (% of limit)
+        5. When usage <80%: no warning shown
+        6. When usage 80-99%: warning shown (e.g., "200 messages remaining")
+        7. When usage ≥100%: "plan limit reached" warning shown
+        8. Verify: "Upgrade" link visible and clickable
+        9. No console errors
+      </usage_display>
+    </usage_and_plan_limits>
+
+    <ai_assistance>
+      <generate_message_ideas>
+        User in campaign creation clicks "Generate Ideas". System calls Claude API with context ("New Year promotional offer for VIP customers"). Returns 2-3 message variations (plain text suggestions). User can pick one or edit manually. No automatic application (user must explicitly "Use this copy").
+        
+        Test Steps:
+        1. Navigate to /campaigns/new (WhatsApp)
+        2. Click "Generate Ideas"
+        3. Enter context: "New Year promotional offer"
+        4. Verify: ideas generated + displayed (2-3 variations)
+        5. Verify: user can edit text manually
+        6. Click "Use this copy" → text populated in template variable input
+        7. Verify: can continue with campaign creation
+        8. Verify: API key never exposed to frontend
+        9. Rate limit: try 11 times in a day → error on 11th
+        10. No console errors
+      </generate_message_ideas>
+      
+      <generate_email_draft>
+        User in email campaign creation clicks "Generate Draft". System calls Claude API with subject_idea. Returns subject + body_plain + body_html. User can pick or edit. Same rate limiting + safety rules as message ideas.
+        
+        Test Steps:
+        1. Navigate to /campaigns/new (Email)
+        2. Enter subject idea: "Black Friday Sale"
+        3. Click "Generate Draft"
+        4. Verify: email draft generated (subject + body_plain + body_html)
+        5. Verify: displayed in form
+        6. User can edit or use as-is
+        7. Verify: rate limit enforced (10 requests/day)
+        8. Verify: API key not exposed
+        9. No console errors
+      </generate_email_draft>
+    </ai_assistance>
+
+    <dashboard>
+      <dashboard_homepage>
+        User navigates to /dashboard (default app page after login). Shows: total contacts count, campaigns sent this month, messages sent this month. Quick actions: "New Contact", "New Campaign", "Settings". Recent campaigns list (last 5). Match design system colors/typography.
+        
+        Test Steps:
+        1. Log in → automatically redirected to /dashboard (or /dashboard loads)
+        2. Verify: stats displayed (contacts, campaigns, messages)
+        3. Verify: stats accurate (match database)
+        4. Verify: quick actions visible + clickable
+        5. Verify: recent campaigns list shown
+        6. Verify: UI matches design system (colors, fonts, spacing)
+        7. No console errors
+      </dashboard_homepage>
+      
+      <navigation_sidebar>
+        Sidebar shows: Contacts, Campaigns, Settings links. Header shows: logo, tenant selector (if multi-tenant), user profile dropdown (logout). Sidebar collapsible on mobile (<768px). Hamburger menu button appears on mobile.
+        
+        Test Steps:
+        1. Verify: sidebar navigation links visible
+        2. Click "Contacts" → navigate to /contacts
+        3. Click "Campaigns" → navigate to /campaigns
+        4. Click "Settings" → navigate to /settings
+        5. On mobile (375px width): hamburger menu visible
+        6. Click hamburger → sidebar toggles open/closed
+        7. On desktop (1024px): sidebar always visible
+        8. If multi-tenant: tenant selector visible in header
+        9. Click tenant selector → dropdown shows available tenants
+        10. Click different tenant → switch contexts
+        11. Click user profile dropdown → logout option
+        12. No console errors
+      </navigation_sidebar>
+    </dashboard>
+
+    <marketing_website>
+      <marketing_site_purpose>
+        Public marketing website (www.engageNinja.com) separate from the application (app.engageNinja.com). Goal: convert visitors to free signups + demo requests. Drives traffic to the app via clear CTAs. Builds trust and differentiates from competitors (Brevo, Interakt).
+      </marketing_site_purpose>
+
+      <homepage>
+        Hero section with: "Send with certainty. Resend with intelligence. Prove uplift." statement. Visual explanation of the send → resend → uplift loop (animation or diagram). CTAs: "Start Free" (→ app.engageNinja.com/signup) and "Book a Demo". Brief description of what EngageNinja is (WhatsApp-first platform). Trust indicators: customer logos, testimonials, security badges.
+        
+        Test Steps:
+        1. Navigate to www.engageNinja.com/
+        2. Verify: hero section visible with headline
+        3. Verify: visual loop animation/diagram displayed
+        4. Click "Start Free" → redirected to app.engageNinja.com/signup
+        5. Click "Book a Demo" → demo booking form or external link (Calendly)
+        6. Verify: CTAs functional
+        7. Verify: page responsive on mobile (375px)
+        8. Verify: dark mode works (if toggled)
+        9. No console errors
+      </homepage>
+
+      <platform_page>
+        Explain EngageNinja features: WhatsApp-first UX, resend to non-readers, uplift metrics, multi-channel support (email), AI assistance, contact management. Includes feature highlights with icons/images. Link to /pricing for plan details.
+        
+        Test Steps:
+        1. Navigate to www.engageNinja.com/platform
+        2. Verify: feature cards displayed with descriptions
+        3. Verify: images/icons load correctly
+        4. Verify: "Learn More" links functional
+        5. Verify: link to /pricing works
+        6. Verify: mobile responsive
+        7. No console errors
+      </platform_page>
+
+      <solutions_page>
+        Industry-specific use cases: E-commerce, SaaS, Agencies, Nonprofits. Each shows: problem → EngageNinja solution → result (e.g., "E-commerce sellers: send abandoned cart messages, resend to non-openers, increase conversions by X%"). Includes case studies (if available) or mock testimonials.
+        
+        Test Steps:
+        1. Navigate to www.engageNinja.com/solutions
+        2. Verify: industry cards displayed
+        3. Click industry card → details expand or navigate to specific solution page
+        4. Verify: problem/solution/result clearly stated
+        5. Verify: mobile responsive
+        6. No console errors
+      </solutions_page>
+
+      <pricing_page>
+        Display pricing tiers: Free, Starter, Growth, Pro. Include monthly/yearly toggle. Each tier shows: price, WhatsApp messages/month, Email messages/month, max users, features (AI, API), CTA button ("Start Free" or "Upgrade"). Comparison table optional (shows feature parity across tiers). Link to FAQ for questions.
+        
+        Test Steps:
+        1. Navigate to www.engageNinja.com/pricing
+        2. Verify: all tiers displayed (Free, Starter, Growth, Pro)
+        3. Click "Monthly" / "Yearly" toggle → prices update
+        4. Verify: yearly shows discount (20% typical)
+        5. Click "Start Free" (Free tier) → redirected to signup
+        6. Click "Upgrade" (Starter+) → redirected to signup with plan pre-selected
+        7. Verify: pricing accurate (matches app_spec plans section)
+        8. Verify: mobile responsive
+        9. No console errors
+      </pricing_page>
+
+      <resources_page>
+        Blog posts, guides, tutorials. Examples: "How to write effective WhatsApp messages", "Best practices for resend campaigns", "Measuring ROI in customer engagement". Link to knowledge base (can be external).
+        
+        Test Steps:
+        1. Navigate to www.engageNinja.com/resources
+        2. Verify: blog post list displayed
+        3. Click blog post → opens article (can be external or internal)
+        4. Verify: content readable
+        5. Verify: "Subscribe" or newsletter signup available
+        6. Verify: mobile responsive
+        7. No console errors
+      </resources_page>
+
+      <security_page>
+        Explain security & compliance: encryption, data isolation (tenant isolation), password hashing, HTTPS only, consent tracking, GDPR-ready (Phase 2), no silent errors, audit logs (Phase 2). Builds confidence for enterprise buyers. Link to security/privacy documentation.
+        
+        Test Steps:
+        1. Navigate to www.engageNinja.com/security
+        2. Verify: security features listed (encryption, hashing, isolation, etc.)
+        3. Verify: compliance mentions (GDPR, CCPA readiness)
+        4. Verify: trust badges (if applicable)
+        5. Verify: link to full privacy policy works
+        6. Verify: mobile responsive
+        7. No console errors
+      </security_page>
+
+      <about_page>
+        Company story, mission, team (if applicable). Explains why EngageNinja was built (problem: email-first platforms not ideal for WhatsApp-heavy businesses). Founder bios (if applicable). Link to careers (if hiring).
+        
+        Test Steps:
+        1. Navigate to www.engageNinja.com/about
+        2. Verify: company story readable
+        3. Verify: team members displayed (if applicable)
+        4. Verify: team photos load correctly
+        5. Verify: mobile responsive
+        6. No console errors
+      </about_page>
+
+      <demo_page>
+        Demo request form or external booking link (Calendly, Acuity Scheduling, etc.). Form collects: name, email, company, use case, phone (optional). After submission, sends confirmation email + schedules demo call with sales team.
+        
+        Test Steps:
+        1. Navigate to www.engageNinja.com/demo
+        2. Fill out demo form (name, email, company, use case)
+        3. Click "Request Demo"
+        4. Verify: confirmation message shown
+        5. Verify: confirmation email sent
+        6. If using external booking (Calendly), verify: calendar loads + can schedule
+        7. Verify: form validation (email format, required fields)
+        8. Verify: mobile responsive
+        9. No console errors
+      </demo_page>
+
+      <legal_pages>
+        Privacy Policy, Terms of Service, Cookie Policy. Each page explains: data collection, data usage, user rights, contact for privacy questions.
+        
+        Test Steps:
+        1. Navigate to www.engageNinja.com/privacy
+        2. Verify: privacy policy readable + comprehensive
+        3. Verify: explains data collection + rights
+        4. Navigate to www.engageNinja.com/terms
+        5. Verify: terms of service readable
+        6. Navigate to www.engageNinja.com/cookie-policy
+        7. Verify: cookie policy explains tracking
+        8. Verify: all pages mobile responsive
+        9. No console errors
+      </legal_pages>
+
+      <navigation_and_layout>
+        Header: Logo, Navigation menu (Platform, Solutions, Resources, Pricing, Security, About), CTAs (Log In, Start Free). Footer: Links to all pages, social media, contact email. Sticky header (visible when scrolling). Mobile: hamburger menu. Consistent branding (colors, fonts, spacing) with app.
+        
+        Test Steps:
+        1. Verify: header visible on all pages
+        2. Click logo → returns to homepage
+        3. Click "Log In" → redirected to app.engageNinja.com/login
+        4. Click "Start Free" → redirected to app.engageNinja.com/signup
+        5. On mobile: hamburger menu visible, click opens navigation
+        6. Verify: footer visible on all pages with links
+        7. Verify: social media links (if applicable)
+        8. Verify: sticky header doesn't block content
+        9. No console errors
+      </navigation_and_layout>
+
+      <design_system_consistency>
+        Marketing site uses same design system as app: colors (orange primary, consistent palette), typography (system fonts, sizes, weights), spacing (4px grid), components (buttons, cards, forms). Light + dark mode both supported. Glassmorphism + liquid gradients (subtle, not overdone). Modern SaaS aesthetic (similar to Brevo, Linear, Stripe).
+        
+        Test Steps:
+        1. Compare button colors (app vs. marketing) → match
+        2. Compare typography (font size, weight) → match
+        3. Toggle dark mode → colors invert appropriately
+        4. Compare spacing between sections → consistent (4px grid)
+        5. Verify: no jarring visual differences
+        6. Verify: mobile breakpoints match (375px, 768px, 1024px)
+        7. No console errors
+      </design_system_consistency>
+
+      <analytics_tracking>
+        Track key metrics: page views, signup clicks, demo bookings, utm tracking (utm_source, utm_campaign). Use Google Analytics or Mixpanel (Phase 2 can add Segment).
+        
+        Test Steps:
+        1. Add utm parameters to signup link: ?utm_source=google&utm_campaign=search
+        2. Navigate to site via link
+        3. Click "Start Free"
+        4. Verify: Google Analytics records event (signup click)
+        5. Complete signup in app
+        6. Verify: conversion tracked
+        7. View analytics dashboard → shows traffic sources, signup conversions
+        8. No console errors
+      </analytics_tracking>
+
+      <seo_and_meta>
+        Each page has proper meta tags (title, description, Open Graph), structured data (JSON-LD), canonical URLs. Pages indexed by search engines. Sitemap.xml available.
+        
+        Test Steps:
+        1. Check page meta tags (view source → <meta name="description">)
+        2. Verify: title accurate + keyword-rich
+        3. Verify: Open Graph tags (og:title, og:image, og:url)
+        4. Verify: sitemap.xml accessible (www.engageNinja.com/sitemap.xml)
+        5. Verify: pages indexed in Google Search Console
+        6. No console errors
+      </seo_and_meta>
+    </marketing_website>
+  </core_features>
+
+  <api_contracts>
+    <auth_endpoints>
+      <signup>
+        POST /auth/signup
+        Request: {email, password}
+        Response (201): {user_id, tenant_id, email, message}
+        Response (400): {error, status} — "Email already exists" or "Invalid email format"
+      </signup>
+      
+      <login>
+        POST /auth/login
+        Request: {email, password}
+        Response (200): {user_id, email, tenants: [{tenant_id, name, plan}], active_tenant_id}
+        Response (401): {error, status} — "Invalid credentials"
+      </login>
+      
+      <logout>
+        POST /auth/logout
+        Response (200): {message, status}
+      </logout>
+      
+      <forgot_password>
+        POST /auth/forgot-password
+        Request: {email}
+        Response (200): {message: "Password reset email sent if account exists", status}
+      </forgot_password>
+      
+      <reset_password>
+        POST /auth/reset-password
+        Request: {token, new_password}
+        Response (200): {message, status}
+        Response (400): {error: "Token expired or invalid", status}
+      </reset_password>
+      
+      <get_me>
+        GET /auth/me
+        Response (200): {user_id, email, tenants: [{tenant_id, name, plan}], active_tenant_id}
+        Response (401): {error, status}
+      </get_me>
+    </auth_endpoints>
+    
+    <contacts_endpoints>
+      <import_csv>
+        POST /contacts/import
+        Request: multipart/form-data {file: CSV, column_mapping: JSON}
+        Response (200): {summary: {created, updated, skipped}, errors: [{line, error}]}
+      </import_csv>
+      
+      <list_contacts>
+        GET /contacts?search=text&tags=tag1,tag2&page=1&per_page=50
+        Response (200): {contacts: [{id, phone, email, name, tags, consent_whatsapp, consent_email, created_at}], total, page, per_page}
+      </list_contacts>
+      
+      <get_contact>
+        GET /contacts/:id
+        Response (200): {id, phone, email, name, tags, consent_whatsapp, consent_email, consent_source, consent_updated_at, created_at, updated_at}
+      </get_contact>
+      
+      <add_contact>
+        POST /contacts
+        Request: {phone, email, name, tags, consent_whatsapp, consent_email}
+        Response (201): {id, phone, email, name, ...}
+        Response (409): {error: "Phone number already exists", status}
+      </add_contact>
+      
+      <update_contact>
+        PATCH /contacts/:id
+        Request: {phone?, email?, name?, tags?, consent_whatsapp?, consent_email?}
+        Response (200): {id, phone, email, ...}
+      </update_contact>
+      
+      <delete_contact>
+        DELETE /contacts/:id
+        Response (200): {message, status}
+      </delete_contact>
+    </contacts_endpoints>
+    
+    <settings_endpoints>
+      <get_channels>
+        GET /settings/channels
+        Response (200): {whatsapp: {provider, is_connected, connected_at, phone_number_id, templates_count}, email: {provider, is_connected, verified_sender}}
+      </get_channels>
+      
+      <connect_whatsapp>
+        POST /settings/channels/whatsapp/connect
+        Request: {phone_number_id, business_account_id, access_token}
+        Response (201): {message, status}
+        Response (400): {error: "Invalid credentials", status}
+      </connect_whatsapp>
+      
+      <connect_email>
+        POST /settings/channels/email/connect
+        Request: {provider: "ses" | "brevo", aws_access_key_id?, aws_secret_access_key?, region?, api_key?, verified_sender}
+        Response (201): {message, status}
+      </connect_email>
+      
+      <disconnect_channel>
+        POST /settings/channels/:channel/disconnect
+        Response (200): {message, status}
+      </disconnect_channel>
+      
+      <get_whatsapp_templates>
+        GET /settings/channels/whatsapp/templates
+        Response (200): {templates: [{id, name, status, variable_count, body}], synced_at}
+      </get_whatsapp_templates>
+    </settings_endpoints>
+    
+    <campaigns_endpoints>
+      <create_campaign>
+        POST /campaigns
+        Request: {name, description?, channel: "whatsapp" | "email", template_id?, audience_filters: {tags: [...]}, variables_map: {...}}
+        Response (201): {id, name, channel, status: "draft", audience_preview_count, created_at}
+      </create_campaign>
+      
+      <list_campaigns>
+        GET /campaigns?page=1&per_page=50&status=draft|sending|sent
+        Response (200): {campaigns: [{id, name, channel, status, audience_count, sent_at, metrics: {sent, delivered, read, failed}}], total, page}
+      </list_campaigns>
+      
+      <get_campaign>
+        GET /campaigns/:id
+        Response (200): {id, name, channel, status, template_id, audience_filters, variables_map, sent_at, metrics: {sent, delivered, read, failed, read_rate_pct}, resend: null}
+      </get_campaign>
+      
+      <send_campaign>
+        POST /campaigns/:id/send
+        Response (200): {id, status: "sending", message, audience_count}
+        Response (400): {error: "You've reached 1,000 messages. Upgrade to continue.", status}
+      </send_campaign>
+      
+      <resend_nonreaders>
+        POST /campaigns/:id/resend-nonreaders
+        Response (200): {id, resend_of_campaign_id, status: "sending", message, resend_count}
+        Response (400): {error: "Must wait 24 hours..." | "Already resent once", status}
+      </resend_nonreaders>
+      
+      <get_metrics>
+        GET /campaigns/:id/metrics
+        Response (200): {original: {sent, delivered, read, failed, read_rate_pct}, resend: {...} | null, uplift: {incremental_reads, uplift_pct, message} | null}
+      </get_metrics>
+    </campaigns_endpoints>
+    
+    <usage_endpoints>
+      <get_usage>
+        GET /usage
+        Response (200): {plan: {id, name, whatsapp_messages_per_month, email_messages_per_month, ai_features_enabled}, current_month: "2025-01", usage: {whatsapp_messages_sent, email_messages_sent}, warnings: [...]}
+      </get_usage>
+    </usage_endpoints>
+    
+    <ai_endpoints>
+      <generate_message_ideas>
+        POST /ai/generate-message-ideas
+        Request: {context}
+        Response (200): {ideas: ["idea1", "idea2", "idea3"]}
+        Response (429): {error: "Rate limit exceeded. 10 requests per day.", status}
+      </generate_message_ideas>
+      
+      <generate_email_draft>
+        POST /ai/generate-email-draft
+        Request: {subject_idea}
+        Response (200): {subject, body_plain, body_html}
+      </generate_email_draft>
+    </ai_endpoints>
+    
+    <webhook_endpoints>
+      <whatsapp_webhook>
+        POST /webhooks/whatsapp
+        Request: {entry: [{id, changes: [{value: {statuses: [{id, status, timestamp}]}}]}]}
+        Response (200): {message, status}
+        Note: Signature validation required; out-of-order delivery handled (status machine)
+      </whatsapp_webhook>
+      
+      <email_webhook_ses>
+        POST /webhooks/email/ses
+        Request: SNS notification {Type, Message, MessageId}
+        Response (200): {message, status}
+      </email_webhook_ses>
+    </webhook_endpoints>
+  </api_contracts>
+
+  <database_schema>
+    <tables>
+      <users>
+        id (UUID, PK), email (unique, indexed), password_hash (bcrypt), created_at, updated_at
+      </users>
+      
+      <tenants>
+        id (UUID, PK), name, plan_id (FK), created_at, updated_at
+      </tenants>
+      
+      <user_tenants>
+        user_id (FK), tenant_id (FK), role (optional), created_at
+        Constraint: (user_id, tenant_id) unique
+      </user_tenants>
+      
+      <plans>
+        id (PK, string: "free", "starter", "growth", "pro", "enterprise"), name, whatsapp_messages_per_month, email_messages_per_month, max_users, contacts_limit, sms_messages_per_month, api_tokens_per_month, ai_features_enabled, api_enabled
+      </plans>
+      
+      <password_reset_tokens>
+        token (PK, string, 6-char alphanumeric), user_id (FK), expires_at (timestamp), used_at (timestamp, nullable)
+      </password_reset_tokens>
+      
+      <tenant_channel_settings>
+        id (UUID, PK), tenant_id (FK, unique per channel), channel ("whatsapp" | "email"), provider ("whatsapp_cloud" | "ses" | "brevo"), credentials_encrypted (BLOB), verified_sender_email (nullable), is_connected (boolean), connected_at (timestamp), created_at, updated_at
+      </tenant_channel_settings>
+      
+      <contacts>
+        id (UUID, PK), tenant_id (FK, indexed), phone (E.164 format, indexed), email (indexed), name, consent_whatsapp (boolean), consent_email (boolean), consent_source (string), consent_updated_at (timestamp), deleted_at (timestamp, soft delete), created_at, updated_at
+        Constraint: unique (tenant_id, phone) where deleted_at IS NULL
+      </contacts>
+      
+      <tags>
+        id (UUID, PK), tenant_id (FK), name, created_at
+      </tags>
+      
+      <contact_tags>
+        contact_id (FK), tag_id (FK)
+        Constraint: (contact_id, tag_id) unique
+      </contact_tags>
+      
+      <campaigns>
+        id (UUID, PK), tenant_id (FK, indexed), name, description (nullable), channel ("whatsapp" | "email"), template_id (nullable), audience_filters (JSON: {tags: [...]}), message_content (JSON: {subject, html, plain_text} for email OR {template_id, variables_map} for WA), status ("draft" | "sending" | "sent" | "completed"), sent_by (user_id, nullable), sent_at (timestamp, nullable), completed_at (timestamp, nullable), resend_of_campaign_id (UUID, nullable), created_at, updated_at
+      </campaigns>
+      
+      <messages>
+        id (UUID, PK), tenant_id (FK, indexed), campaign_id (FK, indexed), contact_id (FK, indexed), channel ("whatsapp" | "email"), provider ("whatsapp_cloud" | "ses" | "brevo"), provider_message_id (string, unique per provider, indexed for webhook lookup), status ("queued" | "sent" | "delivered" | "read" | "failed"), status_reason (string, nullable), attempts (int, default 1), content_snapshot (JSON, optional), sent_at (timestamp, nullable), delivered_at (timestamp, nullable), read_at (timestamp, nullable), failed_at (timestamp, nullable), created_at, updated_at
+      </messages>
+      
+      <message_status_events>
+        id (UUID, PK), message_id (FK), provider_message_id (string, indexed), old_status, new_status, event_timestamp (timestamp, when provider reported), webhook_received_at (timestamp), created_at
+        Purpose: audit trail for debugging out-of-order webhooks
+      </message_status_events>
+      
+      <whatsapp_templates>
+        id (string, provider template_id, PK), tenant_id (FK, indexed), name, status ("approved" | "pending" | "rejected"), variable_count (int), body_template (string, template text with {{var}} placeholders), synced_at (timestamp), created_at
+      </whatsapp_templates>
+      
+      <usage_counters>
+        id (UUID, PK), tenant_id (FK, indexed), year_month (string, "YYYY-MM", indexed), whatsapp_messages_sent (int), email_messages_sent (int), updated_at
+        Constraint: unique (tenant_id, year_month)
+      </usage_counters>
+      
+      <ai_generation_logs>
+        id (UUID, PK), tenant_id (FK), user_id (FK), type ("message_ideas" | "email_draft" | "variations"), input_prompt (string, optional, sensitive), model (string, e.g., "claude-3-haiku"), generated_at (timestamp), created_at
+        Purpose: track AI usage for rate limiting + billing (Phase 2)
+      </ai_generation_logs>
+    </tables>
+
+    <relationships>
+      - users 1→Many user_tenants
+      - tenants 1→Many user_tenants
+      - tenants 1→Many contacts
+      - tenants 1→Many campaigns
+      - tenants 1→Many messages
+      - tenants 1→Many tenant_channel_settings
+      - tenants 1→Many usage_counters
+      - contacts 1→Many messages
+      - campaigns 1→Many messages
+      - messages 1→Many message_status_events
+      - contacts Many→Many tags (via contact_tags)
+    </relationships>
+
+    <key_constraints>
+      - All tenant-owned tables include tenant_id (indexed)
+      - All major tables have created_at, updated_at timestamps
+      - Soft deletes via deleted_at timestamp (queries filter: WHERE deleted_at IS NULL)
+      - Phone numbers stored in E.164 format only (normalized on import)
+      - Message status follows state machine (only upgrade, never downgrade)
+      - provider_message_id is unique (idempotent webhook handling)
+    </key_constraints>
+  </database_schema>
+
+  <design_system>
+    <color_palette>
+      Primary: Orange/Amber (#ea580c, #f97316)
+      Secondary: Blue (#3b82f6)
+      Background: Light (#ffffff), Dark (#1a1a1a)
+      Text: Light mode (#000000), Dark mode (#ffffff)
+      Border: #e5e7eb (light), #374151 (dark)
+      Success: #10b981, Error: #ef4444, Warning: #f59e0b
+    </color_palette>
+
+    <typography>
+      Font family: System font stack (Inter, SF Pro Display, Roboto, system-ui)
+      Headings: font-semibold
+      Body: font-normal, leading-relaxed
+      Code: Monospace (JetBrains Mono, Consolas, Monaco)
+      Base size: text-base (16px), comfortable line-height
+    </typography>
+
+    <spacing>
+      Grid: 4px base unit (multiples: 4, 8, 12, 16, 20, 24, 32, 48)
+      Padding: p-4 to p-6 for components
+      Margin: consistent spacing between sections
+    </spacing>
+
+    <components>
+      Buttons: Primary (orange background, white text, rounded), Secondary (border style), Icon buttons (square, hover background)
+      Inputs: Rounded borders, focus ring, placeholder gray, error states in red
+      Cards: Subtle border or shadow, rounded 8px, p-4 to p-6, hover shadow increase
+      Messages: User messages right-aligned, assistant left-aligned, inline code with gray background
+      Forms: Labels associated with inputs, error messages below fields, validation feedback
+    </components>
+
+    <animations>
+      Transitions: 150-300ms (smooth, not jarring)
+      Page load: fade in
+      Modals: slide in from top/bottom
+      Buttons: hover state color change (150ms)
+      Loading: spinner animation (smooth rotation)
+    </animations>
+
+    <responsive_breakpoints>
+      Mobile: 375px (full width, stack vertically, hamburger menu)
+      Tablet: 768px (sidebar visible, layout adapts)
+      Desktop: 1024px+ (full layout, sidebar persistent)
+    </responsive_breakpoints>
+
+    <dark_mode>
+      Toggle in settings (user preference saved)
+      All colors inverted appropriately
+      Contrast maintained (≥4.5:1 for text, ≥3:1 for graphics, WCAG AA)
+      Both modes fully tested
+    </dark_mode>
+  </design_system>
+
+  <critical_rules>
+    <tenant_isolation>
+      - tenant_id NEVER accepted from client in any request
+      - Tenant context extracted server-side from authenticated session
+      - Every data operation filtered by tenant_id (enforced in queries)
+      - User cannot access data from a different tenant (enforced in middleware)
+      - All API responses include only data belonging to active tenant
+    </tenant_isolation>
+
+    <authentication_and_sessions>
+      - Email + password auth (MVP only)
+      - Passwords hashed with bcrypt (≥10 rounds), never stored plain
+      - Session cookies: httpOnly=true, Secure=true, SameSite=Lax, Max-Age=30 days
+      - Session refreshed on each request (30-day sliding window)
+      - CSRF protection: POST/PATCH/DELETE require Content-Type: application/json
+      - Password reset: 6-char token, 1-hour expiry, one-time use
+    </authentication_and_sessions>
+
+    <provider_abstraction>
+      - WhatsApp: Meta Cloud API (primary provider)
+      - Email: SES (primary provider), Brevo optional (Phase 1)
+      - Provider selection + credentials stored in tenant_channel_settings (encrypted)
+      - Never hardcode provider in business logic
+      - All provider calls routed through abstraction layer
+      - Credentials encrypted at rest (AES-256 or environment-wide key)
+      - Never log credentials, API keys, or tokens
+      - Redact secrets in error messages and logs
+    </provider_abstraction>
+
+    <error_handling>
+      - Provider API failure (WhatsApp, SES, Brevo):
+        * Log error with full details (provider response, timestamp)
+        * Set message status to "failed"
+        * Return 500 to user: "Failed to send message. Please try again."
+        * NO retries in MVP (user can click send again)
+      
+      - Validation failure (invalid input):
+        * Return 400 with specific, user-friendly error message
+        * Example: "Email already exists" (not "UNIQUE_CONSTRAINT_VIOLATION")
+        * Never expose database details
+      
+      - Database failure:
+        * Log full stack trace for debugging
+        * Return 500 with generic message: "Something went wrong"
+        * Never expose database error details to user
+      
+      - Foreign key violation:
+        * Likely a code bug (e.g., campaign_id doesn't exist)
+        * Log error
+        * Return 500
+      
+      - Authentication failure:
+        * 401 (Unauthorized): no valid session or invalid token
+        * 403 (Forbidden): authenticated but not allowed (e.g., wrong tenant)
+      
+      - Plan limit exceeded:
+        * Return 400: "You've reached X/Y messages this month. Upgrade to continue."
+        * Include upgrade link
+      
+      - Rate limit exceeded (AI features):
+        * Return 429: "Rate limit exceeded. 10 requests per day."
+        * Include retry_after_seconds
+      
+      - Rule: Never silent failures. All errors visible to user with clear, actionable messaging.
+    </error_handling>
+
+    <testing_requirements>
+      - All UI features verified via Puppeteer (browser automation)
+      - Test steps included in feature description (see core_features section)
+      - Screenshots required before feature marked "Done"
+      - No console errors allowed (open DevTools, verify console is clean)
+      - E2E verification through actual UI (not curl/API testing alone)
+      - Functional features: verify end-to-end workflow (navigate → interact → verify result)
+      - Style/UI features: verify visual correctness (colors, spacing, responsive, dark mode, animations)
+      - API contracts: verify request/response format, status codes, error handling
+      - Tenant isolation: verify user can't access other tenant data (403 or empty response)
+      - Each feature tested in isolation + integrated with existing features (no regressions)
+    </testing_requirements>
+
+    <data_encryption>
+      - Passwords: bcrypt hashed (never stored plain)
+      - Provider credentials: encrypted at rest (AES-256)
+      - API keys/tokens: stored in env variables (never in code)
+      - Contact phone/email: stored plain (not PII encrypted in MVP, can add Phase 2)
+      - Messages: stored plain (audit trail purpose)
+      - Never expose encrypted data in API responses or logs
+    </data_encryption>
+
+    <logging_and_secrets>
+      - Never log passwords, API keys, tokens, or credentials
+      - Redact secrets in error messages (e.g., "Invalid credentials" not "Invalid AWS secret key: xyz")
+      - Log provider API errors with timestamp, endpoint, error message (not full response if it includes secrets)
+      - Log webhook events (for debugging out-of-order delivery)
+      - Log message status changes (for audit trail)
+      - Log AI generation usage (timestamp, type, user, for rate limiting)
+      - All logs should be safe to share with users (no sensitive data)
+    </logging_and_secrets>
+
+    <compliance_and_retention>
+      - Consent flags stored (consent_whatsapp, consent_email, consent_source, consent_updated_at)
+      - Consent recording visible in UI
+      - MVP approach: simple recording, no legal hold or auto-expiry
+      - Soft deletes: contacts retain deleted_at timestamp (1-year retention, then hard purge in Phase 2)
+      - GDPR/CCPA compliance: deferred to Phase 2 (retention policies, data export, deletion flows)
+      - No business associate agreements in MVP
+    </compliance_and_retention>
+
+    <performance_and_scalability>
+      - MVP: single SQLite database, single-threaded (acceptable for SMBs)
+      - Indexes on: tenant_id, phone, email, campaign_id, message_id, provider_message_id
+      - Queries: pagination (50 per page default) to avoid loading entire dataset
+      - Webhook processing: <1 second target (no heavy computation)
+      - Message polling: client-side refresh every 5 seconds (not expensive)
+      - Future (Phase 2): Postgres migration, async job queue, caching layer
+    </performance_and_scalability>
+
+    <code_quality>
+      - No hardcoded secrets
+      - Prepared statements (prevent SQL injection)
+      - Proper error handling (try/catch, .catch())
+      - Status codes correct (400 validation, 500 server error)
+      - Response format consistent (data + status fields)
+      - Comments on complex logic
+      - Clean git history (descriptive commit messages)
+    </code_quality>
+  </critical_rules>
+
+  <success_criteria>
+    <functionality>
+      - User signup/login/logout works smoothly
+      - Contact import (CSV) handles deduplication + validation correctly
+      - Campaign creation and sending works end-to-end
+      - Resend to non-readers (24-hour cooldown, one-time) works correctly
+      - Uplift metrics calculated accurately
+      - Usage metering + plan limits enforced (hard block)
+      - Webhooks update message status correctly (idempotent, out-of-order handling)
+      - Email campaigns send via SES (or Brevo) correctly
+      - Settings (WhatsApp, Email) connect + disconnect properly
+      - AI features (message ideas, email drafts) work with rate limiting
+      - All CRUD operations (contacts, campaigns, etc.) functional
+    </functionality>
+
+    <user_experience>
+      - UI responsive on mobile (375px), tablet (768px), desktop (1024px+)
+      - Dark mode works smoothly (toggle + persist preference)
+      - Smooth animations and transitions (not janky, 60fps)
+      - Fast response times (API <500ms, page load <2s)
+      - Intuitive navigation (sidebar, breadcrumbs, clear CTAs)
+      - Error messages clear and actionable (not "Error 500")
+      - Loading states visible (spinners, disabled buttons)
+      - Confirmation dialogs before destructive actions (delete)
+      - Success feedback (toast notifications, success messages)
+    </user_experience>
+
+    <technical_quality>
+      - No console errors or warnings (DevTools clean)
+      - Proper error handling (all paths covered, no crashes)
+      - Secure API key management (env variables, never in code)
+      - Tenant isolation verified (users can't access other tenant data)
+      - Database queries optimized (indexed on key fields, pagination)
+      - Webhook signature validation + idempotency working
+      - Code clean and maintainable (comments, logical structure)
+      - Git history clear (descriptive commits)
+      - API contracts match spec (request/response formats)
+    </technical_quality>
+
+    <design_polish>
+      - Colors match design system (orange primary, consistent palette)
+      - Typography correct (font sizes, weights, line-heights)
+      - Spacing consistent (4px grid, consistent padding/margins)
+      - Components polished (buttons have hover states, inputs have focus rings)
+      - Dark mode fully functional (all colors inverted, contrast maintained)
+      - Accessibility minimum (keyboard navigation, focus visible, contrast ≥AA)
+      - Professional appearance (not placeholder/ugly)
+    </design_polish>
+
+    <marketing_site_quality>
+      - All pages load without errors (no 404s, no console errors)
+      - CTAs functional (Start Free, Log In, Book Demo working)
+      - Design consistent with app (same colors, fonts, spacing)
+      - Responsive on mobile (375px), tablet (768px), desktop (1024px+)
+      - Dark mode working across all pages
+      - Forms validate correctly (email format, required fields)
+      - Analytics tracking implemented (page views, signups, demos tracked)
+      - SEO basics in place (meta tags, Open Graph, sitemap.xml)
+      - Performance: pages load <2s (mobile <3s)
+      - Mobile hamburger menu functional
+      - All legal pages (Privacy, Terms, Cookie Policy) present + readable
+      - No broken links (internal or external)
+      - Homepage hero animation/diagram visible + clear
+      - Testimonials (even if mock) displayed
+      - Pricing page accurate + matches app billing
+      - Demo booking form working (or external Calendly integration)
+    </marketing_site_quality>
+  </success_criteria>
+
+</project_specification>

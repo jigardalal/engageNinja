@@ -1,0 +1,85 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+*.lcov
+
+# Production
+/build
+/dist
+
+# Misc
+.DS_Store
+*.pem
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# OS
+Thumbs.db
+.AppleDouble
+.LSOverride
+._*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Database
+database.sqlite
+database.sqlite-wal
+database.sqlite-shm
+*.db
+*.sqlite
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Package manager
+pnpm-lock.yaml
+package-lock.json
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

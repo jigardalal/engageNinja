@@ -1,0 +1,28 @@
+/* Toast slide/fade */
+@keyframes toast-slide-in {
+  from {
+    transform: translate3d(100%, 0, 0);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-hide {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+[data-state="open"] {
+  animation: toast-slide-in 150ms ease-out forwards;
+}
+
+[data-state="closed"] {
+  animation: toast-hide 100ms ease-in forwards;
+}

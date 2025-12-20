@@ -1,0 +1,468 @@
+{
+  "_meta": {
+    "description": "EngageNinja Billing & SMS MVP - Feature tracking",
+    "status_values": ["failing", "in_progress", "passing"],
+    "last_updated": "2025-12-17",
+    "phases": {
+      "1": "Billing MVP (Weeks 1-2)",
+      "2": "SMS MVP (Weeks 2-3)"
+    }
+  },
+  "features": [
+    {
+      "id": "B001",
+      "phase": 1,
+      "category": "billing",
+      "name": "Billing provider abstraction (Stripe adapter)",
+      "description": "Implement provider pattern for billing, starting with Stripe as the default provider for all regions",
+      "requirements": [
+        "BillingProvider interface with: createCustomer, createCheckoutSession, createBillingPortalSession, handleWebhook, getSubscriptionStatus",
+        "Stripe adapter implementation",
+        "Tenant-scoped billing context"
+      ],
+      "test_procedure": [
+        "1. Verify BillingProvider interface is defined",
+        "2. Create a test tenant and call createCustomer(tenant) - confirm customer created in Stripe test account",
+        "3. Call getSubscriptionStatus(tenant) - confirm returns valid status object",
+        "4. Verify no errors in console/logs"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": ""
+    },
+    {
+      "id": "B002",
+      "phase": 1,
+      "category": "database",
+      "name": "Billing data model: create tables",
+      "description": "Create database tables for billing: billing_customers, subscriptions, invoices, usage_rollups, plan_overrides, credits",
+      "requirements": [
+        "billing_customers: tenant_id (PK), provider, provider_customer_id, created_at, updated_at",
+        "subscriptions: id, tenant_id, provider, provider_subscription_id, plan_key, status, current_period_start/end, cancel_at_period_end",
+        "invoices: id, tenant_id, provider, provider_invoice_id, amount_total, currency, status, hosted_invoice_url",
+        "usage_rollups: tenant_id, period_start/end, wa_messages_sent, emails_sent, sms_sent, updated_at",
+        "plan_overrides: tenant_id, plan_key, wa_messages_override, emails_override, sms_override, created_by, created_at, updated_at"
+      ],
+      "test_procedure": [
+        "1. Run migrations",
+        "2. Verify all tables exist with correct columns: SELECT name FROM sqlite_master WHERE type='table'",
+        "3. Create a test record in each table",
+        "4. Query and verify data roundtrips correctly"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "Extend existing usage tracking system"
+    },
+    {
+      "id": "B003",
+      "phase": 1,
+      "category": "api",
+      "name": "Billing API: checkout and portal endpoints",
+      "description": "Implement tenant-scoped API endpoints for billing",
+      "requirements": [
+        "GET /billing/summary - return current plan, usage, remaining quota",
+        "POST /billing/checkout-session - accept plan_key, return Stripe checkout URL",
+        "POST /billing/portal-session - return Stripe billing portal URL",
+        "GET /billing/invoices - return list of past invoices with download links"
+      ],
+      "test_procedure": [
+        "1. Create test tenant with subscription",
+        "2. Call GET /billing/summary - verify returns plan, usage, limits",
+        "3. Call POST /billing/checkout-session with valid plan_key - verify returns checkout URL",
+        "4. Call POST /billing/portal-session - verify returns portal URL",
+        "5. Call GET /billing/invoices - verify returns invoice list",
+        "6. Test with tenant without subscription - verify appropriate response"
+      ],
+      "status": "failing",
+      "blocking_questions": [
+        "Q1: Which plans should be available?",
+        "Q2: What are the message limits for each plan?"
+      ],
+      "notes": "Tenant-scoped; block non-owner access"
+    },
+    {
+      "id": "B004",
+      "phase": 1,
+      "category": "webhook",
+      "name": "Stripe webhooks: subscription updates",
+      "description": "Handle Stripe webhooks to update subscription status",
+      "requirements": [
+        "POST /webhooks/billing/stripe endpoint",
+        "Handle subscription.created, subscription.updated, subscription.deleted events",
+        "Handle invoice.paid, invoice.payment_failed events",
+        "Update subscription status (active/past_due/unpaid/canceled/trialing)",
+        "Validate webhook signature"
+      ],
+      "test_procedure": [
+        "1. Verify webhook endpoint accepts POST requests",
+        "2. Send test webhook event with valid Stripe signature",
+        "3. Verify subscription status updated in database",
+        "4. Send event with invalid signature - verify rejected",
+        "5. Test subscription state transitions",
+        "6. Test invoice webhooks"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "Must validate Stripe signature for security"
+    },
+    {
+      "id": "B005",
+      "phase": 1,
+      "category": "enforcement",
+      "name": "Enforce send limits: hard cap with paywall",
+      "description": "Block sending when tenant exceeds monthly limits; show paywall modal",
+      "requirements": [
+        "Check usage_rollups against plan limits before sending",
+        "Hard cap: block send if at limit, return 403 with error code",
+        "Client shows paywall modal",
+        "Paywall has Upgrade button + contact sales link",
+        "Respect plan_overrides if tenant has custom limits"
+      ],
+      "test_procedure": [
+        "1. Set up tenant with low message limit (e.g., 10)",
+        "2. Send messages until at limit - verify succeeds",
+        "3. Try to send next message - verify blocked with 403",
+        "4. Verify error response indicates which limit was hit",
+        "5. Create plan override for same tenant - verify new limit takes effect",
+        "6. Test paywall modal displays correctly on client"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "Currently assumes hard cap; soft cap is Phase 2"
+    },
+    {
+      "id": "B006",
+      "phase": 1,
+      "category": "ui",
+      "name": "Billing UI: billing section in tenant settings",
+      "description": "Create billing dashboard showing plan, usage, upgrade options",
+      "requirements": [
+        "Display current plan name",
+        "Show monthly usage: WA messages, emails, SMS (with breakdown)",
+        "Show limits and remaining quota with progress bars",
+        "Upgrade/Downgrade buttons",
+        "Payment method status (masked)",
+        "Invoices section with download links",
+        "Billing portal link"
+      ],
+      "test_procedure": [
+        "1. Navigate to Tenant Settings → Billing",
+        "2. Verify all fields display correctly",
+        "3. Click Upgrade button - verify redirects to Stripe checkout",
+        "4. Click Manage Billing button - verify opens Stripe portal",
+        "5. Verify invoices list loads and links work",
+        "6. Test with tenant on different plans - verify limits update correctly"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "Use existing tenant settings navigation"
+    },
+    {
+      "id": "B007",
+      "phase": 1,
+      "category": "admin",
+      "name": "Admin: plan management and per-tenant overrides",
+      "description": "Allow platform admins to set/override tenant plans and limits (support)",
+      "requirements": [
+        "PATCH /admin/tenants/:id/plan - set plan_key and optional overrides",
+        "UI: Admin tenant detail page - Plan selector, override fields, save button",
+        "Validation: plan_key must exist, overrides must be positive integers",
+        "Audit trail: log who changed what and when"
+      ],
+      "test_procedure": [
+        "1. As admin, navigate to tenant detail page",
+        "2. Change tenant plan - verify updates in database",
+        "3. Set custom wa_messages_override - verify takes precedence",
+        "4. Call PATCH /admin/tenants/:id/plan - verify updates",
+        "5. As regular tenant user, verify can't access admin endpoints",
+        "6. Verify audit log shows who made changes"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "Partially implemented (TenantEditForm.jsx changes in git)"
+    },
+    {
+      "id": "B008",
+      "phase": 1,
+      "category": "integration",
+      "name": "Billing MVP complete: end-to-end flow",
+      "description": "Test complete billing flow: subscribe → use service → hit limit → paywall",
+      "requirements": [
+        "Tenant creates account (free plan by default)",
+        "Tenant upgrades to paid plan via checkout",
+        "Stripe confirms subscription active",
+        "Tenant sends messages - usage tracked",
+        "Tenant reaches limit - next send is blocked",
+        "Paywall modal shows - tenant upgrades",
+        "New limit takes effect immediately"
+      ],
+      "test_procedure": [
+        "1. Create new test tenant",
+        "2. Verify starts on free plan with low limits",
+        "3. Send messages up to limit",
+        "4. Attempt to exceed - verify blocked",
+        "5. Upgrade plan via checkout",
+        "6. Verify new limit applies",
+        "7. Continue sending - verify works up to new limit",
+        "8. Check invoices created and accessible"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "Comprehensive end-to-end test of Billing MVP"
+    },
+    {
+      "id": "S001",
+      "phase": 2,
+      "category": "sms",
+      "name": "SMS provider abstraction (AWS SNS adapter)",
+      "description": "Implement provider pattern for SMS with AWS SNS",
+      "requirements": [
+        "SmsProvider interface with: connect, getSenderIdentities, sendSmsCampaign, parseWebhook",
+        "AWS SNS adapter implementation",
+        "Credential storage (encrypted in database)",
+        "Webhook parsing for delivery status events"
+      ],
+      "test_procedure": [
+        "1. Verify SmsProvider interface is defined",
+        "2. Create test tenant and call connect() with AWS SNS credentials",
+        "3. Call getSenderIdentities(tenant) - confirm returns SMS sender numbers",
+        "4. Call sendSmsCampaign() with test message and single recipient",
+        "5. Verify SMS sent via AWS SNS test account",
+        "6. Verify no credentials logged in console"
+      ],
+      "status": "failing",
+      "blocking_questions": [
+        "Q1: How should SMS credentials be stored?",
+        "Q2: Do we support short codes and long codes, or just alphanumeric sender IDs?"
+      ],
+      "notes": "Follow same pattern as WhatsApp + SES providers"
+    },
+    {
+      "id": "S002",
+      "phase": 2,
+      "category": "database",
+      "name": "SMS schema: contacts compliance fields",
+      "description": "Extend contacts table with SMS compliance fields",
+      "requirements": [
+        "Add to contacts: consent_sms (bool), opt_out_sms (bool), sms_consent_source, sms_consent_timestamp",
+        "Migration - assume all existing contacts have consent",
+        "Can be updated via API and campaigns"
+      ],
+      "test_procedure": [
+        "1. Run migration",
+        "2. Verify new columns exist",
+        "3. Verify existing contacts have consent_sms=true",
+        "4. Create new contact with consent_sms=false - verify stored correctly",
+        "5. Update opt_out_sms - verify flag toggles"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "US TCPA/CTIA compliance requirement"
+    },
+    {
+      "id": "S003",
+      "phase": 2,
+      "category": "campaigns",
+      "name": "SMS campaigns: create and send",
+      "description": "Add SMS as a channel option in campaigns",
+      "requirements": [
+        "Campaign → Create → Channel = SMS option",
+        "SMS message body with character counter (160/153 with footer)",
+        "Audience selection: by tags (same as WhatsApp)",
+        "Send button triggers SMS campaign send",
+        "Track sent/delivered/failed for each recipient"
+      ],
+      "test_procedure": [
+        "1. Navigate to Campaigns → Create",
+        "2. Select Channel = SMS",
+        "3. Enter message body - verify character counter updates",
+        "4. Select audience by tag",
+        "5. Click Send - verify campaign created and processing",
+        "6. Check campaign detail page - verify statuses populate"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "Mirror existing WhatsApp campaign flow"
+    },
+    {
+      "id": "S004",
+      "phase": 2,
+      "category": "webhooks",
+      "name": "SMS webhooks: delivery status updates",
+      "description": "Receive and process delivery status webhooks from AWS SNS",
+      "requirements": [
+        "POST /webhooks/sms/sns endpoint",
+        "Handle SNS delivery status (sent, delivered, failed, undeliverable)",
+        "Parse recipient number from message",
+        "Update campaign message status in database",
+        "Validate SNS signature"
+      ],
+      "test_procedure": [
+        "1. Send test SMS via campaign",
+        "2. Simulate AWS SNS webhook for delivery success",
+        "3. Verify campaign message status updated to 'delivered'",
+        "4. Simulate failure webhook",
+        "5. Verify status updated to 'failed' with error reason",
+        "6. Test with invalid signature - verify rejected"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "Handle all AWS SNS delivery status codes"
+    },
+    {
+      "id": "S005",
+      "phase": 2,
+      "category": "compliance",
+      "name": "SMS opt-out handling",
+      "description": "Detect STOP replies and mark contacts as opted out",
+      "requirements": [
+        "Parse incoming SMS replies (STOP, UNSTOP, etc.) from AWS SNS",
+        "Mark contact.opt_out_sms = true when STOP received",
+        "Check opt_out_sms before sending - reject sends to opted-out contacts",
+        "Support UNSTOP to re-enable",
+        "Log all opt-out changes with timestamp and source"
+      ],
+      "test_procedure": [
+        "1. Send SMS to contact",
+        "2. Simulate incoming STOP reply via webhook",
+        "3. Verify contact marked as opted out",
+        "4. Try to include same contact in next SMS campaign - verify excluded",
+        "5. Simulate UNSTOP reply",
+        "6. Verify contact can receive SMS again"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "US TCPA requirement - must support"
+    },
+    {
+      "id": "S006",
+      "phase": 2,
+      "category": "ui",
+      "name": "SMS channel setup in tenant settings",
+      "description": "UI for tenants to connect and configure AWS SNS SMS provider",
+      "requirements": [
+        "Tenant Settings → Channels → SMS (new)",
+        "Connect button → form for AWS credentials",
+        "Once connected: select SMS sender (phone numbers from AWS SNS)",
+        "Display connection status and selected sender",
+        "Disconnect option"
+      ],
+      "test_procedure": [
+        "1. Navigate to Settings → Channels",
+        "2. Click SMS → Connect",
+        "3. Enter AWS credentials",
+        "4. Verify credentials validated against AWS",
+        "5. Select SMS sender number",
+        "6. Save - verify stored encrypted",
+        "7. View channel page - verify status shows Connected",
+        "8. Try to send SMS campaign - verify uses configured sender"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "Follow WhatsApp channel setup pattern"
+    },
+    {
+      "id": "S007",
+      "phase": 2,
+      "category": "metering",
+      "name": "SMS metering: usage tracking and limits",
+      "description": "Track SMS sends and apply plan limits",
+      "requirements": [
+        "Each SMS send increments usage_rollups.sms_sent",
+        "Check plan sms_included limit before allowing send",
+        "Respect plan_overrides.sms_override if set",
+        "Hard cap: block send if SMS limit reached",
+        "Show SMS usage in billing UI"
+      ],
+      "test_procedure": [
+        "1. Set tenant plan with 100 SMS limit",
+        "2. Send 100 SMS campaign - verify all sent",
+        "3. Try to send 101st - verify blocked",
+        "4. Check billing UI - verify shows SMS usage (100/100)",
+        "5. Set sms_override=500 for tenant - verify new limit takes effect",
+        "6. Send more SMS - verify now allowed up to 500"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "Follows same pattern as WA and Email metering"
+    },
+    {
+      "id": "S008",
+      "phase": 2,
+      "category": "integration",
+      "name": "SMS MVP complete: end-to-end flow",
+      "description": "Test complete SMS campaign flow with delivery and opt-outs",
+      "requirements": [
+        "Tenant connects AWS SNS",
+        "Creates SMS campaign with message and audience",
+        "Sends to test contact list",
+        "Receives delivery status updates via webhook",
+        "Simulates STOP reply - contact marked opted out",
+        "Next campaign excludes opted-out contact"
+      ],
+      "test_procedure": [
+        "1. Set up tenant with SMS provider",
+        "2. Create SMS campaign to 10 test contacts",
+        "3. Send campaign",
+        "4. Verify all 10 messages sent",
+        "5. Simulate delivery updates - verify status reflects",
+        "6. Simulate STOP from one contact",
+        "7. Create new campaign - verify opted-out contact excluded",
+        "8. Check compliance logs - verify STOP recorded"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "Comprehensive end-to-end test of SMS MVP"
+    },
+    {
+      "id": "T001",
+      "phase": 1,
+      "category": "testing",
+      "name": "Regression testing: core flows still work",
+      "description": "Before marking Billing MVP complete, test critical existing flows",
+      "requirements": [
+        "Login → Dashboard flow",
+        "Create → Send WhatsApp campaign flow",
+        "View campaign results flow",
+        "Multi-tenant isolation"
+      ],
+      "test_procedure": [
+        "1. Test login for multiple tenants",
+        "2. Create WhatsApp campaign and send",
+        "3. View results in campaign detail",
+        "4. Verify contacts/tags still searchable",
+        "5. Test tenant switching - verify data isolation",
+        "6. Create and view email campaigns",
+        "7. Verify no console errors, no 500 errors"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "Must pass before marking B008 as complete"
+    },
+    {
+      "id": "T002",
+      "phase": 2,
+      "category": "testing",
+      "name": "Regression testing: Billing doesn't break SMS",
+      "description": "Before marking SMS MVP complete, retest Billing flows",
+      "requirements": [
+        "Billing summary page still loads",
+        "Upgrade/downgrade still works",
+        "Hard cap still enforces limits",
+        "WhatsApp and Email campaigns still respect limits"
+      ],
+      "test_procedure": [
+        "1. Check billing summary loads with SMS usage column",
+        "2. Upgrade plan - verify new limits apply",
+        "3. Send WhatsApp campaign - verify usage tracks",
+        "4. Send Email campaign - verify usage tracks",
+        "5. Send SMS campaign - verify usage tracks",
+        "6. Hit overall tenant limit - verify all channels blocked",
+        "7. Verify no console errors"
+      ],
+      "status": "failing",
+      "blocking_questions": [],
+      "notes": "Must pass before marking S008 as complete"
+    }
+  ]
+}
