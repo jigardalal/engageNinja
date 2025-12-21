@@ -12,6 +12,9 @@ import { Input } from '../components/ui/Input';
 import { Alert } from '../components/ui/Alert';
 import { Badge } from '../components/ui/Badge';
 import AppShell from '../components/layout/AppShell';
+import PageHeader from '../components/layout/PageHeader';
+import { PrimaryAction } from '../components/ui/ActionButtons';
+import { Users } from 'lucide-react';
 
 export const TeamPage = ({ embedded = false } = {}) => {
   const { activeTenant, hasRole, userRole, user } = useAuth();
@@ -32,22 +35,25 @@ export const TeamPage = ({ embedded = false } = {}) => {
   const canManageMembers = isAdmin;
   const selectClassName = 'px-3 py-2 border border-[var(--border)] bg-[var(--card)] text-[var(--text)] rounded-md focus:outline-none focus:ring-primary focus:ring-2 focus:ring-offset-0 transition';
 
+  const inviteAction = isAdmin ? (
+    <PrimaryAction onClick={() => setShowInviteDialog(true)}>
+      Invite team member
+    </PrimaryAction>
+  ) : null;
+
   const Shell = ({ children }) => (
     embedded ? <>{children}</> : (
       <AppShell
         title="Team Members"
         subtitle="Manage your team members and their roles"
-        actions={
-          isAdmin && (
-            <Button
-              onClick={() => setShowInviteDialog(true)}
-              className="bg-primary text-white hover:bg-primary/90"
-            >
-              + Invite Team Member
-            </Button>
-          )
-        }
       >
+        <PageHeader
+          icon={Users}
+          title="Team management"
+          description="Invite, role, and remove members across the tenant."
+          helper={isAdmin ? 'Admin access only' : 'View-only mode'}
+          actions={inviteAction}
+        />
         {children}
       </AppShell>
     )

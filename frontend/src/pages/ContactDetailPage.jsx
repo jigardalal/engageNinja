@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { EditContactModal } from '../components/EditContactModal';
 import { DeleteContactDialog } from '../components/DeleteContactDialog';
 import AppShell from '../components/layout/AppShell';
+import PageHeader from '../components/layout/PageHeader';
 import {
   Button,
   Card,
@@ -11,11 +12,12 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  Alert,
   Badge,
   LoadingState,
   ErrorState
 } from '../components/ui';
+import { PrimaryAction, DestructiveAction } from '../components/ui/ActionButtons';
+import { User, ShieldCheck, Tag, MessageCircle } from 'lucide-react';
 
 /**
  * Contact Detail Page
@@ -155,87 +157,98 @@ export const ContactDetailPage = () => {
 
   return (
     <AppShell
-      title={contact.name}
-      subtitle={contact.phone || 'Contact details'}
-      actions={
-        <Button variant="secondary" onClick={() => setShowEditModal(true)}>
-          Edit Contact
-        </Button>
-      }
+      title="Contact"
+      subtitle="Contact details and consent status"
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Contact Information</CardTitle>
-            <CardDescription>Profile details and metadata</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Detail label="Name" value={displayValue(contact.name)} />
-            <Detail label="Phone" value={displayValue(contact.phone)} />
-            <Detail label="Email" value={displayValue(contact.email) || 'Not provided'} />
-            <Detail label="Created" value={formatDate(contact.created_at)} muted />
-          </CardContent>
-        </Card>
+      <PageHeader
+        icon={User}
+        title={contact.name}
+        description={contact.email || contact.phone || 'Customer identity'}
+        helper={`Contact ID: ${contact?.id || '—'}`}
+        meta={contact.phone ? `Phone · ${contact.phone}` : undefined}
+        actions={
+          <>
+            <PrimaryAction onClick={() => setShowEditModal(true)}>Edit contact</PrimaryAction>
+            <DestructiveAction onClick={() => setShowDeleteDialog(true)}>Delete contact</DestructiveAction>
+          </>
+        }
+      />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Consent Status</CardTitle>
-            <CardDescription>WhatsApp and Email opt-ins</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <ConsentRow
-              label="WhatsApp Consent"
-              description="Needed for WhatsApp campaigns"
-              granted={contact.consent_whatsapp}
-            />
-            <ConsentRow
-              label="Email Consent"
-              description="Needed for email campaigns"
-              granted={contact.consent_email}
-            />
-          </CardContent>
-        </Card>
-      </div>
+      <div className="grid gap-6 lg:grid-cols-[1.2fr,0.8fr] mt-6">
+        <section className="space-y-6">
+          <Card variant="glass">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="h-4 w-4 text-primary-500" />
+                <CardTitle className="text-lg">Contact overview</CardTitle>
+              </div>
+              <CardDescription>Profile, metadata, and engagement history.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Detail label="Name" value={displayValue(contact.name)} />
+              <Detail label="Phone" value={displayValue(contact.phone)} />
+              <Detail label="Email" value={displayValue(contact.email) || 'Not provided'} />
+              <Detail label="Timezone" value={displayValue(contact.timezone)} />
+              <Detail label="Created" value={formatDate(contact.created_at)} muted />
+              <Detail label="Last updated" value={formatDate(contact.updated_at)} muted />
+            </CardContent>
+          </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Tags</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {(contact.tags || []).length > 0 ? (
-                contact.tags.map((tag, index) => (
-                  <Badge key={index} variant="primary">{tag.name || tag}</Badge>
-                ))
-              ) : (
-                <p className="text-sm text-[var(--text-muted)]">No tags assigned</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+          <Card variant="glass">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Tag className="h-4 w-4 text-primary-500" />
+                <CardTitle className="text-lg">Tags & segments</CardTitle>
+              </div>
+              <CardDescription>Labels shared across campaigns.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {(contact.tags || []).length > 0 ? (
+                  contact.tags.map((tag, index) => (
+                    <Badge key={index} variant="primary">
+                      {tag.name || tag}
+                    </Badge>
+                  ))
+                ) : (
+                  <p className="text-sm text-[var(--text-muted)]">No tags assigned yet.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button
-              variant="secondary"
-              className="w-full"
-              onClick={() => setShowEditModal(true)}
-            >
-              Edit Contact
-            </Button>
-            <Button
-              variant="danger"
-              className="w-full"
-              onClick={() => setShowDeleteDialog(true)}
-            >
-              Delete Contact
-            </Button>
-          </CardContent>
-        </Card>
+        <section className="space-y-6">
+          <Card variant="glass">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="h-4 w-4 text-primary-500" />
+                <CardTitle className="text-lg">Consent status</CardTitle>
+              </div>
+              <CardDescription>WhatsApp, Email, and SMS permissions.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ConsentRow label="WhatsApp consent" description="Needed for WhatsApp campaigns" granted={contact.consent_whatsapp} />
+              <ConsentRow label="Email consent" description="Needed for email campaigns" granted={contact.consent_email} />
+              <ConsentRow label="SMS consent" description="Needed for SMS campaigns" granted={contact.consent_sms} />
+            </CardContent>
+          </Card>
+
+          <Card variant="glass">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <MessageCircle className="h-4 w-4 text-primary-500" />
+                <CardTitle className="text-lg">Recent engagement</CardTitle>
+              </div>
+              <CardDescription>Most recent touchpoints we captured.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-[var(--text-muted)]">
+              <Detail label="Last message" value={formatDate(contact.last_message_at)} muted />
+              <Detail label="Last campaign" value={contact.last_campaign || '—'} muted />
+              <Detail label="Preferred platform" value={contact.platform || 'WhatsApp'} muted />
+            </CardContent>
+          </Card>
+        </section>
       </div>
 
       <EditContactModal

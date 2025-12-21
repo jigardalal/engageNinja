@@ -1,11 +1,19 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 
-export function Card({ className, children, ...props }) {
+const cardVariants = {
+  solid: 'rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-lg backdrop-blur',
+  glass:
+    'rounded-2xl border border-white/30 bg-white/60 dark:bg-slate-900/60 shadow-[0_25px_50px_rgba(15,23,42,0.25)] backdrop-blur',
+  outline: 'rounded-2xl border border-[var(--border)] bg-transparent shadow-sm backdrop-blur'
+};
+
+export function Card({ className, children, variant = 'solid', ...props }) {
   return (
     <div
       className={cn(
-        'rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-lg backdrop-blur',
+        cardVariants[variant] || cardVariants.solid,
+        'transition-colors overflow-hidden',
         className
       )}
       {...props}

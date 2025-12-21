@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import AppShell from '../components/layout/AppShell';
-import { Input, Button, Alert, toast } from '../components/ui';
+import PageHeader from '../components/layout/PageHeader';
+import { Card, Input, Button, Alert, Badge, toast } from '../components/ui';
+import { Building } from 'lucide-react';
 import TenantFormField from '../components/TenantFormField';
 import { useAuth } from '../context/AuthContext';
 import { timezoneOptions } from '../data/timezones';
@@ -30,14 +32,64 @@ export default function TenantProfilePage({ embedded = false } = {}) {
     { value: 'Other/Global (UTC)', label: 'Other/Global (UTC)' },
   ];
   const [form, setForm] = useState({});
+
+  const currentPlanLabel = planOptions.find((option) => option.value === form.plan_id)?.label || 'Free';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const isPaidPlan = form.plan_id && form.plan_id !== 'free';
 
+  // Business Info State
+  const [businessInfo, setBusinessInfo] = useState({
+    legal_business_name: '',
+    dba_name: '',
+    business_website: '',
+    business_type: '',
+    industry_vertical: '',
+    business_registration_number: '',
+    owner_name: '',
+    owner_title: '',
+    owner_email: '',
+    owner_phone: '',
+    business_contact_name: '',
+    business_contact_email: '',
+    business_contact_phone: '',
+    country: 'US',
+    business_address: '',
+    business_city: '',
+    business_state: '',
+    business_zip: '',
+    monthly_sms_volume_estimate: '',
+    use_case_description: '',
+    sms_opt_in_language: '',
+    gdpr_compliant: false,
+    tcpa_compliant: false
+  });
+
+  const businessInfoSteps = [
+    { id: 'details', label: 'Business Details' },
+    { id: 'contacts', label: 'Contact Information' },
+    { id: 'sms-compliance', label: 'SMS & Compliance' },
+    { id: 'review', label: 'Review & Submit' }
+  ];
+
+  const [businessInfoStep, setBusinessInfoStep] = useState(0);
+  const [businessInfoError, setBusinessInfoError] = useState('');
+  const [savingBusinessInfo, setSavingBusinessInfo] = useState(false);
+  const [loadingBusinessInfo, setLoadingBusinessInfo] = useState(false);
+
+  // 10DLC State
+  const [brands, setBrands] = useState([]);
+  const [loadingBrands, setLoadingBrands] = useState(false);
+  const [submitting10DLC, setSubmitting10DLC] = useState(false);
+
   useEffect(() => {
     fetchProfile();
+    if (hasRole('admin') || hasRole('owner')) {
+      fetchBusinessInfo();
+      fetch10DLCBrands();
+    }
   }, []);
 
   const resolvePlanId = (incomingPlan) => {
@@ -183,6 +235,534 @@ export default function TenantProfilePage({ embedded = false } = {}) {
     }
   };
 
+  // Business Info Functions
+  const fetchBusinessInfo = async () => {
+    try {
+      setLoadingBusinessInfo(true);
+      const res = await fetch('/api/business-info', { credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load business info');
+
+      setBusinessInfo(prev => ({
+        ...prev,
+        ...data.data,
+        gdpr_compliant: Boolean(data.data?.gdpr_compliant),
+        tcpa_compliant: Boolean(data.data?.tcpa_compliant)
+      }));
+    } catch (err) {
+      console.error('Load business info error:', err);
+    } finally {
+      setLoadingBusinessInfo(false);
+    }
+  };
+
+  const fetch10DLCBrands = async () => {
+    try {
+      setLoadingBrands(true);
+      const res = await fetch('/api/business-info/10dlc-status', { credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load 10DLC brands');
+      setBrands(data.data || []);
+    } catch (err) {
+      console.error('Load 10DLC brands error:', err);
+    } finally {
+      setLoadingBrands(false);
+    }
+  };
+
+  // Step Navigation
+  const goToNextBusinessStep = () => {
+    if (!validateBusinessInfoStep()) return;
+    setBusinessInfoStep(prev => Math.min(prev + 1, businessInfoSteps.length - 1));
+  };
+
+  const goToPrevBusinessStep = () => {
+    setBusinessInfoError('');
+    setBusinessInfoStep(prev => Math.max(prev - 1, 0));
+  };
+
+  // Step Validation
+  const validateBusinessInfoStep = () => {
+    const step = businessInfoSteps[businessInfoStep];
+
+    if (step.id === 'details') {
+      if (!businessInfo.legal_business_name?.trim()) {
+        setBusinessInfoError('Legal business name is required');
+        return false;
+      }
+      if (!businessInfo.business_type) {
+        setBusinessInfoError('Business type is required');
+        return false;
+      }
+    }
+
+    if (step.id === 'contacts') {
+      if (!businessInfo.owner_name?.trim()) {
+        setBusinessInfoError('Owner name is required');
+        return false;
+      }
+      if (!businessInfo.owner_email?.trim()) {
+        setBusinessInfoError('Owner email is required');
+        return false;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(businessInfo.owner_email)) {
+        setBusinessInfoError('Valid email address required');
+        return false;
+      }
+      if (!businessInfo.owner_phone?.trim()) {
+        setBusinessInfoError('Owner phone is required');
+        return false;
+      }
+    }
+
+    if (step.id === 'sms-compliance') {
+      const required = ['country', 'business_address', 'business_city', 'business_state', 'business_zip'];
+      for (const field of required) {
+        if (!businessInfo[field]?.trim()) {
+          setBusinessInfoError(`${field.replace(/_/g, ' ')} is required`);
+          return false;
+        }
+      }
+    }
+
+    setBusinessInfoError('');
+    return true;
+  };
+
+  // Save and Submit Functions
+  const saveBusinessInfo = async () => {
+    if (!validateBusinessInfoStep()) return;
+
+    try {
+      setSavingBusinessInfo(true);
+      setBusinessInfoError('');
+
+      const res = await fetch('/api/business-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(businessInfo)
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save business info');
+
+      toast({
+        title: 'Business info saved',
+        description: 'Changes saved successfully.',
+        variant: 'success'
+      });
+    } catch (err) {
+      setBusinessInfoError(err.message);
+      toast({
+        title: 'Save failed',
+        description: err.message,
+        variant: 'error'
+      });
+    } finally {
+      setSavingBusinessInfo(false);
+    }
+  };
+
+  const submit10DLC = async () => {
+    try {
+      setSubmitting10DLC(true);
+      const res = await fetch('/api/business-info/submit-10dlc', {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit');
+
+      toast({
+        title: '10DLC Registration Submitted',
+        description: data.data?.message || 'Registration submitted successfully',
+        variant: 'success'
+      });
+
+      await fetch10DLCBrands();
+    } catch (err) {
+      toast({
+        title: '10DLC Submission Failed',
+        description: err.message,
+        variant: 'error'
+      });
+    } finally {
+      setSubmitting10DLC(false);
+    }
+  };
+
+  // Render Business Info Step
+  const renderBusinessInfoStep = () => {
+    const step = businessInfoSteps[businessInfoStep];
+
+    switch (step.id) {
+      case 'details':
+        return (
+          <div className="space-y-4">
+            <TenantFormField
+              id="legal-business-name"
+              label="Legal Business Name"
+              value={businessInfo.legal_business_name}
+              onChange={(val) => setBusinessInfo(prev => ({ ...prev, legal_business_name: val }))}
+              placeholder="Acme Corporation LLC"
+              isRequired={true}
+            />
+
+            <TenantFormField
+              id="dba-name"
+              label="DBA Name (Doing Business As)"
+              value={businessInfo.dba_name}
+              onChange={(val) => setBusinessInfo(prev => ({ ...prev, dba_name: val }))}
+              placeholder="Acme Widgets"
+              helper="Optional: Trade name if different from legal name"
+            />
+
+            <TenantFormField
+              id="business-website"
+              label="Business Website"
+              value={businessInfo.business_website}
+              onChange={(val) => setBusinessInfo(prev => ({ ...prev, business_website: val }))}
+              placeholder="https://acme.com"
+              helper="Your primary business website"
+            />
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-[var(--text)]">
+                Business Type <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={businessInfo.business_type || ''}
+                onChange={(e) => setBusinessInfo(prev => ({ ...prev, business_type: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-[var(--text)] text-sm"
+                required
+              >
+                <option value="">Select business type</option>
+                <option value="sole_proprietor">Sole Proprietor</option>
+                <option value="partnership">Partnership</option>
+                <option value="llc">LLC</option>
+                <option value="corporation">Corporation</option>
+                <option value="non_profit">Non-Profit</option>
+                <option value="government">Government</option>
+              </select>
+            </div>
+
+            <TenantFormField
+              id="industry-vertical"
+              label="Industry Vertical"
+              value={businessInfo.industry_vertical}
+              onChange={(val) => setBusinessInfo(prev => ({ ...prev, industry_vertical: val }))}
+              placeholder="e.g., Retail, Healthcare, Technology"
+              helper="Your primary industry sector"
+            />
+
+            <TenantFormField
+              id="business-registration-number"
+              label="Business Registration Number (EIN)"
+              value={businessInfo.business_registration_number}
+              onChange={(val) => setBusinessInfo(prev => ({ ...prev, business_registration_number: val }))}
+              placeholder="12-3456789"
+              helper="EIN (US) or equivalent tax ID"
+            />
+          </div>
+        );
+
+      case 'contacts':
+        return (
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-[var(--text)]">Owner/Principal Contact</h3>
+              <TenantFormField
+                id="owner-name"
+                label="Owner Name"
+                value={businessInfo.owner_name}
+                onChange={(val) => setBusinessInfo(prev => ({ ...prev, owner_name: val }))}
+                placeholder="John Doe"
+                isRequired={true}
+              />
+              <TenantFormField
+                id="owner-title"
+                label="Owner Title"
+                value={businessInfo.owner_title}
+                onChange={(val) => setBusinessInfo(prev => ({ ...prev, owner_title: val }))}
+                placeholder="CEO"
+              />
+              <TenantFormField
+                id="owner-email"
+                label="Owner Email"
+                value={businessInfo.owner_email}
+                onChange={(val) => setBusinessInfo(prev => ({ ...prev, owner_email: val }))}
+                placeholder="john@acme.com"
+                isRequired={true}
+              />
+              <TenantFormField
+                id="owner-phone"
+                label="Owner Phone"
+                value={businessInfo.owner_phone}
+                onChange={(val) => setBusinessInfo(prev => ({ ...prev, owner_phone: val }))}
+                placeholder="+1234567890"
+                isRequired={true}
+              />
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-[var(--text)]">Business Contact (optional)</h3>
+              <p className="text-sm text-[var(--text-muted)]">If different from owner</p>
+              <TenantFormField
+                id="business-contact-name"
+                label="Contact Name"
+                value={businessInfo.business_contact_name}
+                onChange={(val) => setBusinessInfo(prev => ({ ...prev, business_contact_name: val }))}
+                placeholder="Jane Smith"
+              />
+              <TenantFormField
+                id="business-contact-email"
+                label="Contact Email"
+                value={businessInfo.business_contact_email}
+                onChange={(val) => setBusinessInfo(prev => ({ ...prev, business_contact_email: val }))}
+                placeholder="jane@acme.com"
+              />
+              <TenantFormField
+                id="business-contact-phone"
+                label="Contact Phone"
+                value={businessInfo.business_contact_phone}
+                onChange={(val) => setBusinessInfo(prev => ({ ...prev, business_contact_phone: val }))}
+                placeholder="+1234567890"
+              />
+            </div>
+          </div>
+        );
+
+      case 'sms-compliance':
+        return (
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-[var(--text)]">Business Address</h3>
+              <TenantFormField
+                id="business-country"
+                label="Country"
+                value={businessInfo.country}
+                onChange={(val) => setBusinessInfo(prev => ({ ...prev, country: val }))}
+                isRequired={true}
+              >
+                <option value="">Select country</option>
+                <option value="US">United States</option>
+                <option value="CA">Canada</option>
+                <option value="UK">United Kingdom</option>
+                <option value="AU">Australia</option>
+              </TenantFormField>
+
+              <TenantFormField
+                id="business-address"
+                label="Street Address"
+                value={businessInfo.business_address}
+                onChange={(val) => setBusinessInfo(prev => ({ ...prev, business_address: val }))}
+                placeholder="123 Main St"
+                isRequired={true}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <TenantFormField
+                  id="business-city"
+                  label="City"
+                  value={businessInfo.business_city}
+                  onChange={(val) => setBusinessInfo(prev => ({ ...prev, business_city: val }))}
+                  placeholder="San Francisco"
+                  isRequired={true}
+                />
+                <TenantFormField
+                  id="business-state"
+                  label="State/Province"
+                  value={businessInfo.business_state}
+                  onChange={(val) => setBusinessInfo(prev => ({ ...prev, business_state: val }))}
+                  placeholder="CA"
+                  isRequired={true}
+                />
+              </div>
+
+              <TenantFormField
+                id="business-zip"
+                label="Postal Code"
+                value={businessInfo.business_zip}
+                onChange={(val) => setBusinessInfo(prev => ({ ...prev, business_zip: val }))}
+                placeholder="94107"
+                isRequired={true}
+              />
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-[var(--text)]">SMS Details</h3>
+              <TenantFormField
+                id="monthly-sms-volume"
+                label="Monthly SMS Volume Estimate"
+                value={businessInfo.monthly_sms_volume_estimate}
+                onChange={(val) => setBusinessInfo(prev => ({ ...prev, monthly_sms_volume_estimate: val }))}
+                placeholder="10000"
+                helper="Estimated messages per month"
+              />
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-[var(--text)]">Use Case Description</label>
+                <textarea
+                  value={businessInfo.use_case_description || ''}
+                  onChange={(e) => setBusinessInfo(prev => ({ ...prev, use_case_description: e.target.value }))}
+                  placeholder="Describe what types of messages you'll send (e.g., order confirmations, marketing offers)"
+                  rows="3"
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-[var(--text)] placeholder:text-[var(--text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                />
+              </div>
+
+              <TenantFormField
+                id="sms-opt-in-language"
+                label="SMS Opt-in Language"
+                value={businessInfo.sms_opt_in_language}
+                onChange={(val) => setBusinessInfo(prev => ({ ...prev, sms_opt_in_language: val }))}
+                placeholder="Text STOP to unsubscribe"
+                helper="Language shown to users for SMS consent"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-[var(--text)]">Compliance</h3>
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={businessInfo.gdpr_compliant}
+                  onChange={(e) => setBusinessInfo(prev => ({ ...prev, gdpr_compliant: e.target.checked }))}
+                  className="h-4 w-4 text-primary-600"
+                />
+                <span className="text-sm text-[var(--text)]">GDPR Compliant (for EU customers)</span>
+              </label>
+
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={businessInfo.tcpa_compliant}
+                  onChange={(e) => setBusinessInfo(prev => ({ ...prev, tcpa_compliant: e.target.checked }))}
+                  className="h-4 w-4 text-primary-600"
+                />
+                <span className="text-sm text-[var(--text)]">TCPA Compliant (for US customers)</span>
+              </label>
+            </div>
+          </div>
+        );
+
+      case 'review':
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-[var(--text)]">Review Your Information</h3>
+
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 space-y-3">
+              <div>
+                <p className="text-sm text-[var(--text-muted)]">Legal Business Name</p>
+                <p className="text-[var(--text)] font-semibold">{businessInfo.legal_business_name || '-'}</p>
+              </div>
+
+              <div>
+                <p className="text-sm text-[var(--text-muted)]">Business Type</p>
+                <p className="text-[var(--text)]">{businessInfo.business_type || '-'}</p>
+              </div>
+
+              <div>
+                <p className="text-sm text-[var(--text-muted)]">Owner</p>
+                <p className="text-[var(--text)]">{businessInfo.owner_name || '-'}</p>
+                <p className="text-sm text-[var(--text-muted)]">{businessInfo.owner_email || '-'}</p>
+              </div>
+
+              <div>
+                <p className="text-sm text-[var(--text-muted)]">Address</p>
+                <p className="text-[var(--text)]">
+                  {businessInfo.business_address || '-'}, {businessInfo.business_city || '-'}, {businessInfo.business_state || '-'} {businessInfo.business_zip || '-'}
+                </p>
+              </div>
+            </div>
+
+            <Alert type="info">
+              Click "Save Business Info" to save your changes. After saving, you'll be able to submit a 10DLC registration.
+            </Alert>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  // Render 10DLC Section
+  const render10DLCSection = () => {
+    const isComplete = Boolean(
+      businessInfo.legal_business_name &&
+      businessInfo.business_type &&
+      businessInfo.owner_name &&
+      businessInfo.owner_email &&
+      businessInfo.owner_phone &&
+      businessInfo.country &&
+      businessInfo.business_address
+    );
+
+    return (
+      <div className="mt-8 space-y-6 rounded-lg border border-[var(--border)] bg-black/5 p-6">
+        <div>
+          <h2 className="text-xl font-semibold text-[var(--text)]">10DLC Registration</h2>
+          <p className="text-sm text-[var(--text-muted)]">
+            Register your business for 10DLC (10 Digit Long Code) SMS messaging
+          </p>
+        </div>
+
+        {!isComplete ? (
+          <Alert type="warning">
+            Complete and save your business information above before submitting a 10DLC registration.
+          </Alert>
+        ) : (
+          <div className="space-y-4">
+            <Button onClick={submit10DLC} disabled={submitting10DLC}>
+              {submitting10DLC ? 'Submitting...' : 'Submit 10DLC Registration'}
+            </Button>
+
+            {brands.length > 0 && (
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-black/5 border-b border-[var(--border)]">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text)]">Business Name</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text)]">Provider</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text)]">Status</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text)]">Approval Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {brands.map(brand => (
+                      <tr key={brand.id} className="border-b border-[var(--border)] last:border-0">
+                        <td className="px-4 py-3 text-sm text-[var(--text)]">{brand.legal_business_name}</td>
+                        <td className="px-4 py-3 text-sm text-[var(--text)]">{brand.provider}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={
+                            brand.provider_status === 'APPROVED' || brand.provider_status === 'approved' ? 'success' :
+                            brand.provider_status === 'PENDING' || brand.provider_status === 'pending' ? 'warning' :
+                            'danger'
+                          }>
+                            {brand.provider_status || 'Unknown'}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-[var(--text-muted)]">
+                          {brand.provider_approved_at
+                            ? new Date(brand.provider_approved_at).toLocaleDateString()
+                            : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (!hasRole('admin') && !hasRole('owner')) {
     return embedded ? (
       <Alert type="error" title="Access denied">Only tenant admin/owner can edit tenant profile.</Alert>
@@ -203,6 +783,12 @@ export default function TenantProfilePage({ embedded = false } = {}) {
 
   return (
     <Shell>
+      <PageHeader
+        icon={Building}
+        title="Tenant profile"
+        description="Manage the tenant, billing, and compliance info for your organization."
+        helper={`Plan: ${currentPlanLabel}`}
+      />
       {error && <Alert type="error" title="Error" className="mb-4">{error}</Alert>}
       {loading ? (
         <div className="text-center py-12">
@@ -212,8 +798,10 @@ export default function TenantProfilePage({ embedded = false } = {}) {
       ) : (
         (() => {
           const currentPlanMissing = form.plan_id && !planOptions.some((p) => p.value === form.plan_id);
-          return (
-        <form onSubmit={handleSave} className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow p-6 space-y-6">
+        return (
+          <>
+          <Card variant="glass" className="space-y-6">
+          <form onSubmit={handleSave} className="space-y-6 p-6">
           <div className="space-y-3 rounded-lg border border-[var(--border)] bg-black/5 p-4">
             <div className="flex items-baseline justify-between gap-2">
               <div>
@@ -367,10 +955,86 @@ export default function TenantProfilePage({ embedded = false } = {}) {
             </TenantFormField>
           </div>
 
-          <div className="flex justify-end">
-            <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
+              <div className="flex justify-end">
+                <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
+              </div>
+          </form>
+          </Card>
+
+        {/* BUSINESS INFORMATION SECTION */}
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow p-6 space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold text-[var(--text)]">Business Information</h2>
+            <p className="text-sm text-[var(--text-muted)]">Complete for 10DLC registration</p>
           </div>
-        </form>
+
+          {loadingBusinessInfo ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+              <p className="text-[var(--text-muted)]">Loading business info...</p>
+            </div>
+          ) : (
+            <>
+              {/* Step Indicator */}
+              <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                {businessInfoSteps.map((step, idx) => (
+                  <div key={step.id} className="flex items-center gap-2 flex-shrink-0">
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold ${
+                      idx === businessInfoStep ? 'bg-primary-500 text-white' : 'border border-[var(--border)] text-[var(--text)]'
+                    }`}>
+                      {idx + 1}
+                    </div>
+                    <span className={`text-sm whitespace-nowrap ${idx === businessInfoStep ? 'font-semibold text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
+                      {step.label}
+                    </span>
+                    {idx < businessInfoSteps.length - 1 && <div className="w-6 h-px bg-[var(--border)] flex-shrink-0" />}
+                  </div>
+                ))}
+              </div>
+
+              {businessInfoError && (
+                <Alert type="error" title="Validation Error">
+                  {businessInfoError}
+                </Alert>
+              )}
+
+              {/* Step Content */}
+              <div className="min-h-96">
+                {renderBusinessInfoStep()}
+              </div>
+
+              {/* Navigation Buttons */}
+              <div className="flex justify-between pt-4 border-t border-[var(--border)]">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={goToPrevBusinessStep}
+                  disabled={businessInfoStep === 0}
+                >
+                  Previous
+                </Button>
+
+                {businessInfoStep < businessInfoSteps.length - 1 ? (
+                  <Button type="button" onClick={goToNextBusinessStep}>
+                    Next
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={saveBusinessInfo}
+                    disabled={savingBusinessInfo}
+                  >
+                    {savingBusinessInfo ? 'Saving...' : 'Save Business Info'}
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 10DLC REGISTRATION SECTION */}
+        {render10DLCSection()}
+        </>
           );
         })()
       )}

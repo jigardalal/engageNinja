@@ -1,173 +1,211 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import AppShell from '../components/layout/AppShell';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Badge, Alert } from '../components/ui';
-import { useTheme } from '../context/ThemeContext';
+import React, { useState, useMemo } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import AppShell from '../components/layout/AppShell'
+import PageHeader from '../components/layout/PageHeader'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+  Badge,
+  Button,
+  ErrorState,
+  EmptyState,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell
+} from '../components/ui'
+import { PrimaryAction } from '../components/ui/ActionButtons'
+import { Building2, ShieldCheck, Users } from 'lucide-react'
 
 const PLAN_COLORS = {
   Starter: 'bg-amber-100 text-amber-800 border-amber-200',
   Growth: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   Pro: 'bg-indigo-100 text-indigo-800 border-indigo-200',
   default: 'bg-slate-100 text-slate-800 border-slate-300'
-};
+}
 
-const getPlanColor = (plan) => PLAN_COLORS[plan] || PLAN_COLORS.default;
+const getPlanColor = (plan) => PLAN_COLORS[plan] || PLAN_COLORS.default
 
-/**
- * Tenants Page
- * Dedicated screen to view and switch tenants
- */
 export const TenantsPage = () => {
-  const navigate = useNavigate();
-  const { tenants = [], activeTenant, switchTenant, isSwitchingTenant, switchingTenantId } = useAuth();
-  const { theme } = useTheme();
-  const [loadingTenant, setLoadingTenant] = useState(null);
-  const [error, setError] = useState('');
-  const isDark = theme === 'dark';
+  const navigate = useNavigate()
+  const { tenants = [], activeTenant, switchTenant, isSwitchingTenant, switchingTenantId } = useAuth()
+  const [loadingTenant, setLoadingTenant] = useState(null)
+  const [error, setError] = useState('')
+
+  const planBreakdown = useMemo(() => {
+    return tenants.reduce((acc, tenant) => {
+      const plan = tenant.plan || 'Starter'
+      acc[plan] = (acc[plan] || 0) + 1
+      return acc
+    }, {})
+  }, [tenants])
+
+  const activeTenantMeta = tenants.find((t) => t.tenant_id === activeTenant)
+  const isSwitching = Boolean(isSwitchingTenant || switchingTenantId || loadingTenant)
 
   const handleSwitch = async (tenantId) => {
-    setError('');
-    setLoadingTenant(tenantId);
-    const result = await switchTenant(tenantId);
+    if (!tenantId) return
+    setError('')
+    setLoadingTenant(tenantId)
+    const result = await switchTenant(tenantId)
     if (!result?.success) {
-      setError(result?.error || 'Failed to switch tenant');
+      setError(result?.error || 'Failed to switch tenant')
     }
-    setLoadingTenant(null);
+    setLoadingTenant(null)
     if (result?.success) {
-      // After the intentional delay inside switchTenant, navigate to dashboard
-      navigate('/dashboard');
+      navigate('/dashboard')
     }
-  };
+  }
 
   return (
-    <AppShell
-      title="Tenants"
-      subtitle="Switch between your EngageNinja workspaces"
-    >
-      {error && (
-        <Alert variant="error" className="mb-4">
-          {error}
-        </Alert>
-      )}
+    <AppShell title="Tenants" subtitle="Switch between your EngageNinja workspaces">
+      <PageHeader
+        icon={Building2}
+        title="Workspace switcher"
+        description="Jump between tenants without losing your context or permissions."
+        helper="Your active tenant determines the campaigns and contacts you see."
+        actions={
+          <PrimaryAction asChild>
+            <Button asChild variant="ghost">
+              <Link to="/settings?tab=tenant">Tenant settings</Link>
+            </Button>
+          </PrimaryAction>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Your workspaces</CardTitle>
-          <CardDescription>Select a tenant to make it active for this session.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {tenants.length === 0 && (
-            <p className="text-sm text-[var(--text-muted)]">No tenants found for your account.</p>
-          )}
-          <div className="space-y-3">
-            {tenants.map((tenant) => {
-              const isActive = tenant.tenant_id === activeTenant;
-              const activeCard = isDark
-                ? 'border-primary-400 bg-[#0f172a] shadow-[0_20px_45px_rgba(15,23,42,0.5)] text-[var(--text)]'
-                : 'border-primary-500 bg-white shadow-[0_20px_45px_rgba(15,23,42,0.08)] text-[var(--text)]';
-              const inactiveCard = isDark
-                ? 'border-[#1f2937] bg-[#111827] hover:border-primary-200 hover:bg-[#161b2f] hover:shadow-lg hover:-translate-y-1 text-[var(--text)]'
-                : 'border-[#cbd5e1] bg-[#f8fafc] hover:border-primary-200 hover:shadow-lg hover:-translate-y-1 text-[var(--text)]';
-              return (
-                <div
-                  key={tenant.tenant_id}
-                  className={`flex flex-col gap-4 rounded-2xl border p-5 transition duration-200 ${
-                    isActive ? activeCard : `${inactiveCard} cursor-pointer`
-                  }`}
-                  onClick={() => {
-                    if (isActive || isSwitchingTenant || loadingTenant === tenant.tenant_id) return
-                    handleSwitch(tenant.tenant_id)
-                  }}
-                  aria-label={`Switch to ${tenant.name}`}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center rounded-2xl text-lg font-bold tracking-wide ${
-                          isActive
-                            ? 'bg-primary-100 text-primary-700 border border-primary-200'
-                            : 'bg-white text-[#0f172a] border border-[#e2e8f0]'
-                        }`}
-                      >
-                        {tenant.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
-                          Workspace
-                        </p>
-                        <p className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-[color:var(--text-strong,#0f172a)]'}`}>
-                          {tenant.name}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="neutral"
-                        className={`text-xs font-semibold ${getPlanColor(tenant.plan)}`}
-                      >
-                        {tenant.plan}
-                      </Badge>
-                      {isActive && (
-                        <Badge className="text-xs font-semibold bg-primary-700 text-white ring-1 ring-primary-700">
-                          Active
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex flex-col gap-1 text-sm text-[var(--text-muted)]">
-                      <span>Default Contacts: <strong className="text-[var(--text)]">3</strong></span>
-                      <span>Audience plan: <strong className="text-[var(--text)]">{tenant.plan}</strong></span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant={isActive ? 'secondary' : 'primary'}
-                      disabled={loadingTenant === tenant.tenant_id || isSwitchingTenant || isActive}
-                      className={
-                        isActive
-                          ? isDark
-                            ? 'bg-white/5 text-white border border-white/30 disabled:opacity-100 disabled:cursor-default'
-                            : 'bg-white text-[color:#0f172a] border border-primary-300 disabled:opacity-100 disabled:cursor-default'
-                          : undefined
-                      }
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        handleSwitch(tenant.tenant_id)
-                      }}
-                    >
-                      {loadingTenant === tenant.tenant_id || switchingTenantId === tenant.tenant_id
-                        ? 'Switching...'
-                        : isActive
-                          ? 'Current'
-                          : 'Switch'}
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 lg:grid-cols-[1.4fr,0.6fr] mt-6">
+        <Card variant="glass">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Users className="h-5 w-5 text-primary-500" />
+              <CardTitle className="flex-1">Available tenants</CardTitle>
+              <Badge className="text-xs font-semibold">{tenants.length} total</Badge>
+              <Badge className="text-xs font-semibold bg-primary-100 text-primary-700">
+                {activeTenantMeta ? 'Current' : 'Pick one'}
+              </Badge>
+            </div>
+            <CardDescription>Only Admins can invite new tenants or assign scopes.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {error && <ErrorState title="Switch failed" description={error} />}
+            {tenants.length === 0 ? (
+              <EmptyState
+                title="No tenants yet"
+                description="You will see workspaces after you join or invite a team."
+                icon={ShieldCheck}
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tenant</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead className="text-left">ID</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tenants.map((tenant) => (
+                      <TenantRow
+                        key={tenant.tenant_id}
+                        tenant={tenant}
+                        isActive={tenant.tenant_id === activeTenant}
+                        isSwitching={loadingTenant === tenant.tenant_id || switchingTenantId === tenant.tenant_id}
+                        onSwitch={handleSwitch}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {isSwitchingTenant && (
+        <Card variant="glass" className="space-y-4">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary-500" />
+              <CardTitle>Need a hand?</CardTitle>
+            </div>
+            <CardDescription>Admins can invite new tenants or request platform access.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-[var(--text-muted)]">
+            <p>Total tenants: <strong className="text-[var(--text)]">{tenants.length}</strong></p>
+            {Object.entries(planBreakdown).map(([plan, count]) => (
+              <p key={plan}>
+                <span className="font-semibold">{plan}</span>: {count} workspace{count > 1 ? 's' : ''}
+              </p>
+            ))}
+            <p>
+              Need access to another workspace? Ask your platform admin to invite you or create a new tenant from the admin console.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <PrimaryAction onClick={() => window.open('mailto:support@engageninja.com', '_blank')}>
+              Contact support
+            </PrimaryAction>
+          </CardFooter>
+        </Card>
+      </div>
+
+      {isSwitching && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur">
           <div className="rounded-2xl bg-[var(--card)] border border-[var(--border)] shadow-2xl p-6 w-full max-w-sm text-center space-y-3">
             <div className="w-12 h-12 mx-auto rounded-full border-4 border-primary-200 border-t-primary-500 animate-spin"></div>
             <div className="space-y-1">
               <p className="text-lg font-semibold text-[var(--text)]">Switching tenants</p>
               <p className="text-sm text-[var(--text-muted)]">
-                Please hold on while we switch you to {tenants.find(t => t.tenant_id === switchingTenantId)?.name || 'the selected tenant'}.
+                Hang tight while we move you into {tenants.find((t) => t.tenant_id === switchingTenantId)?.name || 'the selected tenant'}.
               </p>
             </div>
-            <p className="text-xs text-[var(--text-muted)]">This may take a couple of seconds in production.</p>
+            <p className="text-xs text-[var(--text-muted)]">This may take a couple of seconds.</p>
           </div>
         </div>
       )}
     </AppShell>
-  );
-};
+  )
+}
 
-export default TenantsPage;
+const TenantRow = React.memo(({ tenant, isActive, isSwitching, onSwitch }) => (
+  <TableRow className={`transition ${isActive ? 'bg-white/10' : 'hover:bg-white/5'}`}>
+    <TableCell>
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500/20 to-primary-500/40 text-primary-700 font-bold">
+          {tenant.name.slice(0, 2).toUpperCase()}
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">Workspace</p>
+          <p className="text-base font-semibold text-[var(--text)]">{tenant.name}</p>
+        </div>
+      </div>
+    </TableCell>
+    <TableCell>
+      <Badge className={`text-xs font-semibold ${getPlanColor(tenant.plan)}`}>{tenant.plan || 'Starter'}</Badge>
+    </TableCell>
+    <TableCell>
+      <p className="text-sm text-[var(--text-muted)]">{tenant.tenant_id}</p>
+    </TableCell>
+    <TableCell>
+      <Button
+        size="sm"
+        variant={isActive ? 'secondary' : 'primary'}
+        disabled={isActive || isSwitching}
+        onClick={() => onSwitch(tenant.tenant_id)}
+      >
+        {isActive ? 'Active' : isSwitching ? 'Switching…' : 'Switch'}
+      </Button>
+    </TableCell>
+  </TableRow>
+))
+
+TenantRow.displayName = 'TenantRow'
+
+export default TenantsPage

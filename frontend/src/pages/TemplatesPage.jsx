@@ -18,12 +18,16 @@ import {
   TableRow,
   LoadingState,
   ErrorState,
+  EmptyState,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter
 } from '../components/ui'
+import PageHeader from '../components/layout/PageHeader'
+import { PrimaryAction } from '../components/ui/ActionButtons'
+import { Layers, Filter, Sparkles, BookOpen } from 'lucide-react'
 
 /**
  * Templates Page
@@ -209,188 +213,247 @@ export const TemplatesPage = ({ embedded = false } = {}) => {
     return categories[category] || category
   }
 
-  if (loading && !templates.length) {
-    return (
-      <Shell>
-        <LoadingState message="Loading templates..." />
-      </Shell>
-    )
-  }
+  const totalTemplates = templates.length
+  const statusCounts = templates.reduce((acc, template) => {
+    acc[template.status] = (acc[template.status] || 0) + 1
+    return acc
+  }, {})
+  const languageCounts = templates.reduce((acc, template) => {
+    if (template.language) {
+      acc[template.language] = (acc[template.language] || 0) + 1
+    }
+    return acc
+  }, {})
+  const categoryCounts = templates.reduce((acc, template) => {
+    if (template.category) {
+      acc[template.category] = (acc[template.category] || 0) + 1
+    }
+    return acc
+  }, {})
 
   return (
     <Shell>
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-[var(--text)]">WhatsApp Templates</h1>
-            <p className="text-[var(--text-muted)] mt-1">
-              Manage your WhatsApp message templates. {templates.length} template{templates.length !== 1 ? 's' : ''} found.
-            </p>
-          </div>
-          <Button onClick={() => navigate('/templates/create')}>
-            ✨ Create Template
-          </Button>
-        </div>
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        <PageHeader
+          icon={Layers}
+          title="WhatsApp Templates"
+          description="Build, version, and manage templates submitted to Meta."
+          helper={`${totalTemplates} template${totalTemplates !== 1 ? 's' : ''}`}
+          actions={
+            <PrimaryAction onClick={() => navigate('/templates/create')}>
+              <Sparkles className="h-4 w-4" />
+              Create template
+            </PrimaryAction>
+          }
+        />
 
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            {error}
-          </Alert>
-        )}
-
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg">Filters</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Status Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2 text-[var(--text)]">Status</label>
-                <select
-                  value={filters.status}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                  className="w-full border border-[var(--border)] rounded-md p-2 text-sm bg-[var(--input-bg)] text-[var(--text)]"
-                >
-                  <option value="">All Statuses</option>
-                  <option value="APPROVED">✅ Approved</option>
-                  <option value="PENDING">⏳ Pending</option>
-                  <option value="REJECTED">❌ Rejected</option>
-                  <option value="PAUSED">⏸️ Paused</option>
-                </select>
+        <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+          <Card variant="glass" className="space-y-5">
+            <CardHeader className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <Filter className="h-5 w-5 text-primary-500" />
+                <CardTitle className="text-xl md:text-2xl">Template workspace</CardTitle>
+              </div>
+              <CardDescription>
+                Adjust filters and view templates in one workspace.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold tracking-wide text-[var(--text-muted)]">Status</label>
+                  <select
+                    value={filters.status}
+                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                  >
+                    <option value="">All statuses</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="REJECTED">Rejected</option>
+                    <option value="PAUSED">Paused</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold tracking-wide text-[var(--text-muted)]">Language</label>
+                  <select
+                    value={filters.language}
+                    onChange={(e) => setFilters({ ...filters, language: e.target.value })}
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                  >
+                    <option value="">All languages</option>
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="pt">Portuguese</option>
+                    <option value="de">German</option>
+                    <option value="it">Italian</option>
+                    <option value="ja">Japanese</option>
+                    <option value="zh">Chinese</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold tracking-wide text-[var(--text-muted)]">Category</label>
+                  <select
+                    value={filters.category}
+                    onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                  >
+                    <option value="">All categories</option>
+                    <option value="MARKETING">Marketing</option>
+                    <option value="UTILITY">Utility</option>
+                    <option value="AUTHENTICATION">Authentication</option>
+                  </select>
+                </div>
               </div>
 
-              {/* Language Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2 text-[var(--text)]">Language</label>
-                <select
-                  value={filters.language}
-                  onChange={(e) => setFilters({ ...filters, language: e.target.value })}
-                  className="w-full border border-[var(--border)] rounded-md p-2 text-sm bg-[var(--input-bg)] text-[var(--text)]"
-                >
-                  <option value="">All Languages</option>
-                  <option value="en">English</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
-                  <option value="pt">Portuguese</option>
-                  <option value="de">German</option>
-                  <option value="it">Italian</option>
-                  <option value="ja">Japanese</option>
-                  <option value="zh">Chinese</option>
-                </select>
-              </div>
+              {error && (
+                <Alert variant="destructive">
+                  {error}
+                </Alert>
+              )}
 
-              {/* Category Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2 text-[var(--text)]">Category</label>
-                <select
-                  value={filters.category}
-                  onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                  className="w-full border border-[var(--border)] rounded-md p-2 text-sm bg-[var(--input-bg)] text-[var(--text)]"
-                >
-                  <option value="">All Categories</option>
-                  <option value="MARKETING">Marketing</option>
-                  <option value="UTILITY">Utility</option>
-                  <option value="AUTHENTICATION">Authentication</option>
-                </select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              {loading ? (
+                <LoadingState message="Loading templates..." />
+              ) : templates.length === 0 ? (
+                <EmptyState
+                  icon={Sparkles}
+                  title="No templates found"
+                  description="Create a template to get started."
+                  action={
+                    <PrimaryAction onClick={() => navigate('/templates/create')}>
+                      Create template
+                    </PrimaryAction>
+                  }
+                />
+              ) : (
+                <div className="overflow-hidden rounded-2xl border border-white/20 bg-white/80 shadow-inner dark:bg-slate-900/70">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Language</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead className="text-right">Variables</TableHead>
+                        <TableHead className="text-right">Updated</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {templates.map((template) => (
+                        <TableRow key={template.id}>
+                          <TableCell className="font-medium text-[var(--text)]">{template.name}</TableCell>
+                          <TableCell>{getStatusBadge(template.status)}</TableCell>
+                          <TableCell>{getLanguageLabel(template.language)}</TableCell>
+                          <TableCell>{getCategoryLabel(template.category)}</TableCell>
+                          <TableCell className="text-right text-sm text-[var(--text-muted)]">
+                            {template.variable_count || 0}
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-[var(--text-muted)]">
+                            {template.updated_at
+                              ? new Date(template.updated_at).toLocaleDateString()
+                              : '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => navigate(`/templates/${template.id}`)}
+                              >
+                                View
+                              </Button>
 
-        {/* Templates Table */}
-        <Card>
-          {templates.length === 0 ? (
-            <CardContent className="p-8 text-center">
-              <p className="text-[var(--text-muted)] mb-4">No templates found</p>
-              <Button onClick={() => navigate('/templates/create')} variant="outline">
-                Create your first template
-              </Button>
+                              {template.status === 'APPROVED' && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setSelectedTemplate(template)
+                                    setShowVersionDialog(true)
+                                  }}
+                                >
+                                  Version
+                                </Button>
+                              )}
+
+                              {template.status !== 'APPROVED' && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => navigate(`/templates/${template.id}/edit`)}
+                                >
+                                  Edit
+                                </Button>
+                              )}
+
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setSelectedTemplate(template)
+                                  setShowDeleteDialog(true)
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Language</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Variables</TableHead>
-                    <TableHead className="text-right">Updated</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {templates.map((template) => (
-                    <TableRow key={template.id}>
-                      <TableCell className="font-medium">{template.name}</TableCell>
-                      <TableCell>{getStatusBadge(template.status)}</TableCell>
-                      <TableCell>{getLanguageLabel(template.language)}</TableCell>
-                      <TableCell>{getCategoryLabel(template.category)}</TableCell>
-                      <TableCell className="text-right text-sm text-[var(--text-muted)]">
-                        {template.variable_count || 0}
-                      </TableCell>
-                      <TableCell className="text-right text-sm text-[var(--text-muted)]">
-                        {template.updated_at
-                          ? new Date(template.updated_at).toLocaleDateString()
-                          : '-'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-1 justify-end">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => navigate(`/templates/${template.id}`)}
-                          >
-                            👁️ View
-                          </Button>
+          </Card>
 
-                          {template.status === 'APPROVED' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setSelectedTemplate(template)
-                                setShowVersionDialog(true)
-                              }}
-                            >
-                              📋 Version
-                            </Button>
-                          )}
-
-                          {template.status !== 'APPROVED' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => navigate(`/templates/${template.id}/edit`)}
-                            >
-                              ✏️ Edit
-                            </Button>
-                          )}
-
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setSelectedTemplate(template)
-                              setShowDeleteDialog(true)
-                            }}
-                          >
-                            🗑️ Delete
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+          <Card variant="glass" className="space-y-4">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-primary-500" />
+                <CardTitle className="text-lg">Insights</CardTitle>
+              </div>
+              <CardDescription>Top-level counts for quick context.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2 text-sm text-[var(--text-muted)]">
+                <p className="text-xs uppercase tracking-[0.3em]">By status</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(statusCounts).map(([status, count]) => (
+                    <Badge key={status} variant="primary">{`${status}: ${count}`}</Badge>
                   ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </Card>
+                </div>
+              </div>
+
+              <div className="space-y-2 text-sm text-[var(--text-muted)]">
+                <p className="text-xs uppercase tracking-[0.3em]">Top languages</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(languageCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                    .map(([lang, count]) => (
+                      <Badge key={lang} variant="neutral">
+                        <span className="capitalize">{lang}</span>: {count}
+                      </Badge>
+                    ))}
+                </div>
+              </div>
+
+              <div className="space-y-2 text-sm text-[var(--text-muted)]">
+                <p className="text-xs uppercase tracking-[0.3em]">Category mix</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(categoryCounts).map(([category, count]) => (
+                    <Badge key={category} variant="neutral">
+                      {category}: {count}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Delete Confirmation Dialog */}

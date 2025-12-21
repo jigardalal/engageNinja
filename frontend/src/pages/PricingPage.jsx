@@ -1,7 +1,19 @@
 import React, { useState } from 'react'
 import MarketingShell from '../components/layout/MarketingShell'
 import { Link } from 'react-router-dom'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Badge } from '../components/ui'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  Button,
+  Badge,
+  Alert,
+  AlertDescription
+} from '../components/ui'
+import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
+import { CreditCard, Sparkles, Lock, Activity, RefreshCw, Check } from 'lucide-react'
 
 const tiers = [
   {
@@ -83,69 +95,89 @@ export default function PricingPage() {
 
   return (
     <MarketingShell>
-      <section className="py-6">
-        <Badge variant="primary" className="mb-4">Pricing</Badge>
-        <h1 className="text-4xl font-bold text-[var(--text)] leading-tight">Plans for every team.</h1>
-        <p className="mt-3 text-lg text-[var(--text-muted)] max-w-3xl">Start free, then pick the tier that matches your volume and support needs.</p>
+      <section className="space-y-4 pt-6">
+        <Badge variant="primary" className="inline-flex items-center gap-2">
+          <CreditCard className="h-4 w-4" />
+          Pricing
+        </Badge>
+        <div className="space-y-3">
+          <h1 className="text-4xl font-bold text-[var(--text)] leading-tight">Plans that scale with your audience.</h1>
+          <p className="text-lg text-[var(--text-muted)] max-w-3xl">
+            Start with the free tier, then pick the package that pairs WhatsApp, Email, and SMS limits with the people and automation you need.
+          </p>
+        </div>
       </section>
 
-      <div className="flex items-center gap-3 mb-6">
+      <section className="flex items-center gap-3 mt-4">
         <span className={`text-sm ${billing === 'monthly' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>Monthly</span>
         <label className="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" className="sr-only" checked={billing === 'yearly'} onChange={() => setBilling(billing === 'monthly' ? 'yearly' : 'monthly')} />
-          <div className="w-12 h-6 glass rounded-full peer-focus:outline-none peer peer-checked:bg-primary-500 transition"></div>
-          <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform ${billing === 'yearly' ? 'translate-x-6' : ''}`}></div>
+          <input
+            type="checkbox"
+            className="sr-only peer"
+            checked={billing === 'yearly'}
+            onChange={() => setBilling(billing === 'monthly' ? 'yearly' : 'monthly')}
+          />
+          <span className="w-12 h-6 bg-white/20 border border-[var(--border)] rounded-full peer-focus:outline-none peer-checked:bg-primary-500 transition" />
+          <span className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform ${billing === 'yearly' ? 'translate-x-6' : ''}`}></span>
         </label>
-        <span className={`text-sm ${billing === 'yearly' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>Yearly</span>
-      </div>
+        <span className={`text-sm ${billing === 'yearly' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>Yearly (save 2 months)</span>
+      </section>
 
-      <section className="grid md:grid-cols-2 lg:grid-cols-3 gap-4" id="pricing">
+      <section className="mt-8 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {tiers.map((tier) => (
-          <Card key={tier.name} className={`h-full relative ${tier.popular ? 'border-primary-400/50 shadow-xl' : ''}`}>
-            {tier.popular && <span className="absolute -top-3 right-4 px-3 py-1 rounded-full bg-primary-500 text-[var(--text)] text-xs font-semibold">Most popular</span>}
-            <CardContent className="pt-6 space-y-0 flex flex-col gap-3 h-full">
+          <Card key={tier.name} variant={tier.popular ? 'glass' : 'solid'} className="relative h-full border-[var(--border)]">
+            {tier.popular && (
+              <Badge variant="primary" className="absolute -top-3 right-4 text-xs uppercase tracking-[0.3em]">
+                Most popular
+              </Badge>
+            )}
+            <CardContent className="pt-6 flex flex-col h-full gap-4">
               <div>
-                <div className="text-sm text-[var(--text-muted)]">{tier.name}</div>
-                <div className="text-3xl font-bold text-[var(--text)] mt-1">{priceFor(tier)}</div>
+                <p className="text-sm tracking-[0.3em] uppercase text-[var(--text-muted)]">{tier.name}</p>
+                <p className="text-3xl font-bold text-[var(--text)] mt-2">{priceFor(tier)}</p>
               </div>
-              <ul className="space-y-1 text-sm text-[var(--text-muted)] flex-1">
-                {tier.features.map((f) => (
-                  <li key={f}>• {f}</li>
+              <ul className="space-y-2 text-sm text-[var(--text-muted)] flex-1">
+                {tier.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-2">
+                    <Check className="mt-1 h-4 w-4 text-primary-500" />
+                    <span>{feature}</span>
+                  </li>
                 ))}
               </ul>
-              <Button asChild className="w-full">
-                <Link to="/signup">Choose plan</Link>
-              </Button>
+              <PrimaryAction asChild>
+                <Link to="/signup" className="w-full text-center px-4 py-3">Choose plan</Link>
+              </PrimaryAction>
             </CardContent>
           </Card>
         ))}
       </section>
 
-      <Card className="mt-10">
-        <CardHeader>
-          <CardTitle>FAQ</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-2 gap-4 text-sm text-[var(--text-muted)]">
-            <div>
-              <p className="text-[var(--text)] font-semibold">Can I start for free?</p>
-              <p className="text-[var(--text-muted)] mt-1">Yes. Use the Free tier to test WhatsApp with basic dashboards.</p>
-            </div>
-            <div>
-              <p className="text-[var(--text)] font-semibold">Is WhatsApp approval included?</p>
-              <p className="text-[var(--text-muted)] mt-1">We guide template approval; Meta fees/approval still apply.</p>
-            </div>
-            <div>
-              <p className="text-[var(--text)] font-semibold">Do you support agencies?</p>
-              <p className="text-[var(--text-muted)] mt-1">Yes—Agency/Pro includes multi-tenant and impersonation.</p>
-            </div>
-            <div>
-              <p className="text-[var(--text)] font-semibold">Can I upgrade/downgrade anytime?</p>
-              <p className="text-[var(--text-muted)] mt-1">Yes. Switch plans as your volume changes.</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <section className="mt-10 space-y-4">
+        <Card variant="glass">
+          <CardHeader className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5 text-primary-500" />
+            <CardTitle>FAQ & clarity</CardTitle>
+          </CardHeader>
+          <CardContent className="grid md:grid-cols-2 gap-4 text-sm text-[var(--text-muted)]">
+            {[
+              { question: 'Start free?', answer: 'Yes. Free tier covers WhatsApp basics and dashboards.' },
+              { question: 'WhatsApp approval included?', answer: 'We guide approvals; Meta reviewer/fees remain.' },
+              { question: 'Agency-ready?', answer: 'Pro and Enterprise support multi-tenant agents.' },
+              { question: 'Can I switch plans?', answer: 'Upgrade or downgrade any time as volume changes.' }
+            ].map((faq) => (
+              <div key={faq.question} className="space-y-1">
+                <p className="text-[var(--text)] font-semibold">{faq.question}</p>
+                <p>{faq.answer}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        <Alert>
+          <AlertDescription>
+            Need help selecting a plan? Book a demo and we’ll show the uplift math for your teams.
+          </AlertDescription>
+        </Alert>
+      </section>
     </MarketingShell>
   )
 }

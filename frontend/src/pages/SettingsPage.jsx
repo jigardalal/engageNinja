@@ -23,14 +23,9 @@ import TeamPage from './TeamPage';
 import TenantProfilePage from './TenantProfilePage';
 import BillingPage from './BillingPage';
 import InvoicesPage from './InvoicesPage';
-import {
-  IdentificationIcon,
-  Cog6ToothIcon,
-  RectangleStackIcon,
-  TagIcon,
-  UserGroupIcon,
-  CreditCardIcon
-} from '@heroicons/react/24/outline';
+import PageHeader from '../components/layout/PageHeader';
+import { PrimaryAction } from '../components/ui/ActionButtons';
+import { Settings, Wifi, Mail, Layers, Tag, Users, CreditCard, FileText } from 'lucide-react';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -582,6 +577,18 @@ export default function SettingsPage() {
   return (
     <>
       <AppShell title="Settings" subtitle="Configure your channels and integrations">
+        <PageHeader
+          icon={Settings}
+          title="Workspace configuration"
+          description="Connect channels, manage templates, and review tenant settings."
+          helper="Customize channel connections and account settings in one place"
+          actions={
+            <PrimaryAction onClick={() => setTab('channels')}>
+              <Settings className="h-4 w-4" />
+              Refresh channels
+            </PrimaryAction>
+          }
+        />
         {!initialized ? (
           <LoadingState message="Loading channel settings..." />
         ) : (
@@ -615,7 +622,7 @@ export default function SettingsPage() {
                     }`}
                   >
                     <span className="inline-flex items-center gap-2">
-                      <IdentificationIcon className="h-4 w-4 opacity-80" />
+                      <Users className="h-4 w-4 opacity-80" />
                       Tenant Profile
                     </span>
                   </button>
@@ -629,8 +636,8 @@ export default function SettingsPage() {
                   }`}
                 >
                   <span className="inline-flex items-center gap-2">
-                    <Cog6ToothIcon className="h-4 w-4 opacity-80" />
-                    Channels
+                      <Wifi className="h-4 w-4 opacity-80" />
+                      Channels
                   </span>
                 </button>
                 <button
@@ -642,8 +649,8 @@ export default function SettingsPage() {
                   }`}
                 >
                   <span className="inline-flex items-center gap-2">
-                    <RectangleStackIcon className="h-4 w-4 opacity-80" />
-                    Templates
+                      <Layers className="h-4 w-4 opacity-80" />
+                      Templates
                   </span>
                 </button>
                 <button
@@ -655,8 +662,8 @@ export default function SettingsPage() {
                   }`}
                 >
                   <span className="inline-flex items-center gap-2">
-                    <TagIcon className="h-4 w-4 opacity-80" />
-                    Tags
+                      <Tag className="h-4 w-4 opacity-80" />
+                      Tags
                   </span>
                 </button>
                 {canManageTenant && (
@@ -669,7 +676,7 @@ export default function SettingsPage() {
                     }`}
                   >
                     <span className="inline-flex items-center gap-2">
-                      <UserGroupIcon className="h-4 w-4 opacity-80" />
+                      <Users className="h-4 w-4 opacity-80" />
                       Team
                     </span>
                   </button>
@@ -684,7 +691,7 @@ export default function SettingsPage() {
                     }`}
                   >
                     <span className="inline-flex items-center gap-2">
-                      <CreditCardIcon className="h-4 w-4 opacity-80" />
+                      <CreditCard className="h-4 w-4 opacity-80" />
                       Billing
                     </span>
                   </button>
@@ -699,7 +706,7 @@ export default function SettingsPage() {
                     }`}
                   >
                     <span className="inline-flex items-center gap-2">
-                      <CreditCardIcon className="h-4 w-4 opacity-80" />
+                      <FileText className="h-4 w-4 opacity-80" />
                       Invoices
                     </span>
                   </button>
@@ -712,9 +719,12 @@ export default function SettingsPage() {
               <div className="space-y-6">
                 {/* WhatsApp Channel Card */}
                 <Card>
-                  <CardHeader className="flex items-start justify-between">
+                  <CardHeader className="flex items-start justify-between gap-4">
                     <div>
-                      <CardTitle>WhatsApp</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Wifi className="h-5 w-5 text-primary-500" />
+                        <CardTitle>WhatsApp</CardTitle>
+                      </div>
                       <CardDescription>Send messages via Meta WhatsApp Cloud API</CardDescription>
                     </div>
                     <Badge variant={channels.whatsapp.is_connected ? 'success' : 'neutral'}>
@@ -867,9 +877,12 @@ export default function SettingsPage() {
 
                 {/* Email Channel Card */}
                 <Card>
-                  <CardHeader className="flex items-start justify-between">
+                  <CardHeader className="flex items-start justify-between gap-4">
                     <div>
-                      <CardTitle>Email</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-5 w-5 text-primary-500" />
+                        <CardTitle>Email</CardTitle>
+                      </div>
                       <CardDescription>Send emails via AWS SES or Brevo</CardDescription>
                     </div>
                     <Badge variant={channels.email.is_connected ? 'success' : 'neutral'}>

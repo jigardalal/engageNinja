@@ -4,101 +4,104 @@
  * Accessible via /accept-invite?token=<invitation-token>
  */
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Alert } from '../components/ui/Alert';
+import React, { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import PageHeader from '../components/layout/PageHeader'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  Button,
+  Input,
+  Label,
+  Alert,
+  EmptyState,
+  LoadingState
+} from '../components/ui'
+import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
+import { ShieldCheck, MessageCircle } from 'lucide-react'
 
 export const AcceptInvitePage = () => {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { isAuthenticated, login, checkAuth } = useAuth();
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { isAuthenticated, login, checkAuth } = useAuth()
 
-  const token = searchParams.get('token');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [invitationData, setInvitationData] = useState(null);
-  const [accepted, setAccepted] = useState(false);
+  const token = searchParams.get('token')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [invitationData, setInvitationData] = useState(null)
+  const [accepted, setAccepted] = useState(false)
 
-  // State for new user signup
-  const [showSignup, setShowSignup] = useState(false);
-  const [signupPassword, setSignupPassword] = useState('');
-  const [signupName, setSignupName] = useState('');
-  const [signingUp, setSigningUp] = useState(false);
+  const [showSignup, setShowSignup] = useState(false)
+  const [signupPassword, setSignupPassword] = useState('')
+  const [signupName, setSignupName] = useState('')
+  const [signingUp, setSigningUp] = useState(false)
 
-  // Validate token and get invitation details
   useEffect(() => {
     if (!token) {
-      setError('No invitation token provided');
-      return;
+      setError('No invitation token provided')
+      return
     }
 
-    validateToken();
-  }, [token]);
+    validateToken()
+  }, [token])
 
   const validateToken = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setLoading(true)
+      setError(null)
 
-      // Try to accept the invitation directly
-      // The backend will validate the token and return details
       const response = await fetch('/api/auth/accept-invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ token })
-      });
+      })
 
-      const data = await response.json();
+      const data = await response.json()
 
       if (!response.ok) {
-        // Check if error is about authentication needed
         if (response.status === 401) {
-          // Need to login/signup first
-          setShowSignup(true);
-          setInvitationData({ token });
+          setShowSignup(true)
+          setInvitationData({ token })
         } else {
-          setError(data.error || 'Invalid or expired invitation');
+          setError(data.error || 'Invalid or expired invitation')
         }
-      } else {
-        // Invitation accepted successfully
-        setAccepted(true);
-        setInvitationData(data);
-        // Refresh auth context and redirect in 3 seconds
-        setTimeout(() => {
-          checkAuth();
-          navigate('/dashboard');
-        }, 3000);
+        return
       }
+
+      setAccepted(true)
+      setInvitationData(data)
+      setTimeout(() => {
+        checkAuth()
+        navigate('/dashboard')
+      }, 3000)
     } catch (err) {
-      setError(err.message || 'Failed to validate invitation');
+      setError(err.message || 'Failed to validate invitation')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleSignup = async (e) => {
-    e.preventDefault();
-    setError(null);
+    e.preventDefault()
+    setError(null)
 
     if (!signupName.trim()) {
-      setError('Name is required');
-      return;
+      setError('Name is required')
+      return
     }
 
     if (!signupPassword || signupPassword.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
+      setError('Password must be at least 8 characters')
+      return
     }
 
     try {
-      setSigningUp(true);
-
-      // Get email from token - for now we'll need to decode it or the backend provides it
-      // This is a limitation - in production you'd want the backend to return the email
+      setSigningUp(true)
       const response = await fetch('/api/auth/accept-invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -108,189 +111,174 @@ export const AcceptInvitePage = () => {
           password: signupPassword,
           name: signupName
         })
-      });
+      })
 
-      const data = await response.json();
+      const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to accept invitation');
+        throw new Error(data.error || 'Failed to accept invitation')
       }
 
-      setAccepted(true);
-      setInvitationData(data);
-      setShowSignup(false);
-
-      // Refresh auth and redirect
+      setAccepted(true)
+      setInvitationData(data)
+      setShowSignup(false)
       setTimeout(() => {
-        checkAuth();
-        navigate('/dashboard');
-      }, 3000);
+        checkAuth()
+        navigate('/dashboard')
+      }, 3000)
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     } finally {
-      setSigningUp(false);
+      setSigningUp(false)
     }
-  };
+  }
 
-  // Success state
   if (accepted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-          <div className="mb-6">
-            <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-              <svg
-                className="h-8 w-8 text-green-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Invitation Accepted!
-            </h1>
-            <p className="text-gray-600">
-              You've been added to the team. Redirecting to dashboard...
-            </p>
-          </div>
+        <div className="w-full max-w-3xl space-y-6">
+          <PageHeader
+            icon={ShieldCheck}
+            title="Invitation accepted"
+            description="You’ll land in the workspace soon."
+            helper="Redirecting to your dashboard..."
+            actions={
+              <PrimaryAction asChild>
+                <Link to="/dashboard">Open dashboard</Link>
+              </PrimaryAction>
+            }
+          />
+          <Card variant="glass">
+            <CardContent>
+              <EmptyState
+                icon={MessageCircle}
+                title="Welcome aboard"
+                description="We are syncing your permissions. The dashboard will open in a moment."
+                action={
+                  <PrimaryAction asChild>
+                    <Link to="/dashboard">Go to dashboard</Link>
+                  </PrimaryAction>
+                }
+              />
+            </CardContent>
+          </Card>
         </div>
       </div>
-    );
+    )
   }
 
-  // Loading state
   if (loading && !showSignup) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Validating invitation...</p>
+        <div className="w-full max-w-3xl space-y-6">
+          <PageHeader
+            icon={ShieldCheck}
+            title="Verifying invitation"
+            description="Give us a moment while we confirm your token."
+          />
+          <Card variant="glass">
+            <CardContent>
+              <LoadingState message="Validating invitation..." />
+            </CardContent>
+          </Card>
         </div>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2 text-center">
-          Join Our Team
-        </h1>
-        <p className="text-gray-600 text-center mb-6">
-          Complete your setup to access the platform
-        </p>
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-4xl space-y-6">
+        <PageHeader
+          icon={ShieldCheck}
+          title="Accept your invitation"
+          description="Finish the quick setup to join the workspace."
+          helper="Need help? Reply to the invite email or contact support."
+        />
 
-        {error && (
-          <Alert type="error" title="Error" className="mb-6">
-            {error}
-          </Alert>
-        )}
+        <Card variant="glass">
+          <CardHeader>
+            <CardTitle>Confirm your identity</CardTitle>
+            <CardDescription>Provide your name and a secure password.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {error && (
+              <Alert variant="error">
+                {error}
+              </Alert>
+            )}
 
-        {showSignup ? (
-          <form onSubmit={handleSignup} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-1">
-                Full Name
-              </label>
-              <Input
-                type="text"
-                placeholder="John Doe"
-                value={signupName}
-                onChange={(e) => setSignupName(e.target.value)}
-                disabled={signingUp}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-1">
-                Password
-              </label>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                value={signupPassword}
-                onChange={(e) => setSignupPassword(e.target.value)}
-                disabled={signingUp}
-                required
-                minLength="8"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Minimum 8 characters
-              </p>
-            </div>
-
-            <Button
-              type="submit"
-              disabled={signingUp || !signupName.trim() || !signupPassword}
-              className="w-full bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
-            >
-              {signingUp ? 'Setting up...' : 'Complete Setup'}
-            </Button>
-          </form>
-        ) : (
-          <div className="space-y-4">
-            {invitationData && (
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                <p className="text-sm text-blue-900">
-                  <strong>Tenant:</strong> {invitationData.tenant_name || 'Team'}
-                </p>
-                <p className="text-sm text-blue-900 mt-1">
-                  <strong>Role:</strong> {invitationData.role || 'Member'}
-                </p>
+            {showSignup ? (
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Full name</Label>
+                  <Input
+                    type="text"
+                    value={signupName}
+                    onChange={(e) => setSignupName(e.target.value)}
+                    placeholder="Jordan Reyes"
+                    disabled={signingUp}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Password</Label>
+                  <Input
+                    type="password"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    placeholder="Strong password"
+                    disabled={signingUp}
+                  />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <PrimaryAction type="submit" className="w-full" loading={signingUp}>
+                    Complete signup
+                  </PrimaryAction>
+                  <SecondaryAction asChild>
+                    <Link to="/login">Back to login</Link>
+                  </SecondaryAction>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                {invitationData && (
+                  <div className="rounded-2xl border border-white/20 bg-white/60 dark:bg-slate-900/60 p-4 space-y-1 text-sm">
+                    <p className="text-[var(--text-muted)]">Tenant</p>
+                    <p className="font-semibold text-[var(--text)]">{invitationData.tenant_name || 'EngageNinja workspace'}</p>
+                    <p className="text-[var(--text-muted)]">Role: {invitationData.role || 'Member'}</p>
+                  </div>
+                )}
+                {!isAuthenticated ? (
+                  <>
+                    <p className="text-sm text-[var(--text-muted)] text-center">
+                      Sign in or create an account to accept the invitation.
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      <Button onClick={() => navigate('/login')} className="w-full sm:w-auto">
+                        Log in to accept
+                      </Button>
+                      <Button variant="ghost" onClick={() => navigate('/signup')} className="w-full sm:w-auto">
+                        Create account
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-[var(--text-muted)] text-center">
+                      Already signed in? Retry the verification.
+                    </p>
+                    <Button onClick={validateToken} className="w-full">
+                      Retry verification
+                    </Button>
+                  </>
+                )}
               </div>
             )}
-
-            {!isAuthenticated ? (
-              <>
-                <p className="text-sm text-gray-600 text-center">
-                  You need to log in or create an account first
-                </p>
-                <Button
-                  onClick={() => navigate('/login')}
-                  className="w-full bg-primary text-white hover:bg-primary/90"
-                >
-                  Log In to Accept
-                </Button>
-                <Button
-                  onClick={() => navigate('/signup')}
-                  className="w-full bg-gray-200 text-gray-900 hover:bg-gray-300"
-                >
-                  Create Account
-                </Button>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-gray-600 text-center">
-                  You're logged in. Trying to accept invitation...
-                </p>
-                <Button
-                  onClick={validateToken}
-                  className="w-full bg-primary text-white hover:bg-primary/90"
-                >
-                  Try Again
-                </Button>
-              </>
-            )}
-          </div>
-        )}
-
-        <div className="mt-6 pt-6 border-t border-gray-200 text-center text-sm text-gray-600">
-          Need help?{' '}
-          <a href="/contact" className="text-primary hover:underline">
-            Contact support
-          </a>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default AcceptInvitePage;
+export default AcceptInvitePage

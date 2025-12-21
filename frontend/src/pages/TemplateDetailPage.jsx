@@ -2,7 +2,21 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 import WhatsAppPreview from '../components/templates/WhatsAppPreview'
-import { Button, Card, CardContent, CardHeader, CardTitle, Alert, Badge, LoadingState, ErrorState } from '../components/ui'
+import PageHeader from '../components/layout/PageHeader'
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  Alert,
+  Badge,
+  LoadingState,
+  ErrorState
+} from '../components/ui'
+import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
+import { MessageSquare, BookOpen, Clock, Layers } from 'lucide-react'
 
 /**
  * Template Detail Page
@@ -80,11 +94,11 @@ export const TemplateDetailPage = () => {
     const colors = {
       APPROVED: 'success',
       PENDING: 'warning',
-      REJECTED: 'destructive',
-      PAUSED: 'secondary',
-      draft: 'secondary'
+      REJECTED: 'danger',
+      PAUSED: 'neutral',
+      draft: 'neutral'
     }
-    return colors[status] || 'secondary'
+    return colors[status] || 'neutral'
   }
 
   const getLanguageLabel = (code) => {
@@ -110,128 +124,128 @@ export const TemplateDetailPage = () => {
     return categories[category] || category
   }
 
+  const headerHelper = `${getLanguageLabel(template.language)} • ${getCategoryLabel(template.category)}`
+  const headerActions = (
+    <div className="flex flex-wrap gap-2">
+      {template.status === 'APPROVED' ? (
+        <PrimaryAction onClick={() => navigate(`/templates/create?versionOf=${template.id}`)}>
+          Create version
+        </PrimaryAction>
+      ) : (
+        <PrimaryAction onClick={() => navigate(`/templates/${template.id}/edit`)}>
+          Edit template
+        </PrimaryAction>
+      )}
+      <SecondaryAction onClick={() => navigate('/templates')}>
+        Back to templates
+      </SecondaryAction>
+    </div>
+  )
+
   return (
     <AppShell>
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-[var(--text)]">{template.name}</h1>
-            <p className="text-[var(--text-muted)] mt-1">Template Details</p>
-          </div>
-          <Button variant="outline" onClick={() => navigate('/templates')}>
-            ← Back to Templates
-          </Button>
-        </div>
+      <div className="max-w-6xl mx-auto space-y-6 p-6">
+        <PageHeader
+          icon={MessageSquare}
+          title={template.name}
+          description="Template Details"
+          helper={headerHelper}
+          meta={<Badge variant={getStatusColor(template.status)}>{template.status}</Badge>}
+          actions={headerActions}
+        />
 
-        {/* Template Info */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-[var(--text-muted)] mb-1">Status</p>
-              <Badge variant={getStatusColor(template.status)}>
-                {template.status}
-              </Badge>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-[var(--text-muted)] mb-1">Language</p>
-              <p className="text-lg font-semibold text-[var(--text)]">
-                {getLanguageLabel(template.language)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-[var(--text-muted)] mb-1">Category</p>
-              <p className="text-lg font-semibold text-[var(--text)]">
-                {getCategoryLabel(template.category)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm text-[var(--text-muted)] mb-1">Variables</p>
-              <p className="text-lg font-semibold text-[var(--text)]">
-                {template.variable_count || 0}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Preview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Preview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WhatsAppPreview template={template} />
-          </CardContent>
-        </Card>
-
-        {/* Template Details */}
-        {(template.body || template.body_template) && (
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Message Body</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-[var(--text)] whitespace-pre-wrap">
-                {template.body || template.body_template}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Metadata */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Metadata</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-[var(--text-muted)]">Created</p>
-                <p className="text-[var(--text)]">
-                  {template.created_at ? new Date(template.created_at).toLocaleDateString() : '-'}
-                </p>
+        <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+          <Card variant="glass" className="space-y-6">
+            <CardHeader className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Layers className="h-5 w-5 text-primary-500" />
+                <CardTitle className="text-xl md:text-2xl">Template workspace</CardTitle>
               </div>
-              <div>
-                <p className="text-sm text-[var(--text-muted)]">Updated</p>
-                <p className="text-[var(--text)]">
-                  {template.updated_at ? new Date(template.updated_at).toLocaleDateString() : '-'}
-                </p>
+              <CardDescription>Preview, message content, and core metadata.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-[var(--text-muted)]">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em]">Language</p>
+                  <p className="font-semibold text-[var(--text)]">{getLanguageLabel(template.language)}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em]">Category</p>
+                  <p className="font-semibold text-[var(--text)]">{getCategoryLabel(template.category)}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em]">Variables</p>
+                  <p className="font-semibold text-[var(--text)]">{template.variable_count || 0}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em]">Approved</p>
+                  <p className="font-semibold text-[var(--text)]">
+                    {template.status === 'APPROVED' ? 'Yes' : 'No'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
+                  <BookOpen className="h-4 w-4 text-primary-500" />
+                  <span>Live preview</span>
+                </div>
+                <div className="rounded-2xl border border-white/20 bg-white/80 p-4 shadow-inner dark:bg-slate-900/70">
+                  <WhatsAppPreview template={template} />
+                </div>
+              </div>
+
+              {(template.body || template.body_template) && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
+                    <BookOpen className="h-4 w-4 text-primary-500" />
+                    <span>Message body</span>
+                  </div>
+                  <div className="rounded-2xl border border-white/20 bg-white/80 p-4 font-mono text-sm text-[var(--text)] shadow-inner dark:bg-slate-900/70 whitespace-pre-wrap">
+                    {template.body || template.body_template}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card variant="glass" className="space-y-4">
+            <CardHeader className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary-500" />
+                <CardTitle className="text-lg">Metadata</CardTitle>
+              </div>
+              <CardDescription>Created, updated, and identifiers.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-[var(--text-muted)]">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em]">Created</p>
+                  <p className="text-[var(--text)]">
+                    {template.created_at ? new Date(template.created_at).toLocaleDateString() : '-'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em]">Updated</p>
+                  <p className="text-[var(--text)]">
+                    {template.updated_at ? new Date(template.updated_at).toLocaleDateString() : '-'}
+                  </p>
+                </div>
               </div>
               {template.meta_template_id && (
                 <div>
-                  <p className="text-sm text-[var(--text-muted)]">Meta Template ID</p>
-                  <p className="text-[var(--text)] font-mono text-xs">{template.meta_template_id}</p>
+                  <p className="text-xs uppercase tracking-[0.3em]">Meta template ID</p>
+                  <p className="font-mono text-xs text-[var(--text)]">{template.meta_template_id}</p>
                 </div>
               )}
               {template.waba_id && (
                 <div>
-                  <p className="text-sm text-[var(--text-muted)]">WABA ID</p>
-                  <p className="text-[var(--text)] font-mono text-xs">{template.waba_id}</p>
+                  <p className="text-xs uppercase tracking-[0.3em]">WABA ID</p>
+                  <p className="font-mono text-xs text-[var(--text)]">{template.waba_id}</p>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Action Buttons */}
-        <div className="flex gap-3 mt-6">
-          <Button variant="outline" onClick={() => navigate('/templates')}>
-            Back to Templates
-          </Button>
-          {template.status !== 'APPROVED' && (
-            <Button onClick={() => navigate(`/templates/${template.id}/edit`)}>
-              Edit Template
-            </Button>
-          )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </AppShell>

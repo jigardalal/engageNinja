@@ -1,8 +1,8 @@
-import React, { useRef, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React, { useRef, useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import PageHeader from '../components/layout/PageHeader'
 import {
-  Button,
   Input,
   Label,
   Alert,
@@ -10,20 +10,15 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardContent,
-  CardFooter,
-  Badge
-} from '../components/ui';
-import { CheckCircle2, ShieldCheck, MessageCircle, Hammer, Sparkles } from 'lucide-react';
-import ReCAPTCHA from 'react-google-recaptcha';
+  CardContent
+} from '../components/ui'
+import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
+import { CheckCircle2, ShieldCheck, MessageCircle, Hammer, Sparkles } from 'lucide-react'
+import ReCAPTCHA from 'react-google-recaptcha'
 
-/**
- * Signup Page
- * User registration form
- */
 export const SignupPage = () => {
-  const navigate = useNavigate();
-  const { signup, error: authError } = useAuth();
+  const navigate = useNavigate()
+  const { signup, error: authError } = useAuth()
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -33,93 +28,93 @@ export const SignupPage = () => {
     phone: '',
     password: '',
     confirmPassword: ''
-  });
-  const [error, setError] = useState('');
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [recaptchaToken, setRecaptchaToken] = useState('');
-  const [loading, setLoading] = useState(false);
-  const recaptchaRef = useRef(null);
-  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+  })
+  const [error, setError] = useState('')
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [recaptchaToken, setRecaptchaToken] = useState('')
+  const [loading, setLoading] = useState(false)
+  const recaptchaRef = useRef(null)
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY
+
   const trialHighlights = [
     { icon: CheckCircle2, label: 'No credit card required' },
     { icon: CheckCircle2, label: 'Free trials available' },
-    { icon: Sparkles, label: 'Access to all EngageNinja products (WhatsApp, email, automation)' }
-  ];
+    { icon: Sparkles, label: 'WhatsApp, email, and automation in one platform' }
+  ]
+
   const onboardingSteps = [
     { icon: ShieldCheck, label: 'Verify your email address & phone number' },
-    { icon: MessageCircle, label: 'Tell us what you want to build first' },
-    { icon: Hammer, label: 'Start building!' }
-  ];
+    { icon: MessageCircle, label: 'Tell us which channels you want to automate' },
+    { icon: Hammer, label: 'Start building workflows in minutes' }
+  ]
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
+    const { name, value } = e.target
+    setFormData((prev) => ({
       ...prev,
       [name]: value
-    }));
-    setError(''); // Clear error on input change
-  };
+    }))
+    setError('')
+  }
 
   const handleAgreementChange = (e) => {
-    setAcceptedTerms(e.target.checked);
+    setAcceptedTerms(e.target.checked)
     if (e.target.checked && error) {
-      setError('');
+      setError('')
     }
-  };
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+    e.preventDefault()
+    setError('')
 
     if (!formData.firstName.trim()) {
-      setError('First name is required');
-      return;
+      setError('First name is required')
+      return
     }
 
     if (!formData.companyName.trim()) {
-      setError('Company or workspace name is required');
-      return;
+      setError('Company or workspace name is required')
+      return
     }
 
     if (!acceptedTerms) {
-      setError('You must agree to the Terms of Service and Privacy Policy');
-      return;
+      setError('You must agree to the Terms of Service and Privacy Policy')
+      return
     }
 
     if (recaptchaSiteKey && !recaptchaToken) {
-      setError('Please complete the captcha');
-      return;
+      setError('Please complete the captcha')
+      return
     }
 
-    // Validation
     if (!formData.email.trim()) {
-      setError('Email is required');
-      return;
+      setError('Email is required')
+      return
     }
 
     if (!formData.password) {
-      setError('Password is required');
-      return;
+      setError('Password is required')
+      return
     }
 
     if (formData.password.length < 9) {
-      setError('Password must be at least 9 characters');
-      return;
+      setError('Password must be at least 9 characters')
+      return
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
+      setError('Passwords do not match')
+      return
     }
 
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) {
-      setError('Invalid email format');
-      return;
+      setError('Invalid email format')
+      return
     }
 
-    setLoading(true);
+    setLoading(true)
     const signupResult = await signup({
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim() || null,
@@ -128,73 +123,73 @@ export const SignupPage = () => {
       email: formData.email.trim(),
       password: formData.password,
       recaptchaToken: recaptchaToken || null
-    });
+    })
 
     if (signupResult.success) {
-      // Signup successful, redirect to dashboard
-      navigate('/dashboard');
+      navigate('/dashboard')
     } else {
-      setError(signupResult.error);
+      setError(signupResult.error)
       if (recaptchaRef.current) {
-        recaptchaRef.current.reset();
+        recaptchaRef.current.reset()
       }
-      setRecaptchaToken('');
+      setRecaptchaToken('')
     }
 
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-gradient)] flex items-center justify-center py-12 px-4">
-      <Card className="w-full max-w-5xl shadow-2xl">
-        <CardHeader className="text-center space-y-3">
-          <div className="flex items-center justify-center gap-2">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-300 text-white flex items-center justify-center font-bold shadow-lg">
-              EN
-            </div>
-            <Badge variant="primary">Create account</Badge>
-          </div>
-          <CardTitle>Join EngageNinja</CardTitle>
-          <CardDescription>Spin up your workspace and start sending</CardDescription>
-        </CardHeader>
+    <div className="min-h-screen bg-[var(--bg-gradient)] flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-6xl space-y-6">
+        <PageHeader
+          icon={Sparkles}
+          title="Join EngageNinja"
+          description="Create your workspace and orchestrate WhatsApp, email, and automation without context switching."
+          helper="No credit card required · Free tier runs forever"
+          actions={
+            <SecondaryAction asChild>
+              <Link to="/login">Already have an account?</Link>
+            </SecondaryAction>
+          }
+        />
 
-        <CardContent className="space-y-4">
-          {(error || authError) && (
-            <Alert variant="error">{error || authError}</Alert>
-          )}
+        <Card variant="glass" className="shadow-2xl">
+          <CardContent className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <section className="space-y-4">
+              {(error || authError) && (
+                <Alert variant="error">{error || authError}</Alert>
+              )}
 
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
-            <div className="space-y-4">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
+                    <Label htmlFor="firstName">First name</Label>
                     <Input
                       type="text"
                       id="firstName"
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleChange}
-                      placeholder="Lee"
+                      placeholder="Jordan"
                       disabled={loading}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
+                    <Label htmlFor="lastName">Last name</Label>
                     <Input
                       type="text"
                       id="lastName"
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleChange}
-                      placeholder="Brown"
+                      placeholder="Reyes"
                       disabled={loading}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="companyName">Company or Workspace Name</Label>
+                  <Label htmlFor="companyName">Company / workspace</Label>
                   <Input
                     type="text"
                     id="companyName"
@@ -207,46 +202,47 @@ export const SignupPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number (optional)</Label>
+                  <Label htmlFor="phone">Phone</Label>
                   <Input
                     type="tel"
                     id="phone"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    placeholder="+1 (555) 123-4567"
+                    placeholder="Optional"
                     disabled={loading}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="you@example.com"
-                    disabled={loading}
-                  />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email address</Label>
+                    <Input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="you@example.com"
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      type="password"
+                      id="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="At least 9 characters"
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    type="password"
-                    id="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="At least 9 characters"
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Label htmlFor="confirmPassword">Confirm password</Label>
                   <Input
                     type="password"
                     id="confirmPassword"
@@ -268,7 +264,7 @@ export const SignupPage = () => {
                     disabled={loading}
                   />
                   <label htmlFor="agreeTerms" className="text-[var(--text-muted)]">
-                    By creating an account I agree to EngageNinja's{' '}
+                    I agree to the{' '}
                     <Link to="/terms" className="font-semibold text-primary-600 hover:underline">
                       Terms of Service
                     </Link>{' '}
@@ -281,101 +277,80 @@ export const SignupPage = () => {
                 </div>
 
                 {recaptchaSiteKey && (
-                  <div className="space-y-2">
+                  <div>
                     <ReCAPTCHA
                       sitekey={recaptchaSiteKey}
                       onChange={(token) => {
-                        setRecaptchaToken(token);
-                        if (token && error) setError('');
+                        setRecaptchaToken(token)
+                        if (token && error) setError('')
                       }}
                       ref={recaptchaRef}
                     />
                   </div>
                 )}
 
-                <Button
-                  type="submit"
-                  disabled={loading || !acceptedTerms}
-                  className="w-full"
-                >
-                  {loading ? 'Creating Account...' : 'Sign Up'}
-                </Button>
+                <PrimaryAction type="submit" className="w-full" loading={loading}>
+                  {loading ? 'Creating workspace...' : 'Start free workspace'}
+                </PrimaryAction>
               </form>
-            </div>
+            </section>
 
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm space-y-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                  Start your forever free workspace
-                </p>
-                <h3 className="mt-1 text-xl font-semibold text-[var(--text)]">
-                  Stay on our free tier as long as you like
-                </h3>
-                <p className="mt-2 text-sm text-[var(--text-muted)]">
-                  WhatsApp-first workflows, AI-assisted drafts, and one-click resends help you go from
-                  demo to delivery without juggling tools.
-                </p>
-              </div>
-
+            <section className="space-y-6">
               <div className="space-y-3">
                 {trialHighlights.map((item) => {
-                  const Icon = item.icon;
+                  const Icon = item.icon
                   return (
                     <div key={item.label} className="flex items-start gap-2">
-                      <Icon className="mt-1 h-4 w-4 text-primary-500" />
+                      <Icon className="mt-0.5 h-4 w-4 text-primary-500" />
                       <p className="text-sm text-[var(--text-muted)]">{item.label}</p>
                     </div>
-                  );
+                  )
                 })}
               </div>
-
-              <div>
-                <p className="text-sm font-semibold text-[var(--text)]">Get up and running:</p>
-                <div className="mt-3 space-y-3">
+              <div className="rounded-2xl border border-white/20 bg-white/60 p-4 dark:bg-slate-900/60 space-y-4">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--text)]">Try EngageNinja in three steps:</p>
+                  <CardDescription>We guide the setup and approvals so you can ship fast.</CardDescription>
+                </div>
+                <div className="space-y-3 text-sm text-[var(--text-muted)]">
                   {onboardingSteps.map((step) => {
-                    const Icon = step.icon;
+                    const Icon = step.icon
                     return (
                       <div key={step.label} className="flex items-start gap-2">
                         <Icon className="mt-0.5 h-4 w-4 text-primary-500" />
-                        <p className="text-sm text-[var(--text-muted)]">{step.label}</p>
+                        <p>{step.label}</p>
                       </div>
-                    );
+                    )
                   })}
                 </div>
               </div>
+            </section>
+          </CardContent>
+        </Card>
 
-              <p className="text-[0.65rem] text-[var(--text-muted)]">
-                Free tier access is perpetual, though usage caps and product limits may apply for the
-                no-cost plan.
-              </p>
-            </div>
-          </div>
-
-          <p className="text-[0.75rem] text-[var(--text-muted)]">
-            EngageNinja will use your details to create a workspace, share important updates, and send
-            transactional messages about your usage. You can manage notification preferences in your
-            account settings.
-          </p>
-        </CardContent>
-
-        <CardFooter className="text-center text-sm text-[var(--text-muted)] flex flex-col gap-2">
-          <p>
-            Already have an account?{' '}
-            <Link to="/login" className="text-primary-600 hover:underline font-semibold">
-              Log in
-            </Link>
-          </p>
-          <p className="text-xs text-[var(--text-muted)]">
-            Need help? Reach us at{' '}
-            <a href="mailto:support@engageninja.com" className="text-primary-600 font-semibold">
-              support@engageninja.com
-            </a>
-            .
-          </p>
-        </CardFooter>
-      </Card>
+        <section className="grid gap-4 lg:grid-cols-3">
+          {onboardingSteps.map((step) => {
+            const Icon = step.icon
+            return (
+              <Card key={step.label} variant="glass">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-5 w-5 text-primary-500" />
+                    <CardTitle className="text-lg">{step.label}</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    {step.label} so your workspace is ready for campaign automation.
+                  </p>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </section>
+      </div>
     </div>
-  );
-};
+  )
+}
 
-export default SignupPage;
+export default SignupPage

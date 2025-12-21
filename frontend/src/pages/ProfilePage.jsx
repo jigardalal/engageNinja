@@ -1,6 +1,18 @@
 import React, { useEffect, useState } from 'react'
 import AppShell from '../components/layout/AppShell'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Input, Label, Alert } from '../components/ui'
+import PageHeader from '../components/layout/PageHeader'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  Button,
+  Input,
+  Label,
+  Alert
+} from '../components/ui'
+import { User, KeyRound } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { timezoneOptions } from '../data/timezones'
 
@@ -115,6 +127,12 @@ export default function ProfilePage() {
 
   return (
     <AppShell title="Profile" subtitle="Manage your account info and password">
+      <PageHeader
+        icon={User}
+        title="Profile & security"
+        description="Update your personal info and change your password in one place."
+        helper="Changes apply across your tenant"
+      />
       {!isAuthenticated && (
         <Alert variant="warning" className="mb-4">You are not signed in.</Alert>
       )}
@@ -122,7 +140,10 @@ export default function ProfilePage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Account</CardTitle>
+            <div className="flex items-center gap-2">
+              <User className="h-5 w-5 text-primary-500" />
+              <CardTitle>Account</CardTitle>
+            </div>
             <CardDescription>Update your name and view your email.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -189,7 +210,10 @@ export default function ProfilePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Password</CardTitle>
+            <div className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-primary-500" />
+              <CardTitle>Password</CardTitle>
+            </div>
             <CardDescription>Change your password to keep your account secure.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

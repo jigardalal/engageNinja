@@ -4,7 +4,21 @@ import { Button } from './Button';
 
 const DialogContext = createContext();
 
-export function Dialog({ open, onClose, children, size = 'md', title, description, footer }) {
+const dialogVariants = {
+  solid: 'bg-[var(--card)] shadow-2xl',
+  glass: 'bg-white/70 dark:bg-slate-900/60 shadow-[0_20px_60px_rgba(15,23,42,0.4)] backdrop-blur'
+};
+
+export function Dialog({
+  open,
+  onClose,
+  children,
+  size = 'md',
+  title,
+  description,
+  footer,
+  variant = 'solid'
+}) {
   if (!open) return null;
 
   const sizeClasses = {
@@ -18,9 +32,11 @@ export function Dialog({ open, onClose, children, size = 'md', title, descriptio
       <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
         <div
+          role="dialog"
+          aria-modal="true"
           className={cn(
-            'relative w-full rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl',
-            'p-6 space-y-4',
+            'relative w-full rounded-2xl border border-[var(--border)] p-6 space-y-4',
+            dialogVariants[variant] || dialogVariants.solid,
             sizeClasses[size]
           )}
         >

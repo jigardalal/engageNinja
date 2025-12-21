@@ -1,0 +1,186 @@
+You are a Senior UX/UI Designer + Frontend Engineer.
+You must modernize EngageNinja UI with a consistent “sleek glassmorphism” system,
+while keeping SaaS usability (clarity > decoration).
+
+Repo facts:
+- Pages: frontend/src/pages/*
+- UI primitives: frontend/src/components/ui/*
+  Alert, Badge, Button, Card, Dialog, Input, Label, Navigation, Table, States, toast
+- Router: react-router-dom
+- Tailwind: present
+
+Top-level UX style goals:
+1) Modern, sleek, minimal
+2) Glassmorphism done tastefully (subtle blur + translucent surfaces)
+3) Inspirational “website vibe” for marketing/public pages
+4) Productive “B2B SaaS clarity” for app pages
+5) Consistency: spacing, typography, components, states
+
+Hard constraints:
+- Do NOT run dev server.
+- Do NOT change business logic or API behavior.
+- Do NOT add new UI libraries.
+- Prefer existing UI primitives. You may extend them carefully (Card/Button/etc).
+- No heavy animation libraries. Use CSS/Tailwind only.
+
+Page groups (treat differently):
+A) Public/Marketing pages (more inspirational):
+- HomePage, PricingPage, SolutionsPage, PlatformPage, ResourcesPage, AboutPage,
+  TermsPage, PrivacyPage, SecurityPage, ComparisonPage
+B) Auth/onboarding (clean and confident, less busy):
+- LoginPage, SignupPage, AcceptInvitePage
+C) App/SaaS pages (sleek but functional):
+- DashboardPage, CampaignsPage, CampaignDetailPage, CreateCampaignPage,
+  TemplatesPage, TemplateDetailPage, CreateTemplatePage,
+  ContactsPage, ContactPage, ContactDetailPage,
+  TagsPage, TeamPage, ProfilePage, SettingsPage, TenantProfilePage, TenantsPage,
+  BillingPage, InvoicesPage, UsagePage, BillingSuccessPage, BillingFailurePage,
+  admin/*
+
+Required discovery:
+- Read tailwind config + globals to see existing tokens and whether CSS variables exist.
+- Read ui/Card.jsx and ui/Button.jsx to see how variants are done.
+- Confirm if there is dark mode (class or media) and keep it working.
+
+Design system to enforce (create/standardize):
+1) Background:
+- Create a global app background treatment:
+  subtle gradient + light noise (optional) + consistent base color.
+- For SaaS pages: keep it calm. For public pages: slightly richer gradient.
+2) Glass surfaces:
+- Create a “glass” variant for Card (and maybe Dialog content):
+  - translucent bg (using tokens, not hardcoded if tokens exist)
+  - backdrop-blur (subtle)
+  - soft border
+  - soft shadow
+- Glass must not reduce readability. Maintain contrast.
+3) Typography:
+- Define consistent heading scale and body text.
+- Add readable max widths on marketing text.
+4) Layout:
+- Standardize a PageHeader pattern (title, description, actions).
+- Consistent page padding and section spacing.
+5) Components:
+- Replace ad-hoc UI with src/components/ui primitives.
+- Tables: use ui/Table with a responsive wrapper.
+- Forms: ui/Label + ui/Input + clear error/help text.
+- Feedback: use existing toast + Alert + States.
+6) States:
+- Every data screen must have: loading, empty, error.
+- Use States.jsx if it exists; otherwise make a small reusable EmptyState.
+
+Audit & output format:
+1) Executive summary
+2) “Modern glass” design rules (do/don’t)
+3) P0/P1/P2 backlog with file paths
+4) Screen-by-screen findings for every page
+5) If implementing: staged PR plan
+
+Implementation guidance (if asked to implement):
+P0 — Safe modernization:
+- Introduce a global Background wrapper + consistent page padding
+- Add PageHeader component and apply to SaaS pages
+- Convert custom buttons/inputs/dialogs/cards/tables to ui primitives
+- Add missing loading/empty/error states
+- Ensure accessibility (focus ring, labels, contrast)
+
+P1 — Glass refinement:
+- Card glass variant adoption
+- Dialog glass variant
+- Table toolbar standardization
+- Marketing pages: hero layout, sections, better spacing
+
+P2 — Polish:
+- Micro-interactions via CSS only (hover, subtle transitions)
+- Better empty states with helpful copy
+- Optional: light “inspirational” sections on marketing pages
+
+Quality bar:
+- Minimal code churn, big UX impact.
+- Always reference file paths.
+- Never sacrifice readability for glass effects.
+
+Additional goals: layout variety + iconography + navigation evaluation
+
+A) Layout variety rules (avoid “grid of identical cards”):
+- Every screen must have a clear page header with:
+  title + short description + primary action + secondary action (if needed)
+- Introduce visual sections:
+  - “Summary strip” (KPIs) at top when applicable
+  - “Primary workspace” area (table or form) as the main focus
+  - “Secondary panel” area (right side on desktop or below on mobile) for tips/status/activity
+- Use different surface sizes:
+  - Mix 1 large primary panel + 2-3 smaller panels
+  - Avoid 12 cards with same size and same padding
+- Prefer progressive disclosure:
+  - Tabs for sub-areas
+  - Accordions for advanced settings
+  - “Details drawer” or Dialog for item details (if pattern exists)
+
+B) Iconography:
+- Add icons to:
+  - Page headers (optional)
+  - Primary CTA buttons (optional)
+  - Empty states (recommended)
+  - Sidebar/nav items (recommended)
+  - Info callouts / Alerts (recommended)
+Constraints:
+- Use an icon set only if already installed. First scan package.json for:
+  - lucide-react OR @radix-ui/react-icons OR react-icons
+- If none exist, do NOT add an icon library during implementation.
+  Instead:
+  1) Produce a plan to add lucide-react (recommended for shadcn style)
+  2) Provide code examples assuming lucide-react, but do not install unless explicitly asked.
+
+C) Navigation evaluation: sidebar vs top navbar (must do this analysis)
+1) Inspect frontend/src/App.jsx and any layout component usage to learn current navigation.
+2) Categorize routes into:
+   - Core daily workflows (Dashboard, Campaigns, Contacts, Templates)
+   - Admin/org (Tenants, Team, Tags, Usage, Billing, Invoices, Settings, Security)
+   - Marketing/public (Home, Pricing, etc.)
+3) Decide the best navigation pattern based on:
+   - Number of core sections (>=5 favors sidebar)
+   - Presence of multi-tenant/admin sections (favors sidebar)
+   - Need for global actions (Create Campaign/Create Template) (can be topbar actions)
+   - Need for wide workspace (tables) (sidebar collapsible)
+4) Output a recommendation:
+   - “Sidebar + topbar” hybrid OR “Top nav only”
+   - Must include pros/cons and exact changes needed
+   - Provide a suggested nav IA (information architecture) with grouping and labels
+
+Default recommendation rule:
+- For B2B multi-tenant SaaS with many sections, choose a hybrid:
+  - Left sidebar for primary navigation (collapsible)
+  - Top bar for tenant switcher, global search (optional), notifications, user menu, primary CTA
+- Marketing pages should use a separate top nav (no sidebar).
+
+Navigation decision (top nav vs sidebar) must respect existing IA:
+- There are two scopes: Platform and Tenant.
+- Each scope has its own Settings submenu.
+- Do NOT propose changing scope separation unless the current approach is broken.
+
+Tasks:
+1) Locate current navigation implementation:
+   - frontend/src/App.jsx
+   - frontend/src/components/** (Navigation, menus, layout)
+   - frontend/src/components/ui/Navigation.jsx (if used)
+2) Document current IA:
+   - Platform top-level items
+   - Tenant top-level items
+   - Settings submenu structure for each
+3) Evaluate navigation style options WITHOUT changing IA:
+   Option A: Keep Top Nav (improve usability/visuals)
+   Option B: Hybrid (Top scope switcher + Sidebar for items)
+   Option C: Sidebar only for app (scope switcher on top or sidebar header)
+
+Evaluation criteria (score each option 1–5):
+- Scan-ability: can user find pages quickly?
+- Depth: does submenu nesting cause friction?
+- Workspace: does nav consume too much horizontal space?
+- Growth: will new pages fit without clutter?
+- Mobile: does it work on small screens?
+
+Deliverable:
+- Recommendation (A/B/C) with reasoning tied to your actual nav tree
+- If choosing hybrid/sidebar: provide minimal-change implementation plan
+- If keeping top nav: provide improvements (grouping, overflow, icons, active states)

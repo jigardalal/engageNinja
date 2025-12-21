@@ -46,7 +46,7 @@ const getAdminNavItems = () => [
   { label: 'Tags', to: '/admin/tags', icon: TagIcon, activeWhen: (path) => path.startsWith('/admin/tags') }
 ]
 
-export default function AppShell({ title, subtitle, actions, children }) {
+export default function AppShell({ title, subtitle, actions, children, hideTitleBlock = false }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, tenants = [], activeTenant, logout, userRole, isPlatformAdmin, hasPlatformRole } = useAuth()
@@ -501,7 +501,7 @@ export default function AppShell({ title, subtitle, actions, children }) {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {(title || subtitle || actions) && (
+        {!hideTitleBlock && (title || subtitle || actions) && (
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
             <div>
               {title && <h1 className="text-3xl font-bold text-[var(--text)]">{title}</h1>}

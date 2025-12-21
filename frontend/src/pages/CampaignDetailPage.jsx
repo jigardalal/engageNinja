@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useCampaignSSE } from '../hooks/useCampaignSSE'
 import AppShell from '../components/layout/AppShell'
+import PageHeader from '../components/layout/PageHeader'
 import {
   Button,
   Card,
@@ -16,6 +17,8 @@ import {
   LoadingState,
   ErrorState
 } from '../components/ui'
+import { PrimaryAction, SecondaryAction, GhostAction } from '../components/ui/ActionButtons'
+import { Megaphone, BarChart3, MessageSquare, Users, Activity } from 'lucide-react'
 
 export default function CampaignDetailPage() {
   const { id } = useParams()
@@ -275,95 +278,156 @@ export default function CampaignDetailPage() {
     )
   }
 
+  const audienceFiltersLabel = campaign.audience_filters?.tags?.length
+    ? `${campaign.audience_filters.tags.length} tag${campaign.audience_filters.tags.length === 1 ? '' : 's'}`
+    : 'All contacts'
+
+  const headerHelper = `${audienceFiltersLabel} • ${totalMetric.toLocaleString()} messages`
+
+  const headerActions = (
+    <div className="flex flex-wrap gap-2">
+      {campaign.status === 'draft' ? (
+        <>
+          <PrimaryAction onClick={() => setShowConfirm(true)} disabled={sending}>
+            {sending ? 'Sending...' : 'Send campaign'}
+          </PrimaryAction>
+          <SecondaryAction onClick={() => navigate(`/campaigns/${id}/edit`)}>
+            Edit
+          </SecondaryAction>
+        </>
+      ) : (
+        <>
+          {!campaign.resend_of_campaign_id && campaign.status !== 'archived' && (
+            <PrimaryAction onClick={() => setShowResendConfirm(true)} disabled={resending}>
+              {resending ? 'Starting resend...' : 'Resend to non-readers'}
+            </PrimaryAction>
+          )}
+          <SecondaryAction onClick={handleDuplicate} disabled={duplicating}>
+            {duplicating ? 'Preparing draft...' : 'Edit as new draft'}
+          </SecondaryAction>
+          {metrics?.failed > 0 && (
+            <SecondaryAction onClick={handleRetryFailed} disabled={retryingFailed}>
+              {retryingFailed ? 'Retrying failed...' : `Retry failed (${metrics.failed})`}
+            </SecondaryAction>
+          )}
+        </>
+      )}
+      <GhostAction onClick={() => navigate('/campaigns')}>
+        Back
+      </GhostAction>
+    </div>
+  )
+
   return (
-    <AppShell
-      title={campaign.name}
-      subtitle={campaign.description || 'Campaign details'}
-      actions={<Badge variant={statusVariant(campaign.status)} className="capitalize">{campaign.status}</Badge>}
-    >
-      <div className="mb-6">
-        <Button variant="secondary" onClick={() => navigate('/campaigns')}>
-          ← Back to Campaigns
-        </Button>
+    <AppShell title="Campaigns" subtitle="Campaign workspace">
+      <PageHeader
+        icon={Megaphone}
+        title={campaign.name}
+        description={campaign.description || 'Campaign details'}
+        helper={headerHelper}
+        meta={
+          <Badge variant={statusVariant(campaign.status)} className="capitalize">
+            {campaign.status}
+          </Badge>
+        }
+        actions={headerActions}
+      />
+
+      <div className="space-y-3 mt-4">
+        {error && (
+          <ErrorState
+            title="Unable to load campaign details"
+            description={error}
+            onRetry={() => window.location.reload()}
+            retryLabel="Reload"
+            className="mb-1"
+          />
+        )}
+        {resendError && <Alert variant="error">{resendError}</Alert>}
+        {resendSuccess && <Alert variant="success">{resendSuccess}</Alert>}
+        {retryWarning && <Alert variant="warning">{retryWarning}</Alert>}
+        {retryMessage && <Alert variant="success">{retryMessage}</Alert>}
+        {duplicateError && <Alert variant="error">{duplicateError}</Alert>}
       </div>
 
-      {error && (
-        <ErrorState
-          title="Unable to load campaign details"
-          description={error}
-          onRetry={() => window.location.reload()}
-          retryLabel="Reload"
-          className="mb-4"
-        />
-      )}
-
-      {resendError && (
-        <Alert variant="error" className="mb-4">
-          {resendError}
-        </Alert>
-      )}
-      {resendSuccess && (
-        <Alert variant="success" className="mb-4">
-          {resendSuccess}
-        </Alert>
-      )}
-      {retryWarning && (
-        <Alert variant="warning" className="mb-4">
-          {retryWarning}
-        </Alert>
-      )}
-      {retryMessage && (
-        <Alert variant="success" className="mb-4">
-          {retryMessage}
-        </Alert>
-      )}
-      {duplicateError && (
-        <Alert variant="error" className="mb-4">
-          {duplicateError}
-        </Alert>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Campaign Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="text-sm text-[var(--text-muted)]">
-              <div className="font-semibold text-[var(--text)]">Channel</div>
-              <div className="capitalize">{campaign.channel}</div>
+      <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+        <Card variant="glass" className="space-y-6">
+          <CardHeader className="space-y-3">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary-500" />
+              <CardTitle className="text-xl md:text-2xl">Campaign workspace</CardTitle>
             </div>
-            {campaign.template_id && (
-              <div className="text-sm text-[var(--text-muted)]">
-                <div className="font-semibold text-[var(--text)]">Template</div>
-                <div>{campaign.template_id}</div>
+            <CardDescription>Message details, audience filters, and context.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1 text-sm text-[var(--text-muted)]">
+                <div className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Channel</div>
+                <p className="font-semibold text-[var(--text)] capitalize">{campaign.channel}</p>
+              </div>
+              <div className="space-y-1 text-sm text-[var(--text-muted)]">
+                <div className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Audience</div>
+                <p className="font-semibold text-[var(--text)]">{campaign.audience_count || '—'} contacts</p>
+              </div>
+              <div className="space-y-1 text-sm text-[var(--text-muted)]">
+                <div className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Template</div>
+                <p className="font-semibold text-[var(--text)]">{campaign.template_id || 'Drafted message'}</p>
+              </div>
+              <div className="space-y-1 text-sm text-[var(--text-muted)]">
+                <div className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Created</div>
+                <p className="font-semibold text-[var(--text)]">{new Date(campaign.created_at).toLocaleDateString()}</p>
+              </div>
+              {campaign.sent_at && (
+                <div className="space-y-1 text-sm text-[var(--text-muted)]">
+                  <div className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Last sent</div>
+                  <p className="font-semibold text-[var(--text)]">{new Date(campaign.sent_at).toLocaleDateString()}</p>
+                </div>
+              )}
+            </div>
+
+            {campaign.message_content && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
+                  <MessageSquare className="h-4 w-4 text-primary-500" />
+                  <span>Message content</span>
+                </div>
+                <div className="rounded-2xl border border-white/20 bg-white/80 p-4 font-mono text-sm text-left text-[var(--text)] shadow-inner dark:bg-slate-900/70">
+                  {typeof campaign.message_content === 'string'
+                    ? campaign.message_content
+                    : JSON.stringify(campaign.message_content, null, 2)}
+                </div>
               </div>
             )}
-            <div className="text-sm text-[var(--text-muted)]">
-              <div className="font-semibold text-[var(--text)]">Created</div>
-              <div>{new Date(campaign.created_at).toLocaleDateString()}</div>
-            </div>
-            {campaign.sent_at && (
-              <div className="text-sm text-[var(--text-muted)]">
-                <div className="font-semibold text-[var(--text)]">Sent</div>
-                <div>{new Date(campaign.sent_at).toLocaleDateString()}</div>
+
+            {campaign.audience_filters && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
+                  <Users className="h-4 w-4 text-primary-500" />
+                  <span>Audience filters</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {campaign.audience_filters.tags && campaign.audience_filters.tags.length > 0 ? (
+                    campaign.audience_filters.tags.map((tag) => (
+                      <Badge key={tag} variant="primary">{tag}</Badge>
+                    ))
+                  ) : (
+                    <p className="text-sm text-[var(--text-muted)]">All contacts</p>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex items-center justify-between">
-            <div>
-              <CardTitle>Metrics</CardTitle>
-              <CardDescription>Live delivery and engagement</CardDescription>
+        <Card variant="glass" className="space-y-5">
+          <CardHeader className="space-y-3">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary-500" />
+              <CardTitle className="text-lg md:text-xl">Delivery KPIs</CardTitle>
             </div>
-            <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-              <div className={`w-2 h-2 rounded-full ${sseConnected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
-              <span>{sseConnected ? 'Webhooks live' : usePolling ? 'Polling' : 'Connecting...'}</span>
-            </div>
+            <CardDescription>Live delivery and engagement stats</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-5">
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
               <Metric label="Total" value={totalMetric} />
               <Metric label="Queued" value={queuedMetric} accent="text-primary-600" />
@@ -376,48 +440,47 @@ export default function CampaignDetailPage() {
                 <Metric label="Read Rate" value={`${detailedMetrics.metrics.read_rate.toFixed(1)}%`} accent="text-indigo-600" />
               )}
             </div>
+
+            <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
+              <Activity className="h-4 w-4 text-primary-500" />
+              <span>{sseConnected ? 'Webhooks live' : usePolling ? 'Polling' : 'Connecting...'}</span>
+            </div>
+
             {sseError && (
-              <p className="text-xs text-red-500 mt-3">
-                Real-time updates unavailable: {sseError}
-              </p>
+              <Alert variant="error">
+                <div className="font-semibold">Realtime updates offline</div>
+                <p className="text-sm">Real-time metrics unavailable: {sseError}</p>
+              </Alert>
             )}
+
             {lastError && (
-              <div className="mt-3">
-                <Alert variant="error">
-                  <div className="font-semibold">Delivery issues</div>
-                  <p className="text-sm">Latest provider error: {lastError}</p>
-                </Alert>
-              </div>
+              <Alert variant="error">
+                <div className="font-semibold">Delivery issues</div>
+                <p className="text-sm">Latest provider error: {lastError}</p>
+              </Alert>
             )}
+
             {showWebhookWait && (
-              <div className="mt-3">
-                <Alert variant="warning">
-                  <div className="font-semibold">Waiting for webhook updates</div>
-                  <p className="text-sm">Messages sent. Delivery/read will update when we receive webhook events from the provider.</p>
-                </Alert>
-              </div>
+              <Alert variant="warning">
+                <div className="font-semibold">Waiting for webhook updates</div>
+                <p className="text-sm text-[var(--text-muted)]">Messages sent. Delivery/read will update once we receive webhook events.</p>
+              </Alert>
             )}
 
             {resendMetrics && (
-              <div className="mt-6 pt-6 border-t border-[var(--border)]">
-                <div className="flex items-center justify-between mb-2">
+              <div className="space-y-4 rounded-2xl border border-white/20 bg-white/80 p-4 shadow-inner dark:bg-slate-900/70">
+                <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
-                    <p className="text-xs text-[var(--text-muted)]">Original read rate</p>
-                    <p className="text-lg font-semibold">
-                      {originalReadRate.toFixed(1)}%
-                    </p>
+                    <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Original read rate</p>
+                    <p className="text-lg font-semibold">{originalReadRate.toFixed(1)}%</p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-xs text-[var(--text-muted)]">Resend read rate</p>
-                    <p className="text-lg font-semibold text-green-600">
-                      {resendReadRate.toFixed(1)}%
-                    </p>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Resend read rate</p>
+                    <p className="text-lg font-semibold text-green-600">{resendReadRate.toFixed(1)}%</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-[var(--text-muted)]">Additional reads</p>
-                    <p className="text-lg font-semibold text-primary-600">
-                      +{resendMetrics.additional_reads ?? 0}
-                    </p>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Additional reads</p>
+                    <p className="text-lg font-semibold text-primary-600">+{resendMetrics.additional_reads ?? 0}</p>
                   </div>
                 </div>
                 {uplift && (
@@ -430,72 +493,6 @@ export default function CampaignDetailPage() {
             )}
           </CardContent>
         </Card>
-      </div>
-
-      {campaign.message_content && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Message Content</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 font-mono text-sm whitespace-pre-wrap">
-              {typeof campaign.message_content === 'string'
-                ? campaign.message_content
-                : JSON.stringify(campaign.message_content, null, 2)}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {campaign.audience_filters && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Audience</CardTitle>
-          </CardHeader>
-          <CardContent className="text-[var(--text-muted)] space-y-2">
-            {campaign.audience_filters.tags && campaign.audience_filters.tags.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {campaign.audience_filters.tags.map((tag) => (
-                  <Badge key={tag} variant="primary">{tag}</Badge>
-                ))}
-              </div>
-            ) : (
-              <p>All contacts</p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="flex gap-3">
-        {campaign.status === 'draft' ? (
-          <>
-            <Button onClick={() => setShowConfirm(true)} disabled={sending}>
-              {sending ? 'Sending...' : 'Send Campaign'}
-            </Button>
-            <Button variant="secondary" onClick={() => navigate(`/campaigns/${id}/edit`)}>
-              Edit
-            </Button>
-          </>
-        ) : (
-          <>
-            {!campaign.resend_of_campaign_id && campaign.status !== 'archived' && (
-              <Button onClick={() => setShowResendConfirm(true)} disabled={resending}>
-                {resending ? 'Starting resend...' : 'Resend to non-readers'}
-              </Button>
-            )}
-            <Button variant="secondary" onClick={handleDuplicate} disabled={duplicating}>
-              {duplicating ? 'Preparing draft...' : 'Edit as new draft'}
-            </Button>
-            {metrics?.failed > 0 && (
-              <Button variant="secondary" onClick={handleRetryFailed} disabled={retryingFailed}>
-                {retryingFailed ? 'Retrying failed...' : `Retry failed (${metrics.failed})`}
-              </Button>
-            )}
-          </>
-        )}
-        <Button variant="secondary" onClick={() => navigate('/campaigns')}>
-          Back
-        </Button>
       </div>
 
       <Dialog

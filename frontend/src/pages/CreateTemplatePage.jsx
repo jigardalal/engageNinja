@@ -3,17 +3,21 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 import TemplateBuilder from '../components/templates/TemplateBuilder'
 import WhatsAppPreview from '../components/templates/WhatsAppPreview'
+import PageHeader from '../components/layout/PageHeader'
 import {
   Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
   Input,
   Label,
   Alert,
   LoadingState
 } from '../components/ui'
+import { SecondaryAction } from '../components/ui/ActionButtons'
+import { Sparkles, MessageSquare, Globe } from 'lucide-react'
 
 /**
  * Create Template Page
@@ -136,58 +140,60 @@ export const CreateTemplatePage = () => {
 
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Create WhatsApp Template</h1>
-          <p className="text-gray-600 mt-1">
-            Design your message template. It will be submitted to Meta for approval.
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto space-y-6 p-6">
+        <PageHeader
+          icon={Sparkles}
+          title="Create WhatsApp template"
+          description="Design your message template. It will be submitted to Meta for approval."
+          helper="Use lowercase names + underscores"
+          actions={
+            <SecondaryAction onClick={() => navigate('/templates')}>
+              Back to templates
+            </SecondaryAction>
+          }
+        />
 
-        {/* Error Alert */}
         {error && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="destructive">
             {error}
           </Alert>
         )}
 
-        {/* Success Alert */}
         {success && (
-          <Alert variant="success" className="mb-4">
+          <Alert variant="success">
             {success}
           </Alert>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Builder (Left Column) */}
-            <div className="lg:col-span-2">
-              {/* Basic Info Card */}
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle>Template Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Template Name */}
-                  <div>
-                    <Label htmlFor="name">Template Name *</Label>
-                    <Input
-                      id="name"
-                      type="text"
-                      value={templateData.name}
-                      onChange={handleNameChange}
-                      placeholder="order_confirmation"
-                      className="mt-1"
-                      disabled={loading}
-                      required
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Lowercase letters, numbers, and underscores only
-                    </p>
-                  </div>
+        <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+          <div className="space-y-6">
+            <Card variant="glass" className="space-y-4">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-primary-500" />
+                  <CardTitle>Template details</CardTitle>
+                </div>
+                <CardDescription>Name, language, and category</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Template Name *</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    value={templateData.name}
+                    onChange={handleNameChange}
+                    placeholder="order_confirmation"
+                    className="mt-1"
+                    disabled={loading}
+                    required
+                  />
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
+                    Lowercase letters, numbers, and underscores only
+                  </p>
+                </div>
 
-                  {/* Language */}
+                <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <Label htmlFor="language">Language</Label>
                     <select
@@ -196,7 +202,7 @@ export const CreateTemplatePage = () => {
                       onChange={(e) =>
                         setTemplateData({ ...templateData, language: e.target.value })
                       }
-                      className="w-full border border-gray-300 rounded-md p-2 mt-1"
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                       disabled={loading}
                     >
                       <option value="en">English</option>
@@ -209,8 +215,6 @@ export const CreateTemplatePage = () => {
                       <option value="zh">Chinese</option>
                     </select>
                   </div>
-
-                  {/* Category */}
                   <div>
                     <Label htmlFor="category">Category</Label>
                     <select
@@ -219,51 +223,65 @@ export const CreateTemplatePage = () => {
                       onChange={(e) =>
                         setTemplateData({ ...templateData, category: e.target.value })
                       }
-                      className="w-full border border-gray-300 rounded-md p-2 mt-1"
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                       disabled={loading}
                     >
-                      <option value="MARKETING">📢 Marketing</option>
-                      <option value="UTILITY">⚙️ Utility</option>
-                      <option value="AUTHENTICATION">🔐 Authentication</option>
+                      <option value="MARKETING">Marketing</option>
+                      <option value="UTILITY">Utility</option>
+                      <option value="AUTHENTICATION">Authentication</option>
                     </select>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* Components Builder */}
-              <TemplateBuilder
-                components={templateData.components}
-                onChange={handleComponentsChange}
-                disabled={loading}
-              />
-
-              {/* Action Buttons */}
-              <div className="flex justify-between gap-4 mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate('/templates')}
+            <Card variant="glass" className="space-y-4">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-primary-500" />
+                  <CardTitle>Components</CardTitle>
+                </div>
+                <CardDescription>Build the message body, headers, and buttons.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TemplateBuilder
+                  components={templateData.components}
+                  onChange={handleComponentsChange}
                   disabled={loading}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={loading || !templateData.name.trim()}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  {loading ? 'Creating...' : '✨ Create Template'}
-                </Button>
-              </div>
-            </div>
+                />
+              </CardContent>
+            </Card>
 
-            {/* Preview (Right Column) */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-6">
-                <WhatsAppPreview components={templateData.components} />
-              </div>
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/templates')}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading || !templateData.name.trim()}
+              >
+                {loading ? 'Creating...' : 'Create template'}
+              </Button>
             </div>
           </div>
+
+          <Card variant="glass" className="space-y-4">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-primary-500" />
+                <CardTitle>Preview</CardTitle>
+              </div>
+              <CardDescription>Live preview of how the template renders in WhatsApp.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <WhatsAppPreview components={templateData.components} />
+            </CardContent>
+          </Card>
         </form>
       </div>
     </AppShell>

@@ -1,117 +1,143 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
-import { Alert, AlertDescription } from '../components/ui/Alert';
-import { AlertCircle, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react'
+import AppShell from '../components/layout/AppShell'
+import PageHeader from '../components/layout/PageHeader'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  Alert,
+  Badge,
+  Button
+} from '../components/ui'
+import { AlertDescription } from '../components/ui/Alert'
+import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
+import { AlertCircle, Download, FileText } from 'lucide-react'
 
 export default function InvoicesPage({ embedded = false }) {
-  const [loading, setLoading] = useState(true);
-  const [billingData, setBillingData] = useState(null);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true)
+  const [billingData, setBillingData] = useState(null)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData()
+  }, [])
 
   const fetchData = async () => {
     try {
-      setLoading(true);
-      const summaryRes = await fetch('/api/billing/summary', { credentials: 'include' });
+      setLoading(true)
+      const summaryRes = await fetch('/api/billing/summary', { credentials: 'include' })
 
       if (!summaryRes.ok) {
-        throw new Error('Failed to fetch invoice data');
+        throw new Error('Failed to fetch invoice data')
       }
 
-      const summaryData = await summaryRes.json();
-      setBillingData(summaryData);
-      setError(null);
+      const summaryData = await summaryRes.json()
+      setBillingData(summaryData)
+      setError(null)
     } catch (err) {
-      console.error('Error fetching invoice data:', err);
-      setError(err.message);
+      console.error('Error fetching invoice data:', err)
+      setError(err.message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
+
+  const Shell = ({ children }) => (
+    embedded ? <div className="space-y-6">{children}</div> : (
+      <AppShell title="Invoices" subtitle="Download your billing receipts">
+        {children}
+      </AppShell>
+    )
+  )
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-          <p className="text-[var(--text-muted)]">Loading invoices...</p>
+      <Shell>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
+            <p className="text-[var(--text-muted)]">Loading invoices...</p>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert variant="error">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
+      </Shell>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Invoices */}
+    <Shell>
+      <PageHeader
+        icon={FileText}
+        title="Billing history"
+        description="Download invoices for your payments and export records as needed."
+        helper={`${billingData?.invoices?.length || 0} invoice${(billingData?.invoices?.length || 0) !== 1 ? 's' : ''}`}
+        actions={(
+          <SecondaryAction onClick={fetchData}>
+            Refresh
+          </SecondaryAction>
+        )}
+      />
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Invoices</CardTitle>
-          <CardDescription>Download your billing history</CardDescription>
+          <CardDescription>Download receipts for your billing periods.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {billingData?.invoices && billingData.invoices.length > 0 ? (
-            <div className="space-y-2">
-              {billingData.invoices.map((invoice) => (
-                <div
-                  key={invoice.id}
-                  className="flex items-center justify-between rounded-lg border border-[var(--border)] p-3"
-                >
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{invoice.id}</p>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      {new Date(invoice.created_at).toLocaleDateString()} • {invoice.status}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold">
-                      {(invoice.amount / 100).toLocaleString('en-US', {
-                        style: 'currency',
-                        currency: invoice.currency.toUpperCase()
-                      })}
-                    </span>
-                    <a
-                      href={`/api/billing/invoices/${invoice.id}/download`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[var(--primary)] hover:underline"
-                      title="Download invoice"
-                    >
-                      <Download className="h-4 w-4" />
-                    </a>
-                  </div>
+            billingData.invoices.map((invoice) => (
+              <div
+                key={invoice.id}
+                className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] p-4 md:flex-row md:items-center md:justify-between"
+              >
+                <div>
+                  <p className="text-sm font-medium text-[var(--text)]">Invoice {invoice.id}</p>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    {new Date(invoice.created_at).toLocaleDateString()} • Status: <Badge variant={invoice.status === 'paid' ? 'success' : 'warning'} className="ml-1 capitalize">{invoice.status}</Badge>
+                  </p>
                 </div>
-              ))}
-            </div>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--text)]">
+                  <span className="font-semibold">
+                    {(invoice.amount / 100).toLocaleString('en-US', {
+                      style: 'currency',
+                      currency: invoice.currency.toUpperCase()
+                    })}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.open(`/api/billing/invoices/${invoice.id}/download`, '_blank')}
+                    className="flex items-center gap-1"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
+                </div>
+              </div>
+            ))
           ) : (
-            <div className="py-8 text-center">
-              <p className="text-sm text-[var(--text-muted)]">No invoices yet</p>
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
-                Invoices will appear here once you have billing activity
-              </p>
+            <div className="text-center text-sm text-[var(--text-muted)]">
+              <p>No invoices yet.</p>
+              <p className="mt-1">Invoices populate here once your billing activity starts.</p>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Support Info */}
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          Questions about billing? Contact our support team at support@engageninja.com
+          Questions about billing? Contact support at support@engageninja.com
         </AlertDescription>
       </Alert>
-    </div>
-  );
+    </Shell>
+  )
 }

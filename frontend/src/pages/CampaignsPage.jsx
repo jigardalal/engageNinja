@@ -4,26 +4,32 @@ import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 import {
   Button,
+  Alert,
   Input,
   Label,
   Card,
+  CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-  CardContent,
   Badge,
   Dialog,
   Table,
-  TableHeader,
-  TableHead,
-  TableRow,
   TableBody,
-  TableCell
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  EmptyState,
+  LoadingState,
+  ErrorState
 } from '../components/ui'
-import { Alert, LoadingState, ErrorState } from '../components/ui'
+import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
+import PageHeader from '../components/layout/PageHeader'
+import { Sparkles, Archive, Megaphone, Activity, BarChart3, Eye, Clock, Users } from 'lucide-react'
 
 export default function CampaignsPage() {
-  const { user } = useAuth()
+  useAuth()
   const navigate = useNavigate()
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
@@ -86,19 +92,6 @@ export default function CampaignsPage() {
 
   const handleViewCampaign = (campaignId) => {
     navigate(`/campaigns/${campaignId}`)
-  }
-
-  const getStatusBadgeColor = (status) => {
-    switch (status) {
-      case 'draft':
-        return 'glass text-gray-200 border border-white/20'
-      case 'sending':
-        return 'bg-blue-500/20 text-blue-100 border border-blue-500/30'
-      case 'sent':
-        return 'bg-green-500/20 text-green-100 border border-green-500/30'
-      default:
-        return 'glass text-gray-200 border border-white/20'
-    }
   }
 
   const getChannelLabel = (channel) => (channel === 'whatsapp' ? '📱 WhatsApp' : '📧 Email')
@@ -166,193 +159,303 @@ export default function CampaignsPage() {
     }
   }
 
-  return (
-    <AppShell
-      title="Campaigns"
-      subtitle="Create and manage WhatsApp and Email campaigns"
-      actions={
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={handleBulkArchive} disabled={selectedIds.length === 0}>
-            Archive Selected
-          </Button>
-          <Button onClick={handleCreateCampaign}>+ New Campaign</Button>
-        </div>
+  const campaignStats = campaigns.reduce((acc, campaign) => {
+    const audience = campaign.audience_count || 0
+    acc.audience += audience
+    acc.delivered += campaign.delivered_count || 0
+    acc.read += campaign.read_count || 0
+    const statusKey = campaign.status || 'draft'
+    acc.statusCounts[statusKey] = (acc.statusCounts[statusKey] || 0) + 1
+    if (campaign.sent_at) {
+      const timestamp = new Date(campaign.sent_at).getTime()
+      if (!acc.latest || timestamp > acc.latest.timestamp) {
+        acc.latest = { timestamp, sent_at: campaign.sent_at }
       }
-    >
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Search or narrow by status</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col md:flex-row md:items-end gap-4 space-y-0">
-          <div className="flex-1 space-y-2">
-            <Label htmlFor="search">Search</Label>
-            <Input
-              id="search"
-              type="text"
-              placeholder="Search campaigns..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value)
-                setPagination(prev => ({ ...prev, offset: 0 }))
-              }}
-              className="h-11"
-            />
-          </div>
-          <div className="flex-1 space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <select
-              id="status"
-              value={statusFilter}
-              onChange={(e) => {
-                const value = e.target.value
-                setStatusFilter(value)
-                if (value === 'archived') {
-                  setHideArchived(false)
-                }
-                setPagination(prev => ({ ...prev, offset: 0 }))
-              }}
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-[var(--text)] h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-            >
-              <option value="">All Status</option>
-              <option value="draft">Draft</option>
-              <option value="sending">Sending</option>
-              <option value="sent">Sent</option>
-              <option value="archived">Archived</option>
-            </select>
-          </div>
-          <div className="flex items-center gap-2 pt-6">
-            <input
-              id="hide-archived"
-              type="checkbox"
-              checked={hideArchived}
-              onChange={(e) => {
-                setHideArchived(e.target.checked)
-                setPagination(prev => ({ ...prev, offset: 0 }))
-              }}
-              className="h-4 w-4"
-            />
-            <Label htmlFor="hide-archived" className="text-sm">Hide archived (default)</Label>
-          </div>
-        </CardContent>
-      </Card>
+    }
+    return acc
+  }, {
+    audience: 0,
+    delivered: 0,
+    read: 0,
+    latest: null,
+    statusCounts: {}
+  })
 
-      {error && (
-        <ErrorState
-          title="Unable to load campaigns"
-          description={error}
-          onRetry={fetchCampaigns}
-          retryLabel="Retry"
-          className="mb-6"
+  const lastSentLabel = campaignStats.latest ? formatDate(campaignStats.latest.sent_at) : 'No sends yet'
+  const readRate = campaignStats.delivered > 0 ? Math.round((campaignStats.read / campaignStats.delivered) * 100) : 0
+  const activeCampaignsCount = campaigns.length - (campaignStats.statusCounts.archived || 0)
+  const workspaceRangeLabel = pagination.total
+    ? `Showing ${pagination.offset + 1} - ${Math.min(pagination.offset + pagination.limit, pagination.total)} of ${pagination.total} campaigns`
+    : 'No campaigns to show yet'
+  const insightStatuses = [
+    { key: 'draft', label: 'Draft', variant: 'neutral' },
+    { key: 'sending', label: 'Sending', variant: 'primary' },
+    { key: 'sent', label: 'Sent', variant: 'success' },
+    { key: 'archived', label: 'Archived', variant: 'warning' }
+  ]
+
+  return (
+    <AppShell title="Campaigns" subtitle="Create and manage WhatsApp and Email campaigns">
+      <div className="space-y-6">
+        <PageHeader
+          icon={Sparkles}
+          title="Campaign control center"
+          description="Filter, review, and act on your campaigns before sending."
+          helper={`${campaigns.length} campaigns • ${selectedIds.length} selected`}
+          actions={
+            <div className="flex flex-wrap gap-3">
+              <PrimaryAction onClick={handleCreateCampaign}>
+                <Megaphone className="h-4 w-4" />
+                New campaign
+              </PrimaryAction>
+              <SecondaryAction onClick={handleBulkArchive} disabled={selectedIds.length === 0}>
+                <Archive className="h-4 w-4" />
+                Archive selected
+              </SecondaryAction>
+            </div>
+          }
         />
-      )}
 
-      {loading ? (
-        <LoadingState message="Loading campaigns..." />
-      ) : campaigns.length === 0 ? (
-        <Card className="text-center py-12">
-          <CardContent className="space-y-3">
-            <div className="text-6xl">📧</div>
-            <h3 className="text-xl font-semibold text-[var(--text)]">No campaigns yet</h3>
-            <p className="text-[var(--text-muted)]">Create your first campaign to get started</p>
-            <Button onClick={handleCreateCampaign}>Create Campaign</Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <input
-                    type="checkbox"
-                    aria-label="Select all"
-                    checked={selectAll && campaigns.length > 0}
-                    onChange={toggleSelectAll}
-                  />
-                </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Channel</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Audience</TableHead>
-                <TableHead>Metrics</TableHead>
-                <TableHead>Last Sent</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {campaigns.map((campaign) => (
-                <TableRow key={campaign.id}>
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      aria-label={`Select ${campaign.name}`}
-                      checked={selectedIds.includes(campaign.id)}
-                      onChange={() => toggleSelect(campaign.id)}
+        <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+          <div className="space-y-6">
+            <Card variant="glass" className="space-y-5">
+              <CardHeader className="flex flex-col gap-3">
+                <div>
+                  <CardTitle className="text-xl md:text-2xl">Campaign workspace</CardTitle>
+                  <CardDescription>Filter, review, and act on your campaigns before sending.</CardDescription>
+                </div>
+                <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
+                  {workspaceRangeLabel}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-[2fr,2fr,1fr] items-end">
+                  <div className="space-y-1">
+                    <Label htmlFor="search">Search</Label>
+                    <Input
+                      id="search"
+                      type="text"
+                      placeholder="Search campaigns..."
+                      value={search}
+                      onChange={(e) => {
+                        setSearch(e.target.value)
+                        setPagination(prev => ({ ...prev, offset: 0 }))
+                      }}
+                      className="h-11"
                     />
-                  </TableCell>
-                  <TableCell className="font-medium text-[var(--text)]">{campaign.name}</TableCell>
-                  <TableCell className="text-[var(--text-muted)]">{getChannelLabel(campaign.channel)}</TableCell>
-                  <TableCell>
-                    <Badge variant={
-                      campaign.status === 'sent'
-                        ? 'success'
-                        : campaign.status === 'sending'
-                          ? 'primary'
-                          : campaign.status === 'archived'
-                            ? 'warning'
-                            : 'neutral'
-                    }>
-                      {campaign.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-[var(--text-muted)]">
-                    {campaign.audience_count || 0} contacts
-                  </TableCell>
-                  <TableCell className="text-[var(--text-muted)]">
-                    {campaign.delivered_count || 0} delivered, {campaign.read_count || 0} read
-                  </TableCell>
-                  <TableCell className="text-[var(--text-muted)]">
-                    {formatDate(campaign.sent_at)}
-                  </TableCell>
-                  <TableCell className="text-primary-600 font-semibold">
-                    <button
-                      onClick={() => handleViewCampaign(campaign.id)}
-                      className="hover:underline"
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="status">Status</Label>
+                    <select
+                      id="status"
+                      value={statusFilter}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setStatusFilter(value)
+                        if (value === 'archived') {
+                          setHideArchived(false)
+                        }
+                        setPagination(prev => ({ ...prev, offset: 0 }))
+                      }}
+                      className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-[var(--text)] h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                     >
-                      View
-                    </button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                      <option value="">All Status</option>
+                      <option value="draft">Draft</option>
+                      <option value="sending">Sending</option>
+                      <option value="sent">Sent</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="hide-archived"
+                      type="checkbox"
+                      checked={hideArchived}
+                      onChange={(e) => {
+                        setHideArchived(e.target.checked)
+                        setPagination(prev => ({ ...prev, offset: 0 }))
+                      }}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor="hide-archived" className="text-sm">Hide archived</Label>
+                  </div>
+                </div>
 
-          <div className="flex items-center justify-between px-6 py-4 text-sm text-[var(--text-muted)] border-t border-[var(--border)] bg-[var(--card)]">
-            <div>
-              Showing {pagination.offset + 1} - {Math.min(pagination.offset + pagination.limit, pagination.total)} of {pagination.total}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                onClick={handlePrevPage}
-                disabled={pagination.offset === 0}
-                className="disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={handleNextPage}
-                disabled={pagination.offset + pagination.limit >= pagination.total}
-                className="disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </Button>
-            </div>
+                {error ? (
+                  <ErrorState
+                    title="Unable to load campaigns"
+                    description={error}
+                    onRetry={fetchCampaigns}
+                    retryLabel="Retry"
+                  />
+                ) : loading ? (
+                  <LoadingState message="Loading campaigns..." />
+                ) : campaigns.length === 0 ? (
+                  <EmptyState
+                    icon={Sparkles}
+                    title="No campaigns yet"
+                    description="Create your first message to see insights and engagement."
+                    action={
+                      <PrimaryAction onClick={handleCreateCampaign}>Create campaign</PrimaryAction>
+                    }
+                    className="mt-3"
+                  />
+                ) : (
+                  <div className="space-y-4">
+                    <div className="overflow-hidden rounded-2xl border border-white/20 bg-white/80 shadow-inner dark:bg-slate-900/70">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>
+                              <input
+                                type="checkbox"
+                                aria-label="Select all"
+                                checked={selectAll && campaigns.length > 0}
+                                onChange={toggleSelectAll}
+                              />
+                            </TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Channel</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Audience</TableHead>
+                            <TableHead>Metrics</TableHead>
+                            <TableHead>Last Sent</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {campaigns.map((campaign) => (
+                            <TableRow key={campaign.id}>
+                              <TableCell>
+                                <input
+                                  type="checkbox"
+                                  aria-label={`Select ${campaign.name}`}
+                                  checked={selectedIds.includes(campaign.id)}
+                                  onChange={() => toggleSelect(campaign.id)}
+                                />
+                              </TableCell>
+                              <TableCell className="font-medium text-[var(--text)]">{campaign.name}</TableCell>
+                              <TableCell className="text-[var(--text-muted)]">{getChannelLabel(campaign.channel)}</TableCell>
+                              <TableCell>
+                                <Badge variant={
+                                  campaign.status === 'sent'
+                                    ? 'success'
+                                    : campaign.status === 'sending'
+                                      ? 'primary'
+                                      : campaign.status === 'archived'
+                                        ? 'warning'
+                                        : 'neutral'
+                                }>
+                                  {campaign.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-[var(--text-muted)]">
+                                {campaign.audience_count || 0} contacts
+                              </TableCell>
+                              <TableCell className="text-[var(--text-muted)]">
+                                {campaign.delivered_count || 0} delivered, {campaign.read_count || 0} read
+                              </TableCell>
+                              <TableCell className="text-[var(--text-muted)]">
+                                {formatDate(campaign.sent_at)}
+                              </TableCell>
+                              <TableCell className="text-primary-600 font-semibold">
+                                <button
+                                  onClick={() => handleViewCampaign(campaign.id)}
+                                  className="hover:underline"
+                                >
+                                  View
+                                </button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <div className="flex items-center justify-between px-6 py-4 text-sm text-[var(--text-muted)] border-t border-[var(--border)] bg-[var(--card)]">
+                        <div>
+                          {workspaceRangeLabel}
+                        </div>
+                        <div className="flex gap-2">
+                          <SecondaryAction
+                            onClick={handlePrevPage}
+                            disabled={pagination.offset === 0}
+                          >
+                            Previous
+                          </SecondaryAction>
+                          <SecondaryAction
+                            onClick={handleNextPage}
+                            disabled={pagination.offset + pagination.limit >= pagination.total}
+                          >
+                            Next
+                          </SecondaryAction>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
-        </Card>
-      )}
+          <Card variant="glass" className="space-y-4">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary-500" />
+                <CardTitle className="text-lg">Insights</CardTitle>
+              </div>
+              <CardDescription>KPIs grounded in the latest sends.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-3">
+                <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/80 px-4 py-3 shadow-inner dark:bg-slate-900/70">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-500/10 text-primary-500">
+                    <Activity className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Active</p>
+                    <p className="text-2xl font-semibold text-[var(--text)]">{activeCampaignsCount}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/80 px-4 py-3 shadow-inner dark:bg-slate-900/70">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-500/10 text-primary-500">
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Contacts</p>
+                    <p className="text-2xl font-semibold text-[var(--text)]">{(campaignStats.audience || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/80 px-4 py-3 shadow-inner dark:bg-slate-900/70">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-500/10 text-primary-500">
+                    <Eye className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Read rate</p>
+                    <p className="text-2xl font-semibold text-[var(--text)]">{readRate}%</p>
+                    <p className="text-xs text-[var(--text-muted)]">of delivered</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Status breakdown</p>
+                <div className="flex flex-wrap gap-2">
+                  {insightStatuses.map(({ key, label, variant }) => (
+                    <Badge key={key} variant={variant}>
+                      {label}: {campaignStats.statusCounts[key] || 0}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/20 bg-white/80 p-4 shadow-inner dark:bg-slate-900/70">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary-500" />
+                  <span className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Last send</span>
+                </div>
+                <p className="text-lg font-semibold text-[var(--text)]">{lastSentLabel}</p>
+                <p className="text-xs text-[var(--text-muted)]">Read rate {readRate}% of delivered</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       <Dialog
         open={showArchiveModal}

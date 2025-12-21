@@ -26,3 +26,20 @@ export function ErrorState({ title = 'Something went wrong', description, onRetr
     </div>
   );
 }
+
+export function EmptyState({
+  title = 'Nothing to show yet',
+  description,
+  action,
+  icon: Icon,
+  className
+}) {
+  return (
+    <div className={cn('rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)]/60 p-8 text-center space-y-3', className)}>
+      {Icon && <Icon className="mx-auto h-10 w-10 text-primary-500" aria-hidden />}
+      <p className="text-xl font-semibold text-[var(--text)]">{title}</p>
+      {description && <p className="text-sm text-[var(--text-muted)]">{description}</p>}
+      {action && <div className="flex justify-center">{action}</div>}
+    </div>
+  );
+}

@@ -1,78 +1,79 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Alert, AlertDescription } from '../components/ui/Alert';
-import { AlertCircle, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react'
+import AppShell from '../components/layout/AppShell'
+import PageHeader from '../components/layout/PageHeader'
+import { Card, CardHeader, CardTitle, CardContent, Alert, Button } from '../components/ui'
+import { AlertDescription } from '../components/ui/Alert'
+import { AlertCircle, ArrowLeft } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 export default function BillingFailurePage() {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-50 p-4">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="text-center pt-8">
-          <div className="flex justify-center mb-4">
-            <div className="relative">
-              <div className="absolute inset-0 animate-pulse bg-red-200 rounded-full blur-lg" />
-              <AlertCircle className="relative h-16 w-16 text-red-600" />
+    <AppShell title="Billing" subtitle="Payment failed">
+      <PageHeader
+        icon={AlertCircle}
+        title="Payment failed"
+        description="We could not process your payment. Please retry or contact support."
+        helper="Keep your account active by resolving billing issues quickly"
+      />
+
+      <div className="flex items-center justify-center">
+        <Card className="w-full max-w-lg space-y-6">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-3">
+              <AlertCircle className="h-16 w-16 text-red-600" />
             </div>
-          </div>
-          <CardTitle className="text-3xl mt-4">Payment Failed</CardTitle>
-        </CardHeader>
+            <CardTitle className="text-3xl">Payment Failed</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert variant="destructive">
+              <AlertDescription>
+                Your payment could not be processed. Please try again or reach out to support for help.
+              </AlertDescription>
+            </Alert>
 
-        <CardContent className="space-y-6">
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Your payment could not be processed. Please try again.
-            </AlertDescription>
-          </Alert>
+            <div className="space-y-2 text-center text-[var(--text-muted)]">
+              <p>Common reasons for payment failures:</p>
+              <ul className="text-sm space-y-1 text-left list-disc list-inside">
+                <li>Card expired or invalid</li>
+                <li>Insufficient funds</li>
+                <li>Card issuer declined the charge</li>
+                <li>Address verification failed</li>
+              </ul>
+            </div>
 
-          <div className="space-y-2 text-center">
-            <p className="text-[var(--text-muted)]">
-              Common reasons for payment failure:
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-sm text-yellow-900">
+                <strong>Grace Period:</strong> You have 48 hours to resolve this before access is restricted.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                onClick={() => navigate('/dashboard/billing')}
+                className="w-full"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <ArrowLeft className="h-4 w-4" />
+                  Try again
+                </span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => window.location.href = 'mailto:support@engageninja.com'}
+                className="w-full"
+              >
+                Contact support
+              </Button>
+            </div>
+
+            <p className="text-center text-xs text-[var(--text-muted)]">
+              Need help? Email support@engageninja.com
             </p>
-            <ul className="text-sm text-[var(--text-muted)] space-y-1 text-left">
-              <li>• Card expired or invalid</li>
-              <li>• Insufficient funds</li>
-              <li>• Card issuer declined the transaction</li>
-              <li>• Address verification failed</li>
-            </ul>
-          </div>
-
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-            <p className="text-sm text-yellow-900">
-              <span className="font-semibold">⏰ Grace Period:</span> You have 48 hours to resolve this and complete your subscription. After that, your access may be restricted.
-            </p>
-          </div>
-
-          <div className="space-y-3 pt-4">
-            <Button
-              onClick={() => navigate('/dashboard/billing')}
-              className="w-full"
-            >
-              <span className="flex items-center justify-center gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Try Again
-              </span>
-            </Button>
-
-            <Button
-              onClick={() => window.location.href = 'mailto:support@engageninja.com'}
-              variant="outline"
-              className="w-full"
-            >
-              Contact Support
-            </Button>
-          </div>
-
-          <div className="text-center text-xs text-[var(--text-muted)] pt-2 space-y-1">
-            <p>Need help? Our support team is here to assist.</p>
-            <p className="font-mono text-xs">support@engageninja.com</p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+          </CardContent>
+        </Card>
+      </div>
+    </AppShell>
+  )
 }

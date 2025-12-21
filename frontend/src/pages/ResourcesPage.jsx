@@ -1,6 +1,14 @@
 import React from 'react'
 import MarketingShell from '../components/layout/MarketingShell'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from '../components/ui'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  Badge
+} from '../components/ui'
+import { BookOpen, Video, Globe } from 'lucide-react'
 
 const posts = [
   { title: 'WhatsApp Marketing 101', tag: 'Guide' },
@@ -11,30 +19,56 @@ const posts = [
 export default function ResourcesPage() {
   return (
     <MarketingShell>
-      <section className="py-6">
-        <Badge variant="primary" className="mb-4">Resources</Badge>
-        <h1 className="text-4xl font-bold text-[var(--text)] leading-tight">Guides, webinars, and docs.</h1>
-        <p className="mt-3 text-lg text-[var(--text-muted)] max-w-3xl">Learn how to launch WhatsApp + Email campaigns, build uplift playbooks, and integrate with APIs.</p>
+      <section className="space-y-3 pt-6">
+        <Badge variant="primary" className="inline-flex items-center gap-2">
+          <BookOpen className="h-4 w-4" />
+          Resources
+        </Badge>
+        <div className="space-y-3">
+          <h1 className="text-4xl font-bold text-[var(--text)] leading-tight">Guides, webinars, and docs that teach WhatsApp + Email mastery.</h1>
+          <p className="text-lg text-[var(--text-muted)] max-w-3xl">
+            Learn how to launch campaigns, prove uplift, and integrate with our APIs. We bundle playbooks, deep dives, and demo recordings for every team type.
+          </p>
+        </div>
       </section>
 
-      <section className="grid md:grid-cols-3 gap-4 mt-6">
-        {posts.map((p) => (
-          <Card key={p.title}>
-            <CardContent>
-              <span className="text-xs text-primary-500 uppercase">{p.tag}</span>
-              <h3 className="text-[var(--text)] font-semibold mt-2">{p.title}</h3>
-              <p className="text-sm text-[var(--text-muted)] mt-2">Coming soon</p>
+      <div className="mt-6 grid md:grid-cols-3 gap-4">
+        {posts.map((post) => (
+          <Card key={post.title} variant="glass" className="h-full">
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-xs uppercase">{post.tag}</Badge>
+                <div className="flex-1 h-px bg-[var(--border)]"></div>
+              </div>
+              <h3 className="text-[var(--text)] font-semibold text-lg">{post.title}</h3>
+              <p className="text-sm text-[var(--text-muted)]">Coming soon</p>
             </CardContent>
           </Card>
         ))}
-      </section>
+      </div>
 
-      <Card className="mt-10">
-        <CardHeader>
-          <CardTitle>Webinars & Case Studies</CardTitle>
-          <CardDescription>Register for upcoming sessions and see how teams prove uplift.</CardDescription>
-        </CardHeader>
-      </Card>
+      <section className="mt-10 space-y-4">
+        <Card variant="glass">
+          <CardHeader className="flex items-center gap-3">
+            <Video className="h-5 w-5 text-primary-500" />
+            <CardTitle className="text-xl">Webinars & case studies</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-[var(--text-muted)]">
+            <p>Register for upcoming sessions to see how teams prove uplift with real WhatsApp + Email sequences.</p>
+            <p>Download templates, playbooks, and API pattern notes to accelerate your automation.</p>
+          </CardContent>
+        </Card>
+        <Card variant="glass">
+          <CardHeader className="flex items-center gap-3">
+            <Globe className="h-5 w-5 text-primary-500" />
+            <CardTitle className="text-xl">Community support</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-[var(--text-muted)]">
+            <p>Join the EngageNinja workspace community on Slack for live feedback, templates, and launch recipes.</p>
+            <p>Reach out for custom playbooks that match your workflows.</p>
+          </CardContent>
+        </Card>
+      </section>
     </MarketingShell>
   )
 }

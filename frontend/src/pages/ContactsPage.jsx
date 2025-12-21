@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
 import { CreateContactModal } from '../components/CreateContactModal'
 import { CSVImportModal } from '../components/CSVImportModal'
 import AppShell from '../components/layout/AppShell'
@@ -23,8 +22,11 @@ import {
   TableHeader,
   TableRow,
   LoadingState,
-  ErrorState
+  EmptyState
 } from '../components/ui'
+import { PrimaryAction, SecondaryAction, GhostAction } from '../components/ui/ActionButtons'
+import PageHeader from '../components/layout/PageHeader'
+import { Users, Tag, Search, FilePlus, Download, UserPlus } from 'lucide-react'
 
 /**
  * Contacts Page
@@ -32,7 +34,6 @@ import {
  */
 export const ContactsPage = () => {
   const navigate = useNavigate()
-  const { user } = useAuth()
   const [contacts, setContacts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -40,7 +41,6 @@ export const ContactsPage = () => {
   const [selectedTag, setSelectedTag] = useState('')
   const [availableTags, setAvailableTags] = useState([])
   const [allTags, setAllTags] = useState([])
-  const [pagination, setPagination] = useState({ total: 0, limit: 50, offset: 0 })
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [selectedContactIds, setSelectedContactIds] = useState([])
@@ -79,11 +79,12 @@ export const ContactsPage = () => {
 
       const data = await response.json()
       setContacts(data.contacts || [])
-      setPagination(data.pagination || {})
 
       const tags = new Set()
-      ;(data.contacts || []).forEach(contact => {
-        ;(contact.tags || []).forEach(tag => tags.add(tag))
+      const contactList = data.contacts || []
+      contactList.forEach(contact => {
+        const contactTags = contact.tags || []
+        contactTags.forEach(tag => tags.add(tag))
       })
       setAvailableTags(Array.from(tags).sort())
       setSelectedContactIds([])
@@ -216,164 +217,229 @@ export const ContactsPage = () => {
   }
 
   return (
-    <AppShell
-      title="Contacts"
-      subtitle="Manage your customer contacts and segment with tags"
-      actions={
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => setShowImportModal(true)}>
-            ⬆ Import CSV
-          </Button>
-          <Button variant="secondary" onClick={handleExportCSV}>
-            ⬇ Export CSV
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => setShowBulkTagModal(true)}
-            disabled={selectedContactIds.length === 0}
-          >
-            + Add Tags (bulk)
-          </Button>
-          <Button
-            variant="danger"
-            onClick={handleBulkDelete}
-            disabled={selectedContactIds.length === 0}
-          >
-            Delete Selected
-          </Button>
-          <Button onClick={() => setShowCreateModal(true)}>+ New Contact</Button>
-        </div>
-      }
-    >
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Search contacts or filter by tags</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col md:flex-row md:items-end gap-4 space-y-0">
-          <div className="flex-1 space-y-2">
-            <Label htmlFor="search">Search</Label>
-            <Input
-              id="search"
-              type="text"
-              placeholder="Search by name or phone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-11"
-            />
-          </div>
-
-          {availableTags.length > 0 && (
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="tags">Tag</Label>
-              <select
-                id="tags"
-                value={selectedTag}
-                onChange={(e) => setSelectedTag(e.target.value)}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-[var(--text)] h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-              >
-                <option value="">All Tags</option>
-                {availableTags.map(tag => (
-                  <option key={tag} value={tag}>{tag}</option>
-                ))}
-              </select>
+    <AppShell title="Contacts" subtitle="Manage your customer contacts and segment with tags">
+      <div className="space-y-6">
+        <PageHeader
+          icon={Users}
+          title="Contacts workspace"
+          description="Search, filter, and act on the people you message most."
+          helper={`${availableTags.length} tag${availableTags.length === 1 ? '' : 's'} • ${contacts.length} contacts`}
+          actions={
+            <div className="flex flex-wrap gap-3">
+              <PrimaryAction onClick={() => setShowCreateModal(true)}>
+                <UserPlus className="h-4 w-4" />
+                <span>Create contact</span>
+              </PrimaryAction>
+              <SecondaryAction onClick={() => setShowImportModal(true)}>
+                <FilePlus className="h-4 w-4" />
+                <span>Import CSV</span>
+              </SecondaryAction>
+              <SecondaryAction onClick={handleExportCSV}>
+                <Download className="h-4 w-4" />
+                <span>Export</span>
+              </SecondaryAction>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {error && (
-        <ErrorState
-          title="Unable to load contacts"
-          description={error}
-          onRetry={fetchContacts}
-          retryLabel="Retry"
-          className="mb-6"
+          }
         />
-      )}
 
-      {loading && <LoadingState message="Loading contacts..." />}
+        {error && <Alert variant="error">{error}</Alert>}
 
-      {!loading && contacts.length === 0 && (
-        <Card className="text-center">
-          <CardContent className="space-y-3">
-            <svg className="mx-auto h-12 w-12 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-            </svg>
-            <h3 className="text-lg font-medium text-[var(--text)]">No contacts found</h3>
-            <p className="text-[var(--text-muted)]">Get started by creating your first contact</p>
-            <Button onClick={() => setShowCreateModal(true)}>Create Contact</Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {!loading && contacts.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                <input
-                  type="checkbox"
-                  aria-label="Select all"
-                  checked={selectAllChecked}
-                  onChange={toggleSelectAll}
-                />
-              </TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Tags</TableHead>
-              <TableHead>Consent</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {contacts.map(contact => (
-              <TableRow key={contact.id}>
-                <TableCell>
-                  <input
-                    type="checkbox"
-                    checked={selectedContactIds.includes(contact.id)}
-                    onChange={() => toggleSelect(contact.id)}
-                    aria-label={`Select ${contact.name}`}
+        <div className="space-y-6">
+          <Card variant="glass" className="space-y-4 w-full">
+            <CardHeader className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-2xl">Contacts list</CardTitle>
+                  <CardDescription>Use tags and filters to find the right audience.</CardDescription>
+                </div>
+                <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                  <Tag className="h-3 w-3" /> {availableTags.length} tags
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-1">
+                  <Label htmlFor="searchTerm">
+                    <span className="flex items-center gap-1">
+                      <Search className="h-4 w-4 text-[var(--text-muted)]" />
+                      Search
+                    </span>
+                  </Label>
+                  <Input
+                    id="searchTerm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Name, phone, or email"
+                    className="h-11"
                   />
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm font-medium text-[var(--text)]">{contact.name}</div>
-                  <div className="text-sm text-[var(--text-muted)]">{contact.phone}</div>
-                </TableCell>
-                <TableCell className="text-sm text-[var(--text)]">{contact.phone || '-'}</TableCell>
-                <TableCell className="text-sm text-[var(--text)]">{contact.email || '-'}</TableCell>
-                <TableCell>
-                  {(contact.tags || []).length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {contact.tags.map((tag, index) => (
-                        <Badge key={index} variant="primary">{tag}</Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-[var(--text-muted)] text-sm">No tags</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    {contact.consent_whatsapp && <Badge variant="success">WhatsApp</Badge>}
-                    {contact.consent_email && <Badge variant="primary">Email</Badge>}
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm font-semibold text-primary-600">
-                  <button
-                    onClick={() => navigate(`/contacts/${contact.id}`)}
-                    className="hover:underline"
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="tags">Tag</Label>
+                  <select
+                    id="tags"
+                    value={selectedTag}
+                    onChange={(e) => setSelectedTag(e.target.value)}
+                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-[var(--text)] h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                   >
-                    View
-                  </button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+                    <option value="">All Tags</option>
+                    {availableTags.map(tag => (
+                      <option key={tag} value={tag}>{tag}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center justify-end gap-3">
+                  <SecondaryAction
+                    onClick={() => setShowBulkTagModal(true)}
+                    disabled={selectedContactIds.length === 0}
+                  >
+                    + Add tags
+                  </SecondaryAction>
+                  <GhostAction
+                    onClick={handleBulkDelete}
+                    disabled={selectedContactIds.length === 0}
+                  >
+                    Delete selected
+                  </GhostAction>
+                </div>
+              </div>
+
+              {loading ? (
+                <LoadingState message="Loading contacts..." />
+              ) : contacts.length === 0 ? (
+                <EmptyState
+                  icon={Users}
+                  title="No contacts yet"
+                  description="Add the first contact or import a CSV to get started."
+                  action={
+                    <PrimaryAction onClick={() => setShowCreateModal(true)}>
+                      Create contact
+                    </PrimaryAction>
+                  }
+                />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <input
+                          type="checkbox"
+                          aria-label="Select all"
+                          checked={selectAllChecked}
+                          onChange={toggleSelectAll}
+                        />
+                      </TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Tags</TableHead>
+                      <TableHead>Consent</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {contacts.map(contact => (
+                      <TableRow key={contact.id}>
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={selectedContactIds.includes(contact.id)}
+                            onChange={() => toggleSelect(contact.id)}
+                            aria-label={`Select ${contact.name}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm font-medium text-[var(--text)]">{contact.name}</div>
+                          <div className="text-sm text-[var(--text-muted)]">{contact.phone}</div>
+                        </TableCell>
+                        <TableCell className="text-sm text-[var(--text)]">{contact.phone || '-'}</TableCell>
+                        <TableCell className="text-sm text-[var(--text)]">{contact.email || '-'}</TableCell>
+                        <TableCell>
+                          {(contact.tags || []).length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {contact.tags.map((tag, index) => (
+                                <Badge key={index} variant="primary">{tag}</Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-[var(--text-muted)] text-sm">No tags</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {contact.consent_whatsapp && <Badge variant="success">WhatsApp</Badge>}
+                            {contact.consent_email && <Badge variant="primary">Email</Badge>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm font-semibold text-primary-600">
+                          <button
+                            onClick={() => navigate(`/contacts/${contact.id}`)}
+                            className="hover:underline"
+                          >
+                            View
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="space-y-4">
+            <Card variant="glass" className="space-y-3">
+              <CardHeader>
+                <div className="flex items-center gap-2 text-sm uppercase tracking-[0.3em] text-[var(--text-muted)]">
+                  <Tag className="h-4 w-4 text-primary-500" />
+                  Tag insights
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-[var(--border)] p-3">
+                    <p className="text-xs uppercase tracking-[0.4em] text-[var(--text-muted)]">Total tags</p>
+                    <p className="text-2xl font-bold text-[var(--text)]">{availableTags.length}</p>
+                  </div>
+                  <div className="rounded-xl border border-[var(--border)] p-3">
+                    <p className="text-xs uppercase tracking-[0.4em] text-[var(--text-muted)]">Selection</p>
+                    <p className="text-2xl font-bold text-[var(--text)]">{selectedContactIds.length}</p>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-[var(--border)] p-3">
+                  <p className="text-xs uppercase tracking-[0.4em] text-[var(--text-muted)]">Bulk readiness</p>
+                  <p className="text-sm text-[var(--text-muted)]">
+                    Select contacts to reveal bulk tag/delete actions. Filters keep the list manageable.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card variant="glass" className="space-y-3">
+              <CardHeader>
+                <div className="flex items-center gap-2 text-sm uppercase tracking-[0.3em] text-[var(--text-muted)]">
+                  <Users className="h-4 w-4 text-primary-500" />
+                  Contact health
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="rounded-xl border border-[var(--border)] bg-gradient-to-br from-primary-50/40 to-transparent p-3">
+                  <p className="text-xs uppercase tracking-[0.4em] text-[var(--text-muted)]">Audience size</p>
+                  <p className="text-3xl font-bold text-[var(--text)]">{contacts.length}</p>
+                </div>
+                <div className="rounded-xl border border-[var(--border)] p-3">
+                  <p className="text-sm text-[var(--text-muted)]">
+                    Consent badges show opt-in status. Use filters to isolate WhatsApp or Email-ready contacts.
+                  </p>
+                </div>
+                <SecondaryAction onClick={() => setShowBulkTagModal(true)}>
+                  Add tags to selection
+                </SecondaryAction>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
 
       <CreateContactModal
         isOpen={showCreateModal}

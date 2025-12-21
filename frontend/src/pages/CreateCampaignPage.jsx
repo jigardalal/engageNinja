@@ -16,12 +16,15 @@ import {
   LoadingState,
   ErrorState
 } from '../components/ui'
+import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
+import PageHeader from '../components/layout/PageHeader'
+import { Sparkles, Users, Pencil, ListChecks } from 'lucide-react'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 import '../styles/quillOverrides.css'
 
 export default function CreateCampaignPage() {
-  const { user } = useAuth()
+  useAuth()
   const navigate = useNavigate()
   const { id: campaignId } = useParams()
   const isEditing = Boolean(campaignId)
@@ -149,7 +152,7 @@ export default function CreateCampaignPage() {
     })
 
     setTemplateVariableSources(nextSources)
-    setTemplateVariables(prev => ({ ...nextVars }))
+    setTemplateVariables(() => ({ ...nextVars }))
     if (loadedMessageContent.media?.header_link) {
       setHeaderMediaLink(loadedMessageContent.media.header_link)
     }
@@ -881,8 +884,26 @@ export default function CreateCampaignPage() {
     <AppShell
       title={isEditing ? 'Edit Campaign' : 'Create Campaign'}
       subtitle={isEditing ? 'Update your WhatsApp or Email campaign' : 'Create a new WhatsApp or Email campaign'}
-      actions={<Badge variant="primary">{isEditing ? 'Edit' : 'New'}</Badge>}
     >
+      <PageHeader
+        icon={Sparkles}
+        title={isEditing ? 'Edit your campaign' : 'Create your next campaign'}
+        description="Follow the guided steps to configure audience, content, and review before sending."
+        helper={`${tags.length || 0} templates • ${contacts.length || 0} contacts`}
+        actions={
+          <div className="flex flex-wrap gap-3">
+            <PrimaryAction onClick={() => navigate('/campaigns')}>
+              <ListChecks className="h-4 w-4" />
+              <span>View campaigns</span>
+            </PrimaryAction>
+            <SecondaryAction onClick={() => navigate('/templates')}>
+              <Users className="h-4 w-4" />
+              <span>Manage templates</span>
+            </SecondaryAction>
+          </div>
+        }
+        meta={<p className="text-sm text-[var(--text-muted)]">Steps: Basics • Audience • Content • Review</p>}
+      />
       {error && (
         <ErrorState
           title="Unable to save campaign"
@@ -897,16 +918,17 @@ export default function CreateCampaignPage() {
         <Alert variant="success" className="mb-4">{success}</Alert>
       )}
 
-      <Card>
-        <CardContent className="space-y-6">
-          <div className="flex items-center gap-3">
-            {steps.map((label, idx) => (
-              <div key={label} className="flex items-center gap-2">
-                <div className={`h-8 w-8 rounded-full border flex items-center justify-center text-sm font-semibold ${
-                  idx === currentStep ? 'bg-primary-500 text-white border-primary-500' : 'border-[var(--border)] text-[var(--text-muted)]'
-                }`}>
-                  {idx + 1}
-                </div>
+      <div className="grid gap-6 lg:grid-cols-[3fr,1fr]">
+        <Card variant="glass" className="space-y-6">
+          <CardContent className="space-y-6">
+            <div className="flex items-center gap-3">
+              {steps.map((label, idx) => (
+                <div key={label} className="flex items-center gap-2">
+                  <div className={`h-8 w-8 rounded-full border flex items-center justify-center text-sm font-semibold ${
+                    idx === currentStep ? 'bg-primary-500 text-white border-primary-500' : 'border-[var(--border)] text-[var(--text-muted)]'
+                  }`}>
+                    {idx + 1}
+                  </div>
                 <span className={idx === currentStep ? 'text-[var(--text)] font-semibold' : 'text-[var(--text-muted)] text-sm'}>
                   {label}
                 </span>
@@ -929,13 +951,27 @@ export default function CreateCampaignPage() {
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <div className="flex gap-3 mt-4">
-        <Button variant="secondary" onClick={handleCancel}>
-          Cancel
-        </Button>
+        <Card variant="glass" className="space-y-4">
+          <CardHeader className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary-500" />
+              <CardTitle className="text-lg">Progress summary</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-[var(--text-muted)]">
+            <p>Current step: <strong>{steps[currentStep]}</strong></p>
+            <p>Audience: {formData.audienceType === 'all' ? 'All contacts' : `${formData.selectedTags.length} tag(s)`}</p>
+            <p>Template: {formData.template_id ? 'Selected' : 'Choose template in Content step'}</p>
+          </CardContent>
+          <CardContent className="pt-0">
+            <SecondaryAction className="w-full" onClick={handleCancel}>
+              Cancel & close
+            </SecondaryAction>
+          </CardContent>
+        </Card>
       </div>
     </AppShell>
   )
