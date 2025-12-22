@@ -294,6 +294,36 @@ router.get('/channels', requireAuth, (req, res) => {
       whatsappBusinessAccountId = whatsappChannel?.business_account_id || null;
     }
 
+    const smsChannel = db.prepare(
+      `SELECT id, provider, is_enabled, provider_config_json, updated_at
+       FROM tenant_channel_credentials_v2
+       WHERE tenant_id = ? AND channel = ?`
+    ).get(tenantId, 'sms');
+
+    const smsConfig = smsChannel ? (() => {
+      let parsed = {};
+      if (smsChannel.provider_config_json) {
+        try {
+          parsed = JSON.parse(smsChannel.provider_config_json);
+        } catch (err) {
+          console.warn('⚠️ Could not parse SMS provider_config_json:', err.message);
+        }
+      }
+      return {
+        provider: smsChannel.provider,
+        is_connected: smsChannel.is_enabled === 1,
+        phone_number: parsed.phone_number || null,
+        webhook_url: parsed.webhook_url || null,
+        updated_at: smsChannel.updated_at
+      };
+    })() : {
+      provider: null,
+      is_connected: false,
+      phone_number: null,
+      webhook_url: null,
+      updated_at: null
+    };
+
     const response = {
       whatsapp: whatsappChannel ? {
         provider: whatsappChannel.provider,
@@ -341,7 +371,8 @@ router.get('/channels', requireAuth, (req, res) => {
         verified_sender_email: null,
         region: null,
         access_key_id: null
-      }
+      },
+      sms: smsConfig
     };
 
     res.json(response);
@@ -632,6 +663,80 @@ router.post('/channels/email', requireAuth, requireAdmin, async (req, res) => {
     res.status(500).json({
       error: 'Internal Server Error',
       message: 'Failed to connect email channel',
+      status: 'error'
+    });
+  }
+});
+
+/**
+ * POST /api/settings/channels/sms
+ * Update per-tenant Twilio phone number + webhook URL
+ */
+router.post('/channels/sms', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const tenantId = getTenantId(req);
+    const { phoneNumber, webhookUrl } = req.body;
+
+    if (!tenantId) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'No active tenant selected',
+        status: 'error'
+      });
+    }
+
+    if (!phoneNumber) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'Phone number is required',
+        status: 'error'
+      });
+    }
+
+    const channelRow = db.prepare(
+      'SELECT id, provider_config_json FROM tenant_channel_credentials_v2 WHERE tenant_id = ? AND channel = ?'
+    ).get(tenantId, 'sms');
+
+    if (!channelRow) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'SMS configuration not found. Run the Twilio seeding script first.',
+        status: 'error'
+      });
+    }
+
+    let config = {};
+    if (channelRow.provider_config_json) {
+      try {
+        config = JSON.parse(channelRow.provider_config_json);
+      } catch (err) {
+        console.warn('⚠️ Could not parse SMS provider_config_json:', err.message);
+      }
+    }
+
+    config.phone_number = String(phoneNumber).trim();
+    if (webhookUrl) {
+      config.webhook_url = String(webhookUrl).trim();
+    }
+
+    const now = new Date().toISOString();
+    db.prepare(
+      `UPDATE tenant_channel_credentials_v2
+       SET provider_config_json = ?, is_enabled = 1, updated_at = ?
+       WHERE id = ?`
+    ).run(JSON.stringify(config), now, channelRow.id);
+
+    res.json({
+      message: 'SMS settings saved',
+      status: 'success',
+      phone_number: config.phone_number,
+      webhook_url: config.webhook_url || null
+    });
+  } catch (err) {
+    console.error('Error updating SMS channel settings:', err);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Failed to save SMS settings',
       status: 'error'
     });
   }

@@ -25,7 +25,7 @@ import BillingPage from './BillingPage';
 import InvoicesPage from './InvoicesPage';
 import PageHeader from '../components/layout/PageHeader';
 import { PrimaryAction } from '../components/ui/ActionButtons';
-import { Settings, Wifi, Mail, Layers, Tag, Users, CreditCard, FileText } from 'lucide-react';
+import { Settings, Wifi, Mail, Layers, Tag, Users, CreditCard, FileText, Phone } from 'lucide-react';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -43,7 +43,19 @@ export default function SettingsPage() {
       webhook_verify_token: null,
       webhook_secret_present: false
     },
-    email: { provider: null, is_connected: false, connected_at: null, verified_sender_email: null }
+    email: {
+      provider: null,
+      is_connected: false,
+      connected_at: null,
+      verified_sender_email: null
+    },
+    sms: {
+      provider: null,
+      is_connected: false,
+      phone_number: null,
+      webhook_url: null,
+      updated_at: null
+    }
   });
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
@@ -64,6 +76,11 @@ export default function SettingsPage() {
   const [validationResult, setValidationResult] = useState(null);
   const [whatsappHealth, setWhatsappHealth] = useState({ status: 'unknown', message: '' });
   const [emailHealth, setEmailHealth] = useState({ status: 'unknown', message: '' });
+  const [smsPhone, setSmsPhone] = useState('');
+  const [smsWebhook, setSmsWebhook] = useState('');
+  const [smsSaving, setSmsSaving] = useState(false);
+  const [smsError, setSmsError] = useState('');
+  const [smsSuccess, setSmsSuccess] = useState('');
   const openEmailModal = (stored = false) => {
     setEmailError('');
     setUseStoredEmail(stored);
@@ -115,7 +132,11 @@ export default function SettingsPage() {
         }
 
         const data = await response.json();
-        setChannels(data);
+        setChannels((prev) => ({
+          whatsapp: data.whatsapp || prev.whatsapp,
+          email: data.email || prev.email,
+          sms: data.sms || prev.sms
+        }));
         setError('');
 
         if (data?.whatsapp?.is_connected) {
@@ -134,6 +155,13 @@ export default function SettingsPage() {
 
     fetchChannels();
   }, []);
+
+  useEffect(() => {
+    if (channels.sms) {
+      setSmsPhone(channels.sms.phone_number || '');
+      setSmsWebhook(channels.sms.webhook_url || '');
+    }
+  }, [channels.sms]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -175,6 +203,58 @@ export default function SettingsPage() {
     } catch (err) {
       console.error('Error fetching templates:', err);
       setTemplatesError('Failed to load templates. Please sync again.');
+    }
+  };
+
+  const handleSaveSmsSettings = async () => {
+    if (!smsPhone.trim()) {
+      setSmsError('Twilio phone number is required');
+      return;
+    }
+
+    setSmsSaving(true);
+    setSmsError('');
+    setSmsSuccess('');
+
+    try {
+      const payload = {
+        phoneNumber: smsPhone.trim()
+      };
+      if (smsWebhook.trim()) {
+        payload.webhookUrl = smsWebhook.trim();
+      }
+
+      const response = await fetch('/api/settings/channels/sms', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to save SMS settings');
+      }
+
+      const data = await response.json();
+      setChannels((prev) => ({
+        ...prev,
+        sms: {
+          ...prev.sms,
+          provider: prev.sms.provider || 'twilio',
+          is_connected: true,
+          phone_number: data.phone_number,
+          webhook_url: data.webhook_url || prev.sms.webhook_url,
+          updated_at: prev.sms.updated_at || new Date().toISOString()
+        }
+      }));
+
+      setSmsSuccess('Saved SMS settings');
+      setTimeout(() => setSmsSuccess(''), 3500);
+    } catch (err) {
+      setSmsError(err.message);
+    } finally {
+      setSmsSaving(false);
     }
   };
 
@@ -961,6 +1041,62 @@ export default function SettingsPage() {
                         {emailHealthResult.message}
                       </Alert>
                     )}
+                  </CardContent>
+                </Card>
+
+                {/* SMS Channel Card */}
+                <Card variant="glass">
+                  <CardHeader className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-5 w-5 text-primary-500" />
+                        <CardTitle>SMS (Twilio)</CardTitle>
+                      </div>
+                      <CardDescription>Send SMS via Twilio using per-tenant sender numbers.</CardDescription>
+                    </div>
+                    <Badge variant={channels.sms.is_connected ? 'success' : 'neutral'}>
+                      {channels.sms.is_connected ? 'Configured' : 'Not configured'}
+                    </Badge>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {smsError && (
+                      <Alert variant="error">{smsError}</Alert>
+                    )}
+                    {smsSuccess && (
+                      <Alert variant="success">{smsSuccess}</Alert>
+                    )}
+                    <form className="grid gap-4 lg:grid-cols-2">
+                      <div>
+                        <Label>Twilio sender number *</Label>
+                        <Input
+                          value={smsPhone}
+                          onChange={(e) => setSmsPhone(e.target.value)}
+                          placeholder="+15551234567"
+                        />
+                        <p className="text-xs text-[var(--text-muted)] mt-1">
+                          Use E.164 format (plus sign + country code).
+                        </p>
+                      </div>
+                      <div>
+                        <Label>Webhook URL</Label>
+                        <Input
+                          value={smsWebhook}
+                          onChange={(e) => setSmsWebhook(e.target.value)}
+                          placeholder="https://your-app.com/webhooks/twilio"
+                        />
+                        <p className="text-xs text-[var(--text-muted)] mt-1">
+                          Register this URL with Twilio status callbacks. Current value: {channels.sms.webhook_url || `${window.location.origin}/webhooks/twilio`}
+                        </p>
+                      </div>
+                    </form>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-xs text-[var(--text-muted)]">
+                        Phone number: {channels.sms.phone_number || 'Not configured'} • Webhook updated: {channels.sms.updated_at ? new Date(channels.sms.updated_at).toLocaleString() : 'Never'}
+                      </p>
+                      <Button onClick={handleSaveSmsSettings} disabled={smsSaving}>
+                        {smsSaving ? 'Saving...' : 'Save SMS settings'}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
