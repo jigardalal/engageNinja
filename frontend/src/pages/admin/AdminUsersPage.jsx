@@ -1,41 +1,18 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, ShieldCheck } from 'lucide-react'
+import { ArrowUpDown, Eye, Power, ShieldCheck, Users } from 'lucide-react'
 import AdminPageLayout from '../../components/layout/AdminPageLayout'
 import {
-  Input,
   Button,
   Badge,
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-  LoadingState,
   ErrorState,
-  EmptyState,
   PrimaryAction,
-  SecondaryAction
+  DataTable
 } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
 
 const platformRoles = ['none', 'platform_support', 'platform_admin', 'system_admin']
-
-const roleBadgeClass = (role) => {
-  const map = {
-    system_admin: 'bg-purple-100 text-purple-800',
-    platform_admin: 'bg-blue-100 text-blue-800',
-    platform_support: 'bg-green-100 text-green-800',
-    none: 'bg-gray-100 text-gray-800'
-  }
-  return map[role] || map.none
-}
+const badgeGlass = 'text-xs font-normal bg-white/50 dark:bg-white/10 backdrop-blur-sm border border-white/20'
 
 export const AdminUsersPage = () => {
   const navigate = useNavigate()
@@ -43,7 +20,6 @@ export const AdminUsersPage = () => {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [search, setSearch] = useState('')
   const [roleUpdates, setRoleUpdates] = useState({})
   const [roleSaving, setRoleSaving] = useState({})
   const [actionLoading, setActionLoading] = useState({})
@@ -53,12 +29,11 @@ export const AdminUsersPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const fetchUsers = async (term = search) => {
+  const fetchUsers = async () => {
     try {
       setLoading(true)
       setError(null)
-      const query = term ? `?search=${encodeURIComponent(term)}` : ''
-      const res = await fetch(`/api/admin/users${query}`, { credentials: 'include' })
+      const res = await fetch('/api/admin/users', { credentials: 'include' })
       if (!res.ok) throw new Error('Failed to fetch users')
       const data = await res.json()
       setUsers(data.users || [])
@@ -69,12 +44,7 @@ export const AdminUsersPage = () => {
     }
   }
 
-  const refreshUsers = () => fetchUsers(search)
-
-  const handleSearchChange = (value) => {
-    setSearch(value)
-    fetchUsers(value)
-  }
+  const refreshUsers = () => fetchUsers()
 
   const savePlatformRole = async (userId, role) => {
     if (!role) return
@@ -124,6 +94,142 @@ export const AdminUsersPage = () => {
 
   const activeCount = users.filter((user) => user.active).length
 
+  const sortHeader = (label) => ({ column }) => (
+    <Button
+      variant="ghost"
+      onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--text-muted)] hover:bg-transparent px-0"
+    >
+      {label}
+      <ArrowUpDown className="ml-1 h-4 w-4 text-[var(--text-muted)]" />
+    </Button>
+  )
+
+  const columns = useMemo(
+    () => [
+      {
+        accessorKey: 'name',
+        header: sortHeader('Name'),
+        cell: ({ row }) => {
+          const user = row.original
+          const displayName =
+            user.name ||
+            `${user.first_name || '—'} ${user.last_name || ''}`.trim() ||
+            '—'
+          return (
+            <div>
+              <p className="text-sm font-semibold text-[var(--text)]">{displayName}</p>
+            </div>
+          )
+        }
+      },
+      {
+        accessorKey: 'email',
+        header: sortHeader('Email'),
+        cell: ({ row }) => (
+          <span className="text-sm text-[var(--text-muted)]">{row.original.email}</span>
+        )
+      },
+      {
+        id: 'role',
+        accessorFn: (user) => user.role_global || 'none',
+        header: sortHeader('Role'),
+        cell: ({ row }) => {
+          const user = row.original
+          const isProtectedRole =
+            user.role_global === 'platform_admin' || user.role_global === 'system_admin'
+          const currentRole = roleUpdates[user.id] ?? (user.role_global || 'none')
+          const baseRole = user.role_global || 'none'
+          return (
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={currentRole}
+                onChange={(e) =>
+                  setRoleUpdates((prev) => ({ ...prev, [user.id]: e.target.value }))
+                }
+                className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-sm"
+                disabled={isProtectedRole}
+              >
+                {platformRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+              <Badge className={`${badgeGlass} text-primary-700`}>
+                {baseRole}
+              </Badge>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={
+                  isProtectedRole ||
+                  roleSaving[user.id] ||
+                  currentRole === baseRole
+                }
+                onClick={() => savePlatformRole(user.id, currentRole)}
+              >
+                {roleSaving[user.id] ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          )
+        }
+      },
+      {
+        id: 'status',
+        accessorFn: (user) => (user.active ? 'active' : 'inactive'),
+        header: sortHeader('Status'),
+        cell: ({ row }) => (
+          <Badge
+            className={`${badgeGlass} ${row.original.active ? 'text-green-800' : 'text-gray-800'}`}
+          >
+            {row.original.active ? 'Active' : 'Inactive'}
+          </Badge>
+        )
+      },
+      {
+        accessorKey: 'tenant_count',
+        header: sortHeader('Tenants'),
+        cell: ({ row }) => (
+          <Badge className={`${badgeGlass} text-primary-700`}>
+            {row.original.tenant_count || 0} tenants
+          </Badge>
+        )
+      },
+      {
+        accessorKey: 'created_at',
+        header: sortHeader('Created'),
+        cell: ({ row }) => (
+          <span className="text-sm text-[var(--text-muted)]">
+            {new Date(row.original.created_at).toLocaleDateString()}
+          </span>
+        )
+      }
+    ],
+    [roleUpdates, roleSaving, savePlatformRole]
+  )
+
+  const rowActions = useMemo(
+    () => (user) => [
+      {
+        label: 'View user',
+        icon: <Eye className="h-4 w-4" />,
+        onClick: () => navigate(`/admin/users/${user.id}`)
+      },
+      {
+        label: user.active ? 'Deactivate user' : 'Activate user',
+        icon: <Power className="h-4 w-4" />,
+        variant: user.active ? 'destructive' : 'default',
+        disabled: !!actionLoading[user.id],
+        onClick: () => {
+          if (actionLoading[user.id]) return
+          setUserActive(user.id, !user.active)
+        }
+      }
+    ],
+    [navigate, actionLoading, setUserActive]
+  )
+
   return (
     <AdminPageLayout
       shellTitle="Admin — Users"
@@ -133,170 +239,25 @@ export const AdminUsersPage = () => {
         description: 'Monitor platform-wide users, update roles, and surface protected accounts.',
         helper: `${users.length} users • ${activeCount} active`,
         actions: (
-          <div className="flex flex-wrap gap-3">
-            <SecondaryAction onClick={() => handleSearchChange('')}>Reset search</SecondaryAction>
-            <PrimaryAction onClick={refreshUsers}>Refresh users</PrimaryAction>
-          </div>
+          <PrimaryAction onClick={refreshUsers}>Refresh users</PrimaryAction>
         )
       }}
     >
-      <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
-        <Card variant="glass">
-          <CardHeader>
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div>
-                <CardTitle>Search & filters</CardTitle>
-                <CardDescription className="text-[var(--text-muted)]">
-                  Search by name, email, or internal ID.
-                </CardDescription>
-              </div>
-              <div className="w-full md:w-72">
-                <Input
-                  placeholder="Search users..."
-                  value={search}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {error && <ErrorState title="Unable to load users" description={error} />}
-            {loading ? (
-              <LoadingState message="Loading users..." />
-            ) : users.length === 0 ? (
-              <EmptyState
-                title="No users"
-                description="Invite platform admins or support staff to see them listed here."
-                icon={ShieldCheck}
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Tenants</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((user) => {
-                      const isProtectedRole =
-                        user.role_global === 'platform_admin' || user.role_global === 'system_admin'
-                      const currentRole = roleUpdates[user.id] ?? (user.role_global || 'none')
-                      return (
-                        <TableRow key={user.id}>
-                          <TableCell>
-                            <p className="text-sm font-semibold text-[var(--text)]">
-                              {user.name || `${user.first_name || '—'} ${user.last_name || ''}`.trim() || '—'}
-                            </p>
-                            <p className="text-xs text-[var(--text-muted)]">ID: {user.id}</p>
-                          </TableCell>
-                          <TableCell>
-                            <p className="text-sm text-[var(--text-muted)]">{user.email}</p>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <select
-                                value={currentRole}
-                                onChange={(e) =>
-                                  setRoleUpdates((prev) => ({ ...prev, [user.id]: e.target.value }))
-                                }
-                                className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-sm"
-                                disabled={isProtectedRole}
-                              >
-                                {platformRoles.map((role) => (
-                                  <option key={role} value={role}>
-                                    {role}
-                                  </option>
-                                ))}
-                              </select>
-                              <Badge className={`${roleBadgeClass(user.role_global || 'none')} text-xs font-semibold`}>
-                                {user.role_global || 'none'}
-                              </Badge>
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                disabled={
-                                  isProtectedRole ||
-                                  roleSaving[user.id] ||
-                                  currentRole === (user.role_global || 'none')
-                                }
-                                onClick={() => savePlatformRole(user.id, currentRole)}
-                              >
-                                {roleSaving[user.id] ? 'Saving...' : 'Save'}
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              className={
-                                user.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                              }
-                            >
-                              {user.active ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className="text-xs font-semibold bg-primary-100 text-primary-700">
-                              {user.tenant_count || 0} tenants
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <p className="text-sm text-[var(--text-muted)]">
-                              {new Date(user.created_at).toLocaleDateString()}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-2 text-sm">
-                              <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/users/${user.id}`)}>
-                                View
-                              </Button>
-                              <Button
-                                variant={user.active ? 'secondary' : 'primary'}
-                                size="sm"
-                                onClick={() => setUserActive(user.id, !user.active)}
-                                disabled={!!actionLoading[user.id]}
-                              >
-                                {actionLoading[user.id]
-                                  ? 'Saving...'
-                                  : user.active
-                                  ? 'Deactivate'
-                                  : 'Activate'}
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card variant="glass" className="space-y-3">
-          <CardHeader>
-            <CardTitle>Summary</CardTitle>
-            <CardDescription className="text-[var(--text-muted)]">
-              Track platform user counts and role distributions.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex items-center justify-between text-sm text-[var(--text-muted)]">
-              <span>Total users</span>
-              <strong className="text-[var(--text)]">{users.length}</strong>
-            </div>
-            <div className="flex items-center justify-between text-sm text-[var(--text-muted)]">
-              <span>Active users</span>
-              <strong className="text-[var(--text)]">{activeCount}</strong>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="space-y-4">
+        {error && <ErrorState title="Unable to load users" description={error} />}
+        <DataTable
+          columns={columns}
+          data={users}
+          title="Platform users"
+          description="Review platform roles, activation state, and tenant assignments."
+          searchPlaceholder="Filter users..."
+          loading={loading}
+          loadingMessage="Loading users..."
+          emptyIcon={ShieldCheck}
+          emptyTitle="No users"
+          emptyDescription="Invite platform admins or support staff to see them listed here."
+          rowActions={rowActions}
+        />
       </div>
     </AdminPageLayout>
   )

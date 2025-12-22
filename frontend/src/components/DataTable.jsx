@@ -51,7 +51,7 @@ import {
  * - emptyTitle: Title for empty state
  * - emptyDescription: Description for empty state
  * - emptyAction: Action button component for empty state
- * - rowActions: Array of row action buttons { label, icon, onClick, variant }
+ * - rowActions: Array or callback returning row action buttons { label, icon, onClick, variant, disabled }
  * - bulkActions: Array of bulk action buttons { label, icon, onClick, variant }
  */
 export const DataTable = ({
@@ -109,38 +109,47 @@ export const DataTable = ({
     ? {
         id: 'actions',
         header: () => <span className="sr-only">Actions</span>,
-        cell: ({ row }) => (
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 p-0 hover:bg-white/20 dark:hover:bg-white/10"
-              onClick={() => setOpenMenuId(openMenuId === row.id ? null : row.id)}
-            >
-              <span className="sr-only">Open menu</span>
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-            {openMenuId === row.id && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--card)] border border-[var(--border)] shadow-lg z-50">
-                {rowActions.map((action, index) => (
-                  <button
-                    key={`${action.label}-${index}`}
-                    onClick={() => {
-                      action.onClick(row.original)
-                      setOpenMenuId(null)
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-[var(--border)] ${
-                      action.variant === 'destructive' ? 'text-red-600 dark:text-red-400' : ''
-                    }`}
-                  >
-                    {action.icon && <span>{action.icon}</span>}
-                    {action.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        ),
+        cell: ({ row }) => {
+          const actionsForRow =
+            typeof rowActions === 'function' ? rowActions(row.original) : rowActions
+          if (!actionsForRow || actionsForRow.length === 0) {
+            return null
+          }
+          return (
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 p-0 hover:bg-white/20 dark:hover:bg-white/10"
+                onClick={() => setOpenMenuId(openMenuId === row.id ? null : row.id)}
+              >
+                <span className="sr-only">Open menu</span>
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+              {openMenuId === row.id && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--card)] border border-[var(--border)] shadow-lg z-50">
+                  {actionsForRow.map((action, index) => (
+                    <button
+                      key={`${action.label}-${index}`}
+                      onClick={() => {
+                        if (action.disabled) return
+                        action.onClick(row.original)
+                        setOpenMenuId(null)
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-[var(--border)] ${
+                        action.variant === 'destructive' ? 'text-red-600 dark:text-red-400' : ''
+                      } ${action.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={action.disabled}
+                    >
+                      {action.icon && <span>{action.icon}</span>}
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        },
         enableSorting: false,
         enableHiding: false
       }
@@ -271,17 +280,17 @@ export const DataTable = ({
                     <Button
                       variant="outline"
                       size="default"
-                      className="bg-[var(--background)] border-[var(--border)]"
+                      className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.3em] bg-gradient-to-br from-primary/10 to-primary/30 border border-primary/40 px-4 py-1.5 rounded-full text-primary hover:from-primary/20 hover:to-primary/40"
                       onClick={() => setShowColumnsMenu(!showColumnsMenu)}
                     >
-                      <SlidersHorizontal className="mr-2 h-4 w-4" />
+                      <SlidersHorizontal className="mr-1 h-4 w-4 text-[var(--text-muted)]" />
                       Columns
                     </Button>
-                    {showColumnsMenu && (
-                      <div
-                        className="absolute right-0 top-full mt-2 w-48 bg-[var(--card)] border border-[var(--border)] shadow-lg z-50"
-                        data-columns-menu
-                      >
+                  {showColumnsMenu && (
+                    <div
+                      className="absolute right-0 top-full mt-2 w-48 bg-white/60 dark:bg-slate-900/60 border border-[var(--border)] shadow-lg backdrop-blur-xl z-50"
+                      data-columns-menu
+                    >
                         {table
                           .getAllColumns()
                           .filter((column) => column.getCanHide())

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { Tag as TagIcon } from 'lucide-react'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
+import { Tag as TagIcon, ArrowUpDown } from 'lucide-react'
 import AdminPageLayout from '../../components/layout/AdminPageLayout'
 import {
   Input,
@@ -11,48 +11,45 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-  LoadingState,
-  EmptyState,
-  PrimaryAction
+  PrimaryAction,
+  DataTable
 } from '../../components/ui'
+
+const statusBadge = (status) => {
+  return status === 'active'
+    ? 'bg-green-100 text-green-800'
+    : 'bg-gray-100 text-gray-800'
+}
 
 export const AdminTagsPage = () => {
   const [tags, setTags] = useState([])
   const [drafts, setDrafts] = useState({})
   const [newTag, setNewTag] = useState('')
-  const [statusFilter, setStatusFilter] = useState('active')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [creating, setCreating] = useState(false)
   const [savingId, setSavingId] = useState(null)
 
-  useEffect(() => {
-    fetchTags()
-  }, [statusFilter])
+  const initializeDrafts = useCallback((tagList) => {
+    const map = {}
+    tagList.forEach((tag) => {
+      map[tag.id] = { name: tag.name, status: tag.status || 'active' }
+    })
+    setDrafts(map)
+  }, [])
 
-  const fetchTags = async () => {
+  const fetchTags = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
       const params = new URLSearchParams()
-      if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter)
       const qs = params.toString()
       const res = await fetch(`/api/admin/global-tags${qs ? `?${qs}` : ''}`, { credentials: 'include' })
       if (!res.ok) throw new Error('Failed to load tags')
       const data = await res.json()
       const tagList = Array.isArray(data.tags) ? data.tags : []
       setTags(tagList)
-      const map = {}
-      tagList.forEach((t) => {
-        map[t.id] = { name: t.name, status: t.status }
-      })
-      setDrafts(map)
+      initializeDrafts(tagList)
     } catch (err) {
       console.error('AdminTagsPage fetchTags error', err)
       const rawMessage = err && typeof err.message === 'string' ? err.message : ''
@@ -61,7 +58,11 @@ export const AdminTagsPage = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [initializeDrafts])
+
+  useEffect(() => {
+    fetchTags()
+  }, [fetchTags])
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -89,32 +90,7 @@ export const AdminTagsPage = () => {
     }
   }
 
-  const handleSave = async (tagId) => {
-    const draft = drafts[tagId]
-    if (!draft) return
-    try {
-      setSavingId(tagId)
-      setError(null)
-      const res = await fetch(`/api/admin/global-tags/${tagId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ name: draft.name, status: draft.status })
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to update tag')
-      }
-      await fetchTags()
-    } catch (err) {
-      console.error('AdminTagsPage save tag error', err)
-      setError(err.message || 'Failed to update tag')
-    } finally {
-      setSavingId(null)
-    }
-  }
-
-  const updateDraft = (tagId, patch) => {
+  const updateDraft = useCallback((tagId, patch) => {
     setDrafts((prev) => ({
       ...prev,
       [tagId]: {
@@ -122,17 +98,115 @@ export const AdminTagsPage = () => {
         ...patch
       }
     }))
-  }
+  }, [])
 
-  const statusBadge = (status) => {
-    return status === 'active'
-      ? 'bg-green-100 text-green-800'
-      : 'bg-gray-100 text-gray-800'
-  }
+  const handleSave = useCallback(
+    async (tag) => {
+      const draft = drafts[tag.id]
+      if (!draft) return
+      try {
+        setSavingId(tag.id)
+        setError(null)
+        const res = await fetch(`/api/admin/global-tags/${tag.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ name: draft.name, status: draft.status })
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to update tag')
+        }
+        await fetchTags()
+      } catch (err) {
+        console.error('AdminTagsPage save tag error', err)
+        setError(err.message || 'Failed to update tag')
+      } finally {
+        setSavingId(null)
+      }
+    },
+    [drafts, fetchTags]
+  )
 
-  if (error && tags.length === 0 && !loading) {
-    // Keep showing layout even if error occurs, so we can update filters
-  }
+  const columns = useMemo(() => {
+    const sortHeader = (label) => ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--text-muted)] hover:bg-transparent px-0"
+      >
+        {label}
+        <ArrowUpDown className="ml-1 h-4 w-4 text-[var(--text-muted)]" />
+      </Button>
+    )
+
+    return [
+      {
+        accessorKey: 'name',
+        header: sortHeader('Name'),
+        cell: ({ row }) => {
+          const tag = row.original
+          const draft = drafts[tag.id] || { name: tag.name, status: tag.status || 'active' }
+          return (
+            <Input
+              value={draft.name || ''}
+              onChange={(e) => updateDraft(tag.id, { name: e.target.value })}
+              className="min-w-[220px]"
+            />
+          )
+        }
+      },
+      {
+        id: 'status',
+        header: sortHeader('Status'),
+        accessorFn: (tag) => drafts[tag.id]?.status || tag.status || 'active',
+        cell: ({ row }) => {
+          const tag = row.original
+          const draft = drafts[tag.id] || { name: tag.name, status: tag.status || 'active' }
+          return (
+            <div className="flex items-center gap-2">
+              <select
+                value={draft.status}
+                onChange={(e) => updateDraft(tag.id, { status: e.target.value })}
+                className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-sm"
+              >
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+              </select>
+              <Badge className={`${statusBadge(draft.status)} text-xs font-semibold`}>
+                {draft.status}
+              </Badge>
+            </div>
+          )
+        }
+      },
+      {
+        accessorKey: 'created_at',
+        header: sortHeader('Created'),
+        cell: ({ row }) => (
+          <p className="text-sm text-[var(--text-muted)]">
+            {row.original.created_at
+              ? new Date(row.original.created_at).toLocaleDateString()
+              : '—'}
+          </p>
+        )
+      },
+      {
+        id: 'actions',
+        header: sortHeader('Actions'),
+        cell: ({ row }) => (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleSave(row.original.id)}
+            disabled={savingId === row.original.id}
+          >
+            {savingId === row.original.id ? 'Saving...' : 'Save'}
+          </Button>
+        )
+      }
+    ]
+  }, [drafts, savingId, updateDraft, handleSave])
 
   return (
     <AdminPageLayout
@@ -149,28 +223,6 @@ export const AdminTagsPage = () => {
         )
       }}
     >
-      <Card variant="glass">
-        <CardHeader>
-          <div>
-            <CardTitle>Status filter</CardTitle>
-            <CardDescription className="text-[var(--text-muted)]">Show active or archived tags.</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="max-w-xs">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm shadow-sm"
-            >
-              <option value="active">Active</option>
-              <option value="archived">Archived</option>
-              <option value="all">All</option>
-            </select>
-          </div>
-        </CardContent>
-      </Card>
-
       <Card variant="glass">
         <CardHeader>
           <div>
@@ -205,74 +257,22 @@ export const AdminTagsPage = () => {
         </Alert>
       )}
 
-      <Card variant="glass">
-        <CardHeader>
-          <div>
-            <CardTitle>Global tag list</CardTitle>
-            <CardDescription className="text-[var(--text-muted)]">Edit names and statuses inline.</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <LoadingState message="Loading tags..." />
-          ) : tags.length === 0 ? (
-            <EmptyState
-              title="No tags yet"
-              description="Create one to get started."
-              icon={TagIcon}
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tags.map((tag) => (
-                    <TableRow key={tag.id}>
-                      <TableCell>
-                        <Input
-                          value={drafts[tag.id]?.name || ''}
-                          onChange={(e) => updateDraft(tag.id, { name: e.target.value })}
-                          className="min-w-[220px]"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={drafts[tag.id]?.status || 'active'}
-                            onChange={(e) => updateDraft(tag.id, { status: e.target.value })}
-                            className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-sm"
-                          >
-                            <option value="active">Active</option>
-                            <option value="archived">Archived</option>
-                          </select>
-                          <Badge className={`${statusBadge(drafts[tag.id]?.status || tag.status)} text-xs font-semibold`}>
-                            {drafts[tag.id]?.status || tag.status}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-[var(--text-muted)]">
-                        {new Date(tag.created_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Button size="sm" variant="ghost" onClick={() => handleSave(tag.id)} disabled={savingId === tag.id}>
-                          {savingId === tag.id ? 'Saving...' : 'Save'}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <DataTable
+        title="Global tag list"
+        description="Edit names and statuses inline."
+        columns={columns}
+        data={tags}
+        loading={loading}
+        loadingMessage="Loading tags..."
+        emptyIcon={TagIcon}
+        emptyTitle="No tags yet"
+        emptyDescription="Create one to get started."
+        searchPlaceholder="Search tags..."
+        enableSelection={false}
+      />
+      <p className="text-xs text-[var(--text-muted)] mt-2">
+        Tags are shared across campaigns and contacts, so changes ripple instantly.
+      </p>
     </AdminPageLayout>
   )
 }

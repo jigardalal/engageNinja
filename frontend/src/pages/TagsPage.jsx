@@ -11,19 +11,11 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-  EmptyState,
-  LoadingState,
-  ErrorState
+  ErrorState,
+  DataTable
 } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
-import { Tag, Filter, Columns } from 'lucide-react'
+import { Tag, Filter, ArrowUpDown } from 'lucide-react'
 import { PrimaryAction } from '../components/ui/ActionButtons'
 
 const statusBadgeClass = (status) => {
@@ -31,43 +23,45 @@ const statusBadgeClass = (status) => {
   return 'bg-green-100 text-green-800'
 }
 
-const filterOptions = [
-  { value: 'active', label: 'Active' },
-  { value: 'archived', label: 'Archived' },
-  { value: 'all', label: 'All tags' }
-]
-
 export default function TagsPage({ embedded = false } = {}) {
   const { userRole } = useAuth()
   const canManage = ['admin', 'owner'].includes(userRole)
   const [tags, setTags] = useState([])
+  const [drafts, setDrafts] = useState({})
   const [newTag, setNewTag] = useState('')
-  const [statusFilter, setStatusFilter] = useState('active')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [creating, setCreating] = useState(false)
   const [savingId, setSavingId] = useState(null)
 
-  useEffect(() => {
-    fetchTags()
-  }, [])
-
-  const fetchTags = async () => {
+  const fetchTags = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
-      const res = await fetch('/api/contacts/tags/list?include_archived=1', { credentials: 'include' })
+      const res = await fetch('/api/contacts/tags/list?include_archived=1', {
+        credentials: 'include'
+      })
       const data = await res.json()
       if (!res.ok) {
         throw new Error(data.error || 'Failed to load tags')
       }
-      setTags(data.data || [])
+      const tagList = data.data || []
+      setTags(tagList)
+      const map = {}
+      tagList.forEach((tag) => {
+        map[tag.id] = { name: tag.name, status: tag.status || 'active' }
+      })
+      setDrafts(map)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchTags()
+  }, [fetchTags])
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -94,9 +88,23 @@ export default function TagsPage({ embedded = false } = {}) {
     }
   }
 
+  const updateDraft = useCallback((tagId, patch) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [tagId]: {
+        ...prev[tagId],
+        ...patch
+      }
+    }))
+  }, [])
+
   const handleSaveTag = useCallback(
-    async (tagId, name, status) => {
+    async (tagId) => {
       if (!canManage) return
+      const draft = drafts[tagId]
+      if (!draft || !draft.name.trim()) return
+      const trimmedName = draft.name.trim()
+      const existingTag = tags.find((tag) => tag.id === tagId) || {}
       try {
         setSavingId(tagId)
         setError(null)
@@ -104,34 +112,35 @@ export default function TagsPage({ embedded = false } = {}) {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ name, status })
+          body: JSON.stringify({ name: trimmedName, status: draft.status })
         })
         const data = await res.json()
         if (!res.ok) {
           throw new Error(data.error || 'Failed to update tag')
         }
+        const updatedTag = {
+          ...existingTag,
+          name: data.name || trimmedName,
+          status: data.status || draft.status
+        }
         setTags((prev) =>
-          prev.map((tag) =>
-            tag.id === tagId
-              ? { ...tag, name: data.name, status: data.status }
-              : tag
-          )
+          prev.map((tag) => (tag.id === tagId ? updatedTag : tag))
         )
+        setDrafts((prev) => ({
+          ...prev,
+          [tagId]: {
+            name: updatedTag.name,
+            status: updatedTag.status
+          }
+        }))
       } catch (err) {
         setError(err.message)
       } finally {
         setSavingId(null)
       }
     },
-    [canManage]
+    [canManage, drafts, tags]
   )
-
-  const visibleTags = useMemo(() => {
-    return tags.filter((tag) => {
-      if (statusFilter === 'all') return true
-      return (tag.status || 'active') === statusFilter
-    })
-  }, [tags, statusFilter])
 
   const stats = useMemo(() => {
     return tags.reduce(
@@ -144,13 +153,97 @@ export default function TagsPage({ embedded = false } = {}) {
     )
   }, [tags])
 
-  const Shell = ({ children }) => (
-    embedded ? <>{children}</> : (
+  const columns = useMemo(() => {
+    const sortHeader = (label) => ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--text-muted)] hover:bg-transparent px-0"
+      >
+        {label}
+        <ArrowUpDown className="ml-1 h-4 w-4 text-[var(--text-muted)]" />
+      </Button>
+    )
+
+    return [
+      {
+        accessorKey: 'name',
+        header: sortHeader('Name'),
+        cell: ({ row }) => {
+          const tag = row.original
+          const draft = drafts[tag.id] || { name: tag.name, status: tag.status || 'active' }
+          return (
+            <Input
+              value={draft.name}
+              onChange={(e) => updateDraft(tag.id, { name: e.target.value })}
+              disabled={!canManage}
+            />
+          )
+        }
+      },
+      {
+        id: 'status',
+        header: sortHeader('Status'),
+        accessorFn: (tag) => drafts[tag.id]?.status || tag.status || 'active',
+        cell: ({ row }) => {
+          const tag = row.original
+          const draft = drafts[tag.id] || { name: tag.name, status: tag.status || 'active' }
+          return (
+            <div className="flex items-center gap-2">
+              <select
+                value={draft.status}
+                onChange={(e) => updateDraft(tag.id, { status: e.target.value })}
+                className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
+                disabled={!canManage}
+              >
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+              </select>
+              <Badge className={`${statusBadgeClass(draft.status)} text-xs font-semibold`}>
+                {draft.status}
+              </Badge>
+            </div>
+          )
+        }
+      },
+      {
+        id: 'flags',
+        header: sortHeader('Flags'),
+        cell: ({ row }) =>
+          row.original.is_default ? (
+            <Badge className="bg-blue-100 text-blue-800 text-xs font-semibold">Default</Badge>
+          ) : (
+            <span className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Editable</span>
+          )
+      },
+      {
+        id: 'actions',
+        header: sortHeader('Actions'),
+        cell: ({ row }) => {
+          const tag = row.original
+          const draft = drafts[tag.id] || { name: tag.name, status: tag.status || 'active' }
+          return (
+            <Button
+              size="sm"
+              onClick={() => handleSaveTag(tag.id)}
+              disabled={!canManage || savingId === tag.id || !draft.name.trim()}
+            >
+              {savingId === tag.id ? 'Saving...' : 'Save'}
+            </Button>
+          )
+        }
+      }
+    ]
+  }, [drafts, savingId, updateDraft, handleSaveTag, canManage])
+
+  const Shell = ({ children }) =>
+    embedded ? (
+      <>{children}</>
+    ) : (
       <AppShell hideTitleBlock title="Tags" subtitle="Manage tags for this workspace">
         {children}
       </AppShell>
     )
-  )
 
   return (
     <Shell>
@@ -158,7 +251,11 @@ export default function TagsPage({ embedded = false } = {}) {
         icon={Tag}
         title="Tag management"
         description="Create, archive, and edit tags that keep your campaigns organized."
-        helper={canManage ? 'Admins can edit tags. Others can view status.' : 'Contact an admin to update tags.'}
+        helper={
+          canManage
+            ? 'Admins can edit tags. Others can view status.'
+            : 'Contact an admin to update tags.'
+        }
         actions={
           <PrimaryAction asChild>
             <Link to="/contacts">Go to contacts</Link>
@@ -173,7 +270,7 @@ export default function TagsPage({ embedded = false } = {}) {
               <Filter className="h-5 w-5 text-primary-500" />
               <CardTitle>Filters & creation</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-[var(--text-muted)]">
               {stats.active} active · {stats.archived} archived.
             </CardDescription>
           </CardHeader>
@@ -203,103 +300,25 @@ export default function TagsPage({ embedded = false } = {}) {
           </CardContent>
         </Card>
 
-        <Card variant="glass">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Columns className="h-5 w-5 text-primary-500" />
-              <CardTitle>Workspace tags</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {error && <ErrorState title="Something went wrong" description={error} />}
-            {loading ? (
-              <LoadingState message="Loading tags..." />
-            ) : visibleTags.length === 0 ? (
-              <EmptyState
-                title="No tags"
-                description="No tags match the current filter."
-                icon={Tag}
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Flags</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visibleTags.map((tag) => (
-                    <TagRow
-                      key={tag.id}
-                      tag={tag}
-                      canManage={canManage}
-                      savingId={savingId}
-                      onSave={handleSaveTag}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-          <CardFooter className="text-xs text-[var(--text-muted)]">
-            Tags are shared across campaigns and contacts, so changes ripple instantly.
-          </CardFooter>
-        </Card>
+        {error && <ErrorState title="Something went wrong" description={error} />}
+
+        <DataTable
+          title="Workspace tags"
+          description="Create or archive tags that organize campaigns and contacts."
+          columns={columns}
+        data={tags}
+          loading={loading}
+          loadingMessage="Loading tags..."
+          emptyIcon={Tag}
+          emptyTitle="No tags"
+          emptyDescription="Try changing the filter or create a new tag."
+          searchPlaceholder="Search tags..."
+          enableSelection={false}
+        />
+        <p className="text-xs text-[var(--text-muted)]">
+          Tags are shared across campaigns and contacts, so changes ripple instantly.
+        </p>
       </div>
     </Shell>
   )
 }
-
-const TagRow = React.memo(({ tag, canManage, savingId, onSave }) => {
-  const [name, setName] = useState(tag.name)
-  const [status, setStatus] = useState(tag.status || 'active')
-
-  useEffect(() => {
-    setName(tag.name)
-    setStatus(tag.status || 'active')
-  }, [tag.id, tag.name, tag.status])
-
-  const trimmedName = name.trim()
-  const isSaving = savingId === tag.id
-
-  return (
-    <TableRow className="hover:bg-black/3 transition">
-      <TableCell>
-        <Input value={name} onChange={(e) => setName(e.target.value)} disabled={!canManage} />
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
-            disabled={!canManage}
-          >
-            <option value="active">Active</option>
-            <option value="archived">Archived</option>
-          </select>
-          <Badge className={`${statusBadgeClass(status)} text-xs font-semibold`}>{status}</Badge>
-        </div>
-      </TableCell>
-      <TableCell>
-        {tag.is_default ? (
-          <Badge className="bg-blue-100 text-blue-800 text-xs font-semibold">Default</Badge>
-        ) : (
-          <span className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Editable</span>
-        )}
-      </TableCell>
-      <TableCell>
-        <Button
-          size="sm"
-          disabled={!canManage || isSaving || trimmedName.length === 0}
-          onClick={() => onSave(tag.id, trimmedName, status)}
-        >
-          {isSaving ? 'Saving...' : 'Save'}
-        </Button>
-      </TableCell>
-    </TableRow>
-  )
-})

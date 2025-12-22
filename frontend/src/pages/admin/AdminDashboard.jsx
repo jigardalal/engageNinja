@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShieldCheck, Users, Building2, Sparkles } from 'lucide-react'
+import { ShieldCheck, Users, Building2, Sparkles, ArrowUpDown } from 'lucide-react'
 import AdminPageLayout from '../../components/layout/AdminPageLayout'
 import AppShell from '../../components/layout/AppShell'
 import {
   Alert,
-  Badge,
   Button,
   Card,
   CardHeader,
@@ -13,26 +12,18 @@ import {
   CardDescription,
   CardContent,
   CardFooter,
-  Input,
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-  LoadingState,
   ErrorState,
-  EmptyState,
   Dialog,
   DialogFooter,
   DialogContent,
+  Input,
   PrimaryAction,
-  SecondaryAction
+  SecondaryAction,
+  DataTable
 } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
 
 const statusOptions = [
-  { value: 'all', label: 'All statuses' },
   { value: 'active', label: 'Active' },
   { value: 'suspended', label: 'Suspended' },
   { value: 'archived', label: 'Archived' }
@@ -52,8 +43,6 @@ export const AdminDashboard = () => {
   const [tenants, setTenants] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all')
   const [stats, setStats] = useState(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [createName, setCreateName] = useState('')
@@ -95,16 +84,6 @@ export const AdminDashboard = () => {
     }
   }
 
-  const filteredTenants = tenants.filter((tenant) => {
-    const matchesSearch =
-      tenant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tenant.id.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const matchesStatus = filterStatus === 'all' || tenant.status === filterStatus
-
-    return matchesSearch && matchesStatus
-  })
-
   const handleStatusChange = async (tenantId, newStatus) => {
     try {
       setUpdatingTenantId(tenantId)
@@ -126,6 +105,88 @@ export const AdminDashboard = () => {
       setUpdatingTenantId(null)
     }
   }
+
+  const sortHeader = (label) => ({ column }) => (
+    <Button
+      variant="ghost"
+      onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--text-muted)] hover:bg-transparent px-0"
+    >
+      {label}
+      <ArrowUpDown className="ml-1 h-4 w-4 text-[var(--text-muted)]" />
+    </Button>
+  )
+
+  const columns = useMemo(
+    () => [
+      {
+        accessorKey: 'name',
+        header: sortHeader('Name'),
+        cell: ({ row }) => (
+          <p className="text-sm font-semibold text-[var(--text)]">{row.original.name}</p>
+        )
+      },
+      {
+        accessorKey: 'plan_name',
+        header: sortHeader('Plan'),
+        cell: ({ row }) => (
+          <span className="text-sm text-[var(--text-muted)]">{row.original.plan_name || 'Standard'}</span>
+        )
+      },
+      {
+        accessorKey: 'user_count',
+        header: sortHeader('Users'),
+        cell: ({ row }) => (
+          <span className="text-sm text-[var(--text-muted)] font-mono">{row.original.user_count || 0}</span>
+        )
+      },
+      {
+        id: 'status',
+        accessorFn: (tenant) => tenant.status || 'active',
+        header: sortHeader('Status'),
+        cell: ({ row }) => {
+          const tenant = row.original
+          return (
+            <select
+              className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-xs"
+              value={tenant.status || 'active'}
+              onChange={(e) => handleStatusChange(tenant.id, e.target.value)}
+              disabled={updatingTenantId === tenant.id}
+            >
+              {statusOptions
+                .filter((option) => option.value !== 'all')
+                .map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+            </select>
+          )
+        }
+      },
+      {
+        accessorKey: 'created_at',
+        header: sortHeader('Created'),
+        cell: ({ row }) => (
+          <span className="text-sm text-[var(--text-muted)]">
+            {new Date(row.original.created_at).toLocaleDateString()}
+          </span>
+        )
+      }
+    ],
+    [handleStatusChange, updatingTenantId]
+  )
+
+  const rowActions = useMemo(
+    () => (tenant) => [
+      {
+        label: 'View tenant',
+        icon: <Building2 className="h-4 w-4" />,
+        onClick: () => navigate(`/admin/tenants/${tenant.id}`)
+      }
+    ],
+    [navigate]
+  )
 
   const handleCreateTenant = async (e) => {
     e.preventDefault()
@@ -201,132 +262,7 @@ export const AdminDashboard = () => {
         actions: heroActions
       }}
     >
-      <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
-        <div className="space-y-6">
-          <Card variant="glass">
-            <CardHeader>
-              <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <CardTitle>Tenant controls</CardTitle>
-                  <CardDescription className="text-[var(--text-muted)]">
-                    Search by name or ID, then adjust status inline.
-                  </CardDescription>
-                </div>
-                <div className="w-full md:w-auto">
-                  <Input
-                    placeholder="Search tenants..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-[1fr,240px]">
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)]">Status filter</label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] shadow-sm"
-                >
-                  {statusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col">
-                <CardDescription className="text-sm text-[var(--text-muted)]">
-                  Total tenants: {tenants.length}
-                </CardDescription>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card variant="glass">
-            <CardHeader>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <CardTitle>Tenant directory</CardTitle>
-                  <CardDescription className="text-[var(--text-muted)]">
-                    {`Showing ${filteredTenants.length} of ${tenants.length} tenants`}
-                  </CardDescription>
-                </div>
-                {loading ? null : <Badge>{filterStatus === 'all' ? 'All' : filterStatus}</Badge>}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {error && <ErrorState title="Something went wrong" description={error} />}
-              {loading ? (
-                <LoadingState message="Loading tenants..." />
-              ) : filteredTenants.length === 0 ? (
-                <EmptyState
-                  title="No tenants"
-                  description="Try a different search or filter to find tenants."
-                  icon={Building2}
-                />
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Plan</TableHead>
-                        <TableHead>Users</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredTenants.map((tenant) => (
-                        <TableRow key={tenant.id}>
-                          <TableCell>
-                            <div className="text-sm font-semibold text-[var(--text)]">{tenant.name}</div>
-                            <div className="text-xs text-[var(--text-muted)]">{tenant.id}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm text-[var(--text-muted)]">{tenant.plan_name || 'Standard'}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm text-[var(--text-muted)]">{tenant.user_count || 0}</div>
-                          </TableCell>
-                          <TableCell>
-                            <select
-                              className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-xs"
-                              value={tenant.status || 'active'}
-                              onChange={(e) => handleStatusChange(tenant.id, e.target.value)}
-                              disabled={updatingTenantId === tenant.id}
-                            >
-                              <option value="active">Active</option>
-                              <option value="suspended">Suspended</option>
-                              <option value="archived">Archived</option>
-                            </select>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm text-[var(--text-muted)]">
-                              {new Date(tenant.created_at).toLocaleDateString()}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/tenants/${tenant.id}`)}>
-                              View
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-            <CardFooter className="text-xs text-[var(--text-muted)]">
-              Tenant statuses sync across the platform and refresh immediately after updates.
-            </CardFooter>
-          </Card>
-        </div>
-
+      <div className="space-y-6">
         <Card variant="glass" className="space-y-4">
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -338,13 +274,13 @@ export const AdminDashboard = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4">
+            <div className="flex flex-wrap gap-4">
               {insightStats.map((stat) => {
                 const Icon = stat.icon
                 return (
                   <div
                     key={stat.label}
-                    className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/80 px-4 py-3 shadow-inner dark:bg-slate-900/70"
+                    className="flex flex-1 min-w-[200px] items-center gap-3 rounded-2xl border border-white/20 bg-white/80 px-4 py-3 shadow-inner dark:bg-slate-900/70"
                   >
                     <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-500/10 text-primary-500">
                       <Icon className="h-5 w-5" />
@@ -359,6 +295,22 @@ export const AdminDashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        {error && <ErrorState title="Something went wrong" description={error} />}
+        <DataTable
+          title="Tenant directory"
+          description={`Showing ${tenants.length} tenants • statuses editable inline`}
+          columns={columns}
+          data={tenants}
+          loading={loading}
+          loadingMessage="Loading tenants..."
+          emptyIcon={Building2}
+          emptyTitle="No tenants"
+          emptyDescription="Try a different search or filter to find tenants."
+          rowActions={rowActions}
+          searchPlaceholder="Search tenants..."
+          enableSelection={false}
+        />
       </div>
 
       <Dialog

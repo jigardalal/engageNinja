@@ -1,28 +1,17 @@
-import React, { useState, useEffect } from 'react'
-import { ClipboardList } from 'lucide-react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { ClipboardList, ArrowUpDown } from 'lucide-react'
 import AdminPageLayout from '../../components/layout/AdminPageLayout'
 import {
   Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   CardContent,
-  Input,
   Button,
   Badge,
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-  LoadingState,
-  EmptyState,
-  ErrorState
+  ErrorState,
+  DataTable
 } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
 
-const limitOptions = [25, 50, 100]
+const DEFAULT_LIMIT = 100
 
 const getActionBadgeColor = (action) => {
   if (!action) return 'bg-gray-100 text-gray-800'
@@ -39,35 +28,19 @@ export const AuditLogPage = () => {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [filterAction, setFilterAction] = useState('')
-  const [filterActor, setFilterActor] = useState('')
-  const [filterTenant, setFilterTenant] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [limit, setLimit] = useState(limitOptions[1])
-  const [offset, setOffset] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
 
   useEffect(() => {
     fetchStats()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
     fetchLogs()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [limit, offset, filterAction, filterActor, filterTenant, startDate, endDate])
+  }, [])
 
   const fetchLogs = async () => {
     try {
       setLoading(true)
       setError(null)
-      const params = new URLSearchParams({ limit, offset })
-      if (filterAction) params.append('action', filterAction)
-      if (filterActor) params.append('userId', filterActor)
-      if (filterTenant) params.append('tenantId', filterTenant)
-      if (startDate) params.append('startDate', new Date(startDate).toISOString())
-      if (endDate) params.append('endDate', new Date(endDate).toISOString())
+      const params = new URLSearchParams({ limit: DEFAULT_LIMIT })
 
       const response = await fetch(`/api/admin/audit-logs?${params.toString()}`, {
         credentials: 'include'
@@ -75,7 +48,7 @@ export const AuditLogPage = () => {
       if (!response.ok) throw new Error('Failed to fetch audit logs')
       const data = await response.json()
       setLogs(data.logs || [])
-      setTotalCount(data.pagination?.total || 0)
+      setTotalCount(data.pagination?.total ?? (data.logs?.length || 0))
     } catch (err) {
       setError(err.message)
     } finally {
@@ -94,8 +67,83 @@ export const AuditLogPage = () => {
     }
   }
 
-  const totalPages = Math.ceil(totalCount / limit)
-  const currentPage = Math.floor(offset / limit) + 1
+  const columns = useMemo(() => {
+    const sortHeader = (label) => ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--text-muted)] hover:bg-transparent px-0"
+      >
+        {label}
+        <ArrowUpDown className="ml-1 h-4 w-4 text-[var(--text-muted)]" />
+      </Button>
+    )
+
+    return [
+      {
+        accessorKey: 'action',
+        header: sortHeader('Action'),
+        cell: ({ row }) => (
+          <Badge className={getActionBadgeColor(row.original.action)}>
+            {row.original.action || '—'}
+          </Badge>
+        )
+      },
+      {
+        id: 'actor',
+        header: sortHeader('Actor'),
+        cell: ({ row }) => (
+          <div>
+            <p className="text-sm font-semibold text-[var(--text)]">
+              {row.original.actor_name || 'System'}
+            </p>
+            <p className="text-xs text-[var(--text-muted)]">
+              {row.original.actor_email || row.original.actor_user_id || '—'}
+            </p>
+          </div>
+        )
+      },
+      {
+        id: 'tenant',
+        header: sortHeader('Tenant'),
+        cell: ({ row }) => (
+          <div>
+            <p className="text-sm font-semibold text-[var(--text)]">
+              {row.original.tenant_name || '—'}
+            </p>
+          </div>
+        )
+      },
+      {
+        id: 'target',
+        header: sortHeader('Target'),
+        cell: ({ row }) => (
+          <div>
+            <p className="text-sm text-[var(--text-muted)]">{row.original.target_type || '—'}</p>
+          </div>
+        )
+      },
+      {
+        accessorKey: 'created_at',
+        header: sortHeader('Occurred'),
+        cell: ({ row }) => {
+          const createdAt = row.original.created_at
+            ? new Date(row.original.created_at)
+            : null
+          return (
+            <div>
+              <p className="text-sm text-[var(--text-muted)]">
+                {createdAt ? createdAt.toLocaleDateString() : '—'}
+              </p>
+              <p className="text-xs text-[var(--text-muted)]">
+                {createdAt ? createdAt.toLocaleTimeString() : '—'}
+              </p>
+            </div>
+          )
+        }
+      }
+    ]
+  }, [])
 
   if (!isPlatformAdmin()) return null
 
@@ -137,204 +185,20 @@ export const AuditLogPage = () => {
           </div>
         )}
 
-        <Card variant="glass">
-          <CardHeader>
-            <div>
-              <CardTitle>Filters</CardTitle>
-              <CardDescription className="text-[var(--text-muted)]">
-                Narrow logs by actor, tenant, or date range.
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)]">Action</label>
-                <Input
-                  placeholder="e.g., tenant.create"
-                  value={filterAction}
-                  onChange={(e) => {
-                    setFilterAction(e.target.value)
-                    setOffset(0)
-                  }}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)]">Actor (User ID)</label>
-                <Input
-                  placeholder="actor ID or email"
-                  value={filterActor}
-                  onChange={(e) => {
-                    setFilterActor(e.target.value)
-                    setOffset(0)
-                  }}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)]">Tenant ID</label>
-                <Input
-                  placeholder="tenant ID"
-                  value={filterTenant}
-                  onChange={(e) => {
-                    setFilterTenant(e.target.value)
-                    setOffset(0)
-                  }}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)]">Start Date</label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value)
-                    setOffset(0)
-                  }}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)]">End Date</label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value)
-                    setOffset(0)
-                  }}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)]">Items per page</label>
-                <select
-                  value={limit}
-                  onChange={(e) => {
-                    setLimit(Number(e.target.value))
-                    setOffset(0)
-                  }}
-                  className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
-                >
-                  {limitOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setFilterAction('')
-                  setFilterActor('')
-                  setFilterTenant('')
-                  setStartDate('')
-                  setEndDate('')
-                  setOffset(0)
-                }}
-              >
-                Clear filters
-              </Button>
-              <Button size="sm" onClick={() => fetchLogs()}>
-                Apply
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card variant="glass">
-          <CardHeader>
-            <div>
-              <CardTitle>Audit trail</CardTitle>
-              <CardDescription className="text-[var(--text-muted)]">
-                {loading ? 'Fetching events...' : `${logs.length} events`} 
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {error && <ErrorState title="Unable to load logs" description={error} />}
-            {loading ? (
-              <LoadingState message="Loading audit logs..." />
-            ) : logs.length === 0 ? (
-              <EmptyState
-                title="No events"
-                description="Try expanding the date range or clearing filters."
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Actor</TableHead>
-                      <TableHead>Tenant</TableHead>
-                      <TableHead>Target</TableHead>
-                      <TableHead>Occurred</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {logs.map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell>
-                          <Badge className={getActionBadgeColor(log.action)}>{log.action}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm font-semibold text-[var(--text)]">
-                            {log.actor_name || 'System'}
-                          </p>
-                          <p className="text-xs text-[var(--text-muted)]">
-                            {log.actor_email || log.actor_user_id || '-'}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm text-[var(--text-muted)]">{log.tenant_name || '-'}</p>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm text-[var(--text-muted)]">{log.target_type || '-'}</p>
-                          <p className="text-xs text-[var(--text-muted)]">{log.target_id || '-'}</p>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm text-[var(--text-muted)]">
-                            {new Date(log.created_at).toLocaleDateString()}
-                          </p>
-                          <p className="text-xs text-[var(--text-muted)]">
-                            {new Date(log.created_at).toLocaleTimeString()}
-                          </p>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-            {!loading && totalPages > 1 && (
-              <div className="flex items-center justify-between text-sm text-[var(--text-muted)]">
-                <div>
-                  Page {currentPage} of {totalPages} (Total: {totalCount})
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={offset === 0}
-                    onClick={() => setOffset(Math.max(0, offset - limit))}
-                  >
-                    ← Previous
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setOffset(offset + limit)}
-                  >
-                    Next →
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {error && <ErrorState title="Unable to load logs" description={error} />}
+        <DataTable
+          title="Audit trail"
+          description={loading ? 'Fetching events...' : `${logs.length} events recorded`}
+          columns={columns}
+          data={logs}
+          loading={loading}
+          loadingMessage="Loading audit logs..."
+          emptyIcon={ClipboardList}
+          emptyTitle="No events"
+          emptyDescription="Try adjusting the search terms."
+          searchPlaceholder="Search events..."
+          enableSelection={false}
+        />
       </div>
     </AdminPageLayout>
   )
