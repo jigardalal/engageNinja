@@ -7,6 +7,14 @@ resource "aws_sns_topic" "sms_events" {
   name              = "engageninja-sms-events-${var.environment}"
   display_name      = "EngageNinja SMS Events"
   kms_master_key_id = "alias/aws/sns"
+
+  tags = merge(
+    var.tags,
+    {
+      Name    = "engageninja-sms-events-${var.environment}"
+      Service = "SNS"
+    }
+  )
 }
 
 # Topic for Email delivery events from SES
@@ -14,6 +22,14 @@ resource "aws_sns_topic" "email_events" {
   name              = "engageninja-email-events-${var.environment}"
   display_name      = "EngageNinja Email Events"
   kms_master_key_id = "alias/aws/sns"
+
+  tags = merge(
+    var.tags,
+    {
+      Name    = "engageninja-email-events-${var.environment}"
+      Service = "SNS"
+    }
+  )
 }
 
 # ============================================================================

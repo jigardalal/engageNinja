@@ -487,7 +487,7 @@ module.exports = { getProvider };
 ```bash
 # Create outbound message queue
 aws sqs create-queue \
-  --queue-name engageninja-outbound-messages-dev \
+  --queue-name engageninja-messages-dev \
   --attributes VisibilityTimeout=300,MessageRetentionPeriod=1209600 \
   --region us-east-1
 
@@ -503,7 +503,7 @@ aws sqs create-queue \
 
 # Create DLQ for failed messages
 aws sqs create-queue \
-  --queue-name engageninja-outbound-messages-dlq-dev \
+  --queue-name engageninja-messages-dlq-dev \
   --region us-east-1
 ```
 

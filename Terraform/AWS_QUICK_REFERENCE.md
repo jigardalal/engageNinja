@@ -12,10 +12,10 @@ Account ID:        [REDACTED]
 ## 📨 SQS Queue URLs
 
 ```
-Outbound Messages:  https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-outbound-messages-dev
+Outbound Messages:  https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-messages-dev
 Email Events:       https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-email-events-dev
 SMS Events:         https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-sms-events-dev
-Dead Letter Queue:  https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-outbound-messages-dlq-dev
+Dead Letter Queue:  https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-messages-dlq-dev
 ```
 
 ## 📢 SNS Topic ARNs

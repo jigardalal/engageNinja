@@ -1,11 +1,17 @@
 # EngageNinja AWS Infrastructure as Code (Terraform)
 
 This Terraform scaffold provisions all AWS infrastructure for EngageNinja's messaging platform:
+- **RDS PostgreSQL Database** for storing campaigns, contacts, messages, and more
+- **Lambda Functions** for processing messages and webhooks (send-campaign, update-status, twilio-webhook)
+- **API Gateway (HTTP)** for Twilio webhook endpoints
 - **SQS Queues** for outbound messages and event processing
 - **SNS Topics** for event routing
 - **SES Configuration** for email tracking
+- **EventBridge** for scheduled status updates
+- **VPC & Networking** for secure database isolation
 - **IAM User & Access Keys** for application authentication
 - **CloudWatch Monitoring** for operational visibility
+- **AWS Resource Groups** for viewing all resources in one place
 
 ---
 
@@ -15,14 +21,19 @@ This Terraform scaffold provisions all AWS infrastructure for EngageNinja's mess
 engageninja-terraform/
 ├── engageninja-terraform-main.tf        # Provider and Terraform config
 ├── engageninja-terraform-variables.tf   # Variable definitions
+├── engageninja-terraform-db.tf          # RDS PostgreSQL, VPC, Subnets, Security Groups
+├── engageninja-terraform-lambda.tf      # Lambda functions, API Gateway, EventBridge
 ├── engageninja-terraform-sqs.tf         # SQS queues and DLQ
 ├── engageninja-terraform-sns.tf         # SNS topics and subscriptions
 ├── engageninja-terraform-ses.tf         # SES configuration set
 ├── engageninja-terraform-iam.tf         # IAM user and policies
-├── engageninja-terraform-monitoring.tf  # CloudWatch logs and alarms
-├── engageninja-terraform-outputs.tf     # Output values
+├── engageninja-terraform-monitoring.tf  # CloudWatch logs, alarms, and Resource Groups
+├── engageninja-terraform-outputs.tf     # Output values (includes resource_index)
 ├── terraform.tfvars.example             # Example variables file
+├── terraform.tfvars                     # Your configuration (do NOT commit)
+├── validate-resources.sh                # Validation script to check all resources
 ├── TERRAFORM_SETUP_GUIDE.md             # Step-by-step setup guide
+├── AWS_QUICK_REFERENCE.md               # AWS console navigation guide
 └── README.md                            # This file
 ```
 
@@ -70,6 +81,34 @@ terraform plan      # Review changes
 terraform apply     # Create resources
 ```
 
+### 4.1 Build Lambda Artifacts
+The Node.js Lambdas live under the `lambda/` directory and must be bundled before Terraform references them. Run this once after cloning or when dependencies change:
+
+```bash
+cd lambda
+npm install
+```
+
+This generates `lambda/build/engageninja-lambdas.zip`, which Terraform packages via the `archive_file` data source.
+
+### 4.2 Validate Infrastructure
+After deployment, verify all resources were created correctly:
+
+```bash
+bash validate-resources.sh us-east-1
+```
+
+This checks:
+- ✅ RDS Database
+- ✅ VPC & Networking
+- ✅ Lambda Functions
+- ✅ API Gateway
+- ✅ IAM Roles
+- ✅ EventBridge
+- ✅ SQS Queues
+- ✅ SNS Topics
+- ✅ SES Configuration
+
 ### 5. Retrieve Configuration
 ```bash
 # Get all outputs
@@ -84,30 +123,121 @@ terraform output application_configuration
 
 ---
 
+## 🔍 View All Resources
+
+### Option 1: AWS Resource Group (Recommended for AWS Console)
+View all your EngageNinja resources in one place on AWS Console:
+
+```bash
+terraform output resource_group_console_url
+```
+
+Click the URL to see all resources organized by service in the AWS Resource Groups console.
+
+**Console Link Format:**
+```
+https://console.aws.amazon.com/resource-groups/groups/engageninja-all-resources-dev?region=us-east-1
+```
+
+### Option 2: Terraform Resource Index (Most Complete)
+Get IDs and direct console links for all resources:
+
+```bash
+# View in terminal
+terraform output resource_index
+
+# Get as JSON
+terraform output -json resource_index | jq
+```
+
+This includes:
+- RDS Database instance ID and endpoint
+- Lambda function names and ARNs
+- SQS queue URLs and ARNs
+- SNS topic ARNs
+- API Gateway ID and invoke URL
+- VPC, Subnets, Security Groups
+- CloudWatch Alarms
+- Direct AWS Console links for each resource
+
+### Option 3: AWS CLI Scripts
+Quick view of all resources using AWS CLI:
+
+```bash
+# Simple summary view
+bash ../scripts/view-all-resources.sh us-east-1
+
+# Detailed view (lists each resource by type)
+bash ../scripts/list-all-resources.sh us-east-1
+```
+
+### Option 4: Individual Service Consoles
+All resources are tagged with:
+- `Project=EngageNinja`
+- `Service=<ServiceType>` (Lambda, RDS, SQS, etc.)
+- `Environment=dev` (or your configured environment)
+
+Use these tags to filter in any AWS service console.
+
+---
+
 ## 📋 What Gets Created
 
+### RDS Database
+- **PostgreSQL Database**: `engageninja-pg-dev` (version 17.4)
+- **Database Schema**: campaigns, contacts, messages, templates, audit logs, subscriptions, etc.
+- **Endpoint**: Automatically generated, accessible from Lambda and backend
+- **Storage**: 20GB initial, auto-scales up to 100GB
+- **Backup**: 1-day retention with automated backups
+
+### VPC & Networking
+- **VPC**: Custom VPC with CIDR `10.10.0.0/16`
+- **Subnets**: 2 subnets across different availability zones
+- **Security Group**: Allows PostgreSQL (5432) access
+- **Internet Gateway**: For outbound internet access
+
+### Lambda Functions
+- `engageninja-send-campaign-dev` - Processes outbound messages from SQS
+- `engageninja-update-status-dev` - Updates message status from EventBridge
+- `engageninja-twilio-webhook-dev` - Receives Twilio webhook callbacks
+
+### API Gateway (HTTP)
+- **Webhook API**: `engageninja-webhooks-dev`
+- **Routes**:
+  - `POST /webhooks/twilio` - Twilio message delivery events
+  - `POST /webhooks/twilio/sms` - Twilio SMS delivery events
+
+### EventBridge
+- **Rule**: `engageninja-status-update-dev` - Scheduled status update events
+- **Target**: Triggers Lambda function for message status updates
+
 ### SQS Queues
-- `engageninja-outbound-messages-dev` - Outbound campaign messages
+- `engageninja-messages-dev` - Outbound campaign messages
 - `engageninja-sms-events-dev` - SMS delivery status events
 - `engageninja-email-events-dev` - Email delivery/bounce/complaint events
-- `engageninja-outbound-messages-dlq-dev` - Dead Letter Queue for failed messages
+- `engageninja-messages-dlq-dev` - Dead Letter Queue for failed messages
 
 ### SNS Topics
 - `engageninja-sms-events-dev` - SMS events topic (ingests delivery statuses from your messaging provider)
 - `engageninja-email-events-dev` - Email events topic (receives from SES)
 
 ### SES
-- Configuration Set: `engageninja-email-events`
-- Event Destination for bounce/complaint/delivery tracking
+- **Configuration Set**: `engageninja-email-events`
+- **Event Destination** for bounce/complaint/delivery tracking
 
 ### IAM
-- User: `engageninja-app-dev`
-- Access Key ID & Secret (auto-generated)
-- Policies for SQS, SNS, SES, SMS, CloudWatch Logs
+- **User**: `engageninja-app-dev`
+- **Access Key ID & Secret** (auto-generated)
+- **Policies** for SQS, SNS, SES, SMS, CloudWatch Logs, RDS
+- **Lambda Execution Role** with permissions for SQS, SNS, RDS, CloudWatch
 
 ### Monitoring
-- CloudWatch Log Group: `/aws/engageninja/dev/app`
-- CloudWatch Alarms for queue depth and DLQ messages
+- **CloudWatch Log Group**: `/aws/engageninja/dev/app`
+- **CloudWatch Alarms**:
+  - Queue depth monitoring (messages queue)
+  - DLQ message detection (failed messages)
+  - SES bounce rate tracking
+- **AWS Resource Group**: `engageninja-all-resources-dev` (view all resources together)
 
 ---
 
@@ -118,15 +248,37 @@ terraform output application_configuration
 Edit `terraform.tfvars` to customize:
 
 ```hcl
+# AWS Configuration
 aws_region                     = "us-east-1"
 environment                    = "dev"  # or "staging", "prod"
 project_name                   = "engageninja"
-sqs_message_retention_seconds  = 1209600  # 14 days
-sqs_visibility_timeout_seconds = 300      # 5 minutes
+
+# Database Configuration
+db_engine_version              = "17.4"        # PostgreSQL version
+db_instance_class              = "db.t3.micro" # Instance type (free tier)
+db_allocated_storage           = 20            # Initial storage in GB
+db_max_allocated_storage       = 100           # Maximum storage in GB
+db_backup_retention_days       = 1             # Backup retention
+db_name                        = "engageninja" # Database name
+db_username                    = "engageninja" # Master username
+db_master_password             = ""            # Leave empty to auto-generate
+
+# Lambda Configuration
+lambda_timeout_seconds         = 30            # Lambda timeout
+lambda_memory_mb               = 512           # Lambda memory
+
+# SQS Configuration
+sqs_message_retention_seconds  = 1209600       # 14 days
+sqs_visibility_timeout_seconds = 300           # 5 minutes
+
+# SES Configuration
 ses_configuration_set_name     = "engageninja-email-events"
+
+# Monitoring
 enable_cloudwatch_logs         = true
 log_retention_days             = 30
 
+# Tagging
 tags = {
   Environment = "dev"
   Project     = "EngageNinja"
@@ -139,16 +291,34 @@ tags = {
 For production deployment, update `terraform.tfvars`:
 
 ```hcl
+# Environment
 environment                    = "prod"
+
+# Database - Scale up from free tier
+db_instance_class              = "db.t3.small"  # Larger instance for production
+db_allocated_storage           = 100            # Start with 100GB
+db_max_allocated_storage       = 1000           # Scale to 1TB if needed
+db_backup_retention_days       = 7              # 7-day retention for production
+db_master_password             = "your-secure-password"  # Use strong password
+
+# Lambda - Scale up memory for faster processing
+lambda_timeout_seconds         = 60             # Longer timeout for large batches
+lambda_memory_mb               = 1024           # More memory = faster processing
+
+# SQS - Longer visibility timeout for slower processing
 sqs_message_retention_seconds  = 604800  # 7 days
 sqs_visibility_timeout_seconds = 600     # 10 minutes for slower processors
+
+# Monitoring
 log_retention_days             = 90
 enable_cloudwatch_logs         = true
 
+# Tagging
 tags = {
   Environment = "prod"
   Project     = "EngageNinja"
   CostCenter  = "Product"
+  Owner       = "YourTeam"
 }
 ```
 
@@ -157,23 +327,37 @@ tags = {
 ## 📊 Architecture
 
 ```
-EngageNinja Node.js App
-       │
-       ├─→ Campaign Creation
-       │   └─→ SQS: Outbound Messages Queue
-       │       └─→ Message Processor
-       │           ├─→ Send via WhatsApp (Meta API)
-       │           ├─→ Send via Email (SES)
-       │           └─→ Send via SMS (Twilio or other provider)
-       │
-       └─→ Status Updates (Webhooks from providers)
-           ├─→ SNS: SMS Events Topic ─→ SQS: SMS Events Queue
-           ├─→ SNS: Email Events Topic ─→ SQS: Email Events Queue
-           └─→ Message Processor: Update message status in DB
+EngageNinja Multi-Tenant SaaS Platform
+│
+├─→ Backend Node.js App (ECS/Fargate)
+│   ├─→ RDS PostgreSQL (campaigns, contacts, messages, tenants)
+│   ├─→ Campaign Creation
+│   │   └─→ SQS: Outbound Messages Queue
+│   │       └─→ Lambda: send-campaign-dev
+│   │           ├─→ Send via WhatsApp (Meta API)
+│   │           ├─→ Send via Email (SES)
+│   │           └─→ Send via SMS (Twilio)
+│   │
+│   └─→ Status Updates (Webhooks from providers)
+│       ├─→ API Gateway (HTTP) ─→ Lambda: twilio-webhook-dev
+│       │   └─→ SNS: SMS Events Topic ─→ SQS: SMS Events Queue
+│       ├─→ SNS: Email Events Topic ─→ SQS: Email Events Queue
+│       │
+│       └─→ EventBridge (scheduled)
+│           └─→ Lambda: update-message-status-dev
+│               └─→ RDS: Update message status
 
 CloudWatch:
-  - Logs: Application logs
+  - Logs: Application logs, Lambda logs
   - Alarms: Queue depth, DLQ messages, SES bounce rate
+
+AWS Resource Group:
+  - engageninja-all-resources-dev (one-click view of all infrastructure)
+
+VPC:
+  - RDS: Private subnet with security group
+  - Lambda: VPC-enabled for RDS access
+  - API Gateway: Public HTTP endpoint
 ```
 
 ---
@@ -193,7 +377,7 @@ AWS_SECRET_ACCESS_KEY=...
 AWS_REGION=us-east-1
 
 # SQS URLs
-SQS_OUTBOUND_MESSAGES_URL=https://sqs.us-east-1.amazonaws.com/...
+SQS_MESSAGES_URL=https://sqs.us-east-1.amazonaws.com/...
 SQS_SMS_EVENTS_URL=https://sqs.us-east-1.amazonaws.com/...
 SQS_EMAIL_EVENTS_URL=https://sqs.us-east-1.amazonaws.com/...
 
@@ -220,7 +404,7 @@ const sqs = new AWS.SQS({
 // Send message to outbound queue
 async function queueOutboundMessage(campaignId, contactId, channel) {
   const params = {
-    QueueUrl: process.env.SQS_OUTBOUND_MESSAGES_URL,
+    QueueUrl: process.env.SQS_MESSAGES_URL,
     MessageBody: JSON.stringify({
       campaignId,
       contactId,
@@ -285,13 +469,13 @@ The generated IAM user has minimum required permissions:
 ```bash
 # Send test message
 aws sqs send-message \
-  --queue-url $SQS_OUTBOUND_MESSAGES_URL \
+  --queue-url $SQS_MESSAGES_URL \
   --message-body '{"test":true}' \
   --region us-east-1
 
 # Receive messages
 aws sqs receive-message \
-  --queue-url $SQS_OUTBOUND_MESSAGES_URL \
+  --queue-url $SQS_MESSAGES_URL \
   --region us-east-1
 ```
 
@@ -353,7 +537,7 @@ aws logs tail /aws/engageninja/dev/app --follow --region us-east-1
 
 ### "Queue does not exist"
 - Run `terraform apply` to create queues
-- Check SQS_OUTBOUND_MESSAGES_URL is correct
+- Check SQS_MESSAGES_URL is correct
 
 ---
 ## 📖 Documentation
@@ -409,6 +593,26 @@ Run `./destroy-complete.sh` from this directory after your tests to execute `ter
 
 ---
 
-**Created:** December 2025  
-**Maintainer:** EngageNinja Team  
+## 🔄 Recent Updates
+
+### December 2025 - Production Infrastructure
+- ✅ **Database**: Added RDS PostgreSQL (v17.4) with auto-scaling storage
+- ✅ **Lambda Functions**: Added 3 Lambda functions (send-campaign, update-status, twilio-webhook)
+- ✅ **API Gateway**: Added HTTP API for Twilio webhooks
+- ✅ **VPC & Networking**: Added custom VPC, subnets, security groups for database isolation
+- ✅ **EventBridge**: Added scheduled rules for message status updates
+- ✅ **Resource Groups**: AWS Resource Group for viewing all resources in one place
+- ✅ **Tagging**: All resources tagged with Project, Service, and Environment
+- ✅ **Validation**: Added `validate-resources.sh` script to verify deployment
+- ✅ **Resource Viewing**:
+  - Terraform resource index with direct console links
+  - AWS CLI scripts for resource discovery
+  - AWS Resource Group in console (one-click view)
+- ✅ **Documentation**: Complete README with architecture, configuration, and examples
+
+---
+
+**Created:** December 2025
+**Last Updated:** December 2025
+**Maintainer:** EngageNinja Team
 **License:** MIT

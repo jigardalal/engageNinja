@@ -188,7 +188,7 @@ terraform output -raw iam_secret_access_key
 application_configuration = {
   AWS_REGION = "us-east-1"
   AWS_ACCESS_KEY_ID = "AKIA..."
-  SQS_OUTBOUND_MESSAGES_URL = "https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-outbound-messages-dev"
+  SQS_MESSAGES_URL = "https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-messages-dev"
   SQS_SMS_EVENTS_URL = "https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-sms-events-dev"
   SQS_EMAIL_EVENTS_URL = "https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-email-events-dev"
   SNS_SMS_EVENTS_TOPIC_ARN = "arn:aws:sns:us-east-1:123456789012:engageninja-sms-events-dev"
@@ -213,10 +213,10 @@ AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_REGION=us-east-1
 
 # SQS Queues
-SQS_OUTBOUND_MESSAGES_URL=https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-outbound-messages-dev
+SQS_MESSAGES_URL=https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-messages-dev
 SQS_SMS_EVENTS_URL=https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-sms-events-dev
 SQS_EMAIL_EVENTS_URL=https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-email-events-dev
-SQS_OUTBOUND_MESSAGES_DLQ_URL=https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-outbound-messages-dlq-dev
+SQS_DLQ_URL=https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-messages-dlq-dev
 
 # SNS Topics
 SNS_SMS_EVENTS_TOPIC_ARN=arn:aws:sns:us-east-1:123456789012:engageninja-sms-events-dev
@@ -267,13 +267,13 @@ aws ses get-identity-verification-attributes \
 ```bash
 # Send a test message to outbound queue
 aws sqs send-message \
-  --queue-url https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-outbound-messages-dev \
+  --queue-url https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-messages-dev \
   --message-body '{"type":"test","message":"Hello"}' \
   --region us-east-1
 
 # Receive messages
 aws sqs receive-message \
-  --queue-url https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-outbound-messages-dev \
+  --queue-url https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-messages-dev \
   --region us-east-1
 ```
 

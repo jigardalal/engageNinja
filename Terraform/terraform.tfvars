@@ -29,3 +29,19 @@ tags = {
   Team        = "Backend"
   Project     = "EngageNinja"
 }
+
+backend_url              = "http://localhost:5173"
+metrics_callback_path    = "/webhooks/internal/metrics"
+encryption_key           = "default-dev-key-change-in-production"
+metrics_auth_token       = ""
+db_name                  = "engageninja"
+db_username              = "engageninja"
+db_master_password       = ""
+db_instance_class        = "db.t3.micro"
+db_engine_version        = "17.4"
+db_allocated_storage     = 20
+db_max_allocated_storage = 100
+db_port                  = 5432
+db_backup_retention_days = 1
+lambda_timeout_seconds   = 30
+lambda_memory_mb         = 512

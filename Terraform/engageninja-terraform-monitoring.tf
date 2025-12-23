@@ -34,7 +34,7 @@ resource "aws_cloudwatch_metric_alarm" "sqs_outbound_queue_depth" {
   alarm_actions       = [] # Add SNS topic ARN here for notifications
 
   dimensions = {
-    QueueName = aws_sqs_queue.outbound_messages.name
+    QueueName = aws_sqs_queue.messages.name
   }
 
   tags = merge(
@@ -59,7 +59,7 @@ resource "aws_cloudwatch_metric_alarm" "sqs_dlq_messages" {
   alarm_actions       = [] # Add SNS topic ARN here for notifications
 
   dimensions = {
-    QueueName = aws_sqs_queue.outbound_messages_dlq.name
+    QueueName = aws_sqs_queue.messages_dlq.name
   }
 
   tags = merge(
@@ -96,6 +96,48 @@ resource "aws_cloudwatch_metric_alarm" "ses_bounce_rate" {
 }
 
 # ============================================================================
+# AWS Resource Group (to view all tagged resources together)
+# ============================================================================
+
+resource "aws_resourcegroups_group" "engageninja" {
+  name        = "${var.project_name}-all-resources-${var.environment}"
+  description = "All EngageNinja resources in ${var.environment} environment"
+
+  resource_query {
+    query = jsonencode({
+      ResourceTypeFilters = [
+        "AWS::EC2::SecurityGroup",
+        "AWS::EC2::VPC",
+        "AWS::EC2::Subnet",
+        "AWS::EC2::InternetGateway",
+        "AWS::RDS::DBInstance",
+        "AWS::Lambda::Function",
+        "AWS::SQS::Queue",
+        "AWS::SNS::Topic",
+        "AWS::SES::ConfigurationSet",
+        "AWS::Events::Rule",
+        "AWS::ApiGatewayV2::Api",
+        "AWS::CloudWatch::Alarm"
+      ]
+      TagFilters = [
+        {
+          Key    = "Project"
+          Values = [var.tags["Project"]]
+        }
+      ]
+    })
+  }
+
+  tags = merge(
+    var.tags,
+    {
+      Name        = "${var.project_name}-resource-group"
+      Description = "AWS Resource Group for all EngageNinja infrastructure"
+    }
+  )
+}
+
+# ============================================================================
 # CloudWatch Outputs
 # ============================================================================
 
@@ -107,4 +149,9 @@ output "cloudwatch_log_group_name" {
 output "cloudwatch_log_group_arn" {
   description = "CloudWatch log group ARN"
   value       = var.enable_cloudwatch_logs ? aws_cloudwatch_log_group.app[0].arn : null
+}
+
+output "resource_group_console_url" {
+  description = "Direct link to AWS Resource Group showing all EngageNinja resources"
+  value       = "https://console.aws.amazon.com/resource-groups/groups/${aws_resourcegroups_group.engageninja.arn}?region=us-east-1"
 }

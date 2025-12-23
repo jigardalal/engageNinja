@@ -77,6 +77,11 @@ dist/
 build/
 *.tsbuildinfo
 
+# Lambda artifacts
+lambda/build/
+lambda/functions/*/node_modules/
+lambda/node_modules/
+
 # Package manager
 pnpm-lock.yaml
 package-lock.json

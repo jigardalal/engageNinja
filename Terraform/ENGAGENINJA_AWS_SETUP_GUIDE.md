@@ -51,7 +51,7 @@ The IAM user has the following policies:
 ```
 Your Application
     ↓
-SQS: engageninja-outbound-messages-dev (campaign messages)
+SQS: engageninja-messages-dev (campaign messages)
     ↓
 Worker Process (poll & send)
     ├→ WhatsApp (Meta Cloud API)
@@ -77,13 +77,13 @@ Database (update message status)
 
 ### Outbound Messages Queue
 
-- **URL:** `https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-outbound-messages-dev`
-- **ARN:** `arn:aws:sqs:us-east-1:433088583514:engageninja-outbound-messages-dev`
+- **URL:** `https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-messages-dev`
+- **ARN:** `arn:aws:sqs:us-east-1:433088583514:engageninja-messages-dev`
 - **Purpose:** Campaigns send messages here
 - **Max Message Size:** 256 KB
 - **Message Retention:** 14 days
 - **Visibility Timeout:** 300 seconds (5 minutes)
-- **Dead Letter Queue:** engageninja-outbound-messages-dlq-dev (after 5 failed attempts)
+- **Dead Letter Queue:** engageninja-messages-dlq-dev (after 5 failed attempts)
 
 ### Email Events Queue
 
@@ -103,10 +103,10 @@ Database (update message status)
 - **Message Retention:** 14 days
 - **Visibility Timeout:** 300 seconds
 
-### Dead Letter Queue (DLQ)
+-### Dead Letter Queue (DLQ)
 
-- **URL:** `https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-outbound-messages-dlq-dev`
-- **ARN:** `arn:aws:sqs:us-east-1:433088583514:engageninja-outbound-messages-dlq-dev`
+- **URL:** `https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-messages-dlq-dev`
+- **ARN:** `arn:aws:sqs:us-east-1:433088583514:engageninja-messages-dlq-dev`
 - **Purpose:** Failed messages after 5 retries
 - **Message Retention:** 14 days (for debugging)
 - **Monitoring:** CloudWatch alarm triggers when DLQ has messages
@@ -123,7 +123,7 @@ const sqs = new AWS.SQS({
 
 // Send message to outbound queue
 await sqs.sendMessage({
-  QueueUrl: process.env.SQS_OUTBOUND_MESSAGES_URL,
+  QueueUrl: process.env.SQS_MESSAGES_URL,
   MessageBody: JSON.stringify({
     campaignId: 'campaign-123',
     contactId: 'contact-456',
@@ -191,10 +191,10 @@ AWS_SECRET_ACCESS_KEY=[REDACTED]
 AWS_REGION=us-east-1
 
 # SQS Queue URLs
-SQS_OUTBOUND_MESSAGES_URL=https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-outbound-messages-dev
+SQS_MESSAGES_URL=https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-messages-dev
 SQS_SMS_EVENTS_URL=https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-sms-events-dev
 SQS_EMAIL_EVENTS_URL=https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-email-events-dev
-SQS_DLQ_URL=https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-outbound-messages-dlq-dev
+SQS_DLQ_URL=https://sqs.us-east-1.amazonaws.com/433088583514/engageninja-messages-dlq-dev
 
 # SNS Topic ARNs
 SNS_SMS_EVENTS_TOPIC_ARN=arn:aws:sns:us-east-1:433088583514:engageninja-sms-events-dev
@@ -278,7 +278,7 @@ const sqs = new AWS.SQS({
 async function queueCampaignMessage(message) {
   try {
     const result = await sqs.sendMessage({
-      QueueUrl: process.env.SQS_OUTBOUND_MESSAGES_URL,
+      QueueUrl: process.env.SQS_MESSAGES_URL,
       MessageBody: JSON.stringify(message),
       MessageAttributes: {
         Channel: {
@@ -305,7 +305,7 @@ async function pollOutboundMessages() {
   while (true) {
     try {
       const messages = await sqs.receiveMessage({
-        QueueUrl: process.env.SQS_OUTBOUND_MESSAGES_URL,
+        QueueUrl: process.env.SQS_MESSAGES_URL,
         MaxNumberOfMessages: 10,
         WaitTimeSeconds: 20,
         VisibilityTimeout: 300
@@ -321,7 +321,7 @@ async function pollOutboundMessages() {
             
             // Delete message from queue on success
             await sqs.deleteMessage({
-              QueueUrl: process.env.SQS_OUTBOUND_MESSAGES_URL,
+              QueueUrl: process.env.SQS_MESSAGES_URL,
               ReceiptHandle: msg.ReceiptHandle
             }).promise();
           } catch (error) {

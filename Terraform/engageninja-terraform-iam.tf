@@ -33,7 +33,7 @@ resource "aws_iam_policy" "sqs_policy" {
           "sqs:SendMessage"
         ]
         Resource = [
-          aws_sqs_queue.outbound_messages.arn
+          aws_sqs_queue.messages.arn
         ]
       },
       {
@@ -48,8 +48,8 @@ resource "aws_iam_policy" "sqs_policy" {
         Resource = [
           aws_sqs_queue.sms_events.arn,
           aws_sqs_queue.email_events.arn,
-          aws_sqs_queue.outbound_messages.arn,
-          aws_sqs_queue.outbound_messages_dlq.arn
+          aws_sqs_queue.messages.arn,
+          aws_sqs_queue.messages_dlq.arn
         ]
       },
       {

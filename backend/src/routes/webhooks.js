@@ -17,6 +17,7 @@ const EmailService = require('../services/emailService');
 const ENABLE_WEBHOOK_VERIFICATION = process.env.ENABLE_WEBHOOK_VERIFICATION === 'true';
 const ENABLE_EMAIL_WEBHOOK_VERIFICATION = process.env.ENABLE_EMAIL_WEBHOOK_VERIFICATION === 'true' || ENABLE_WEBHOOK_VERIFICATION;
 const SES_WEBHOOK_SECRET = process.env.SES_WEBHOOK_SECRET || 'test-webhook-secret';
+const METRICS_AUTH_TOKEN = process.env.METRICS_AUTH_TOKEN || '';
 
 // Webhook event log for debugging
 const webhookEventLog = [];
@@ -163,6 +164,17 @@ const logWebhookEvent = (provider, type, data, status = 'received') => {
 
   console.log(`📩 Webhook [${provider}] ${type}: ${status}`, data);
   return entry.id;
+};
+
+const authenticateMetricsRequest = (req, res, next) => {
+  if (!METRICS_AUTH_TOKEN) {
+    return next();
+  }
+  const authHeader = (req.headers.authorization || '').trim();
+  if (!authHeader || authHeader !== `Bearer ${METRICS_AUTH_TOKEN}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
 };
 
 /**
@@ -1249,12 +1261,49 @@ const ensureWebhookLogTable = () => {
         result TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(provider, provider_event_id)
-      )
-    `).run();
+    )
+  `).run();
   } catch (error) {
     console.warn('⚠️  Unable to create webhook_processing_log table:', error.message);
   }
 };
+
+router.post('/internal/metrics', express.json(), authenticateMetricsRequest, (req, res) => {
+  const { campaign_id } = req.body;
+  if (!campaign_id) {
+    return res.status(400).json({ error: 'campaign_id is required' });
+  }
+
+  const campaign = db.prepare('SELECT tenant_id FROM campaigns WHERE id = ?').get(campaign_id);
+  if (!campaign) {
+    return res.status(404).json({ error: 'Campaign not found' });
+  }
+
+  const campaignMetrics = db.prepare(`
+    SELECT
+      COUNT(*) as total,
+      SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) as queued_count,
+      SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) as sent_count,
+      SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered_count,
+      SUM(CASE WHEN status = 'read' THEN 1 ELSE 0 END) as read_count,
+      SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count
+    FROM messages
+    WHERE campaign_id = ?
+  `).get(campaign_id);
+
+  metricsEmitter.emit('campaign:metrics', {
+    campaign_id,
+    tenant_id: campaign.tenant_id,
+    queued: campaignMetrics?.queued_count || 0,
+    sent: campaignMetrics?.sent_count || 0,
+    delivered: campaignMetrics?.delivered_count || 0,
+    read: campaignMetrics?.read_count || 0,
+    failed: campaignMetrics?.failed_count || 0,
+    total: campaignMetrics?.total || 0
+  });
+
+  res.json({ ok: true, campaign_id });
+});
 
 // Initialize on module load
 ensureWebhookLogTable();

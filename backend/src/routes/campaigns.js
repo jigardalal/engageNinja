@@ -7,6 +7,9 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const crypto = require('crypto');
+const AWS = require('aws-sdk');
+const sqs = new AWS.SQS();
+const SQS_MESSAGES_URL = process.env.SQS_MESSAGES_URL;
 const { v4: uuidv4 } = require('uuid');
 const metricsEmitter = require('../services/metricsEmitter');
 const { requireMember, requireAdmin } = require('../middleware/rbac');
@@ -1157,7 +1160,7 @@ router.patch('/:id', requireAuth, validateTenantAccess, (req, res) => {
  * POST /campaigns/:id/send
  * Send campaign with usage limits check
  */
-router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, (req, res) => {
+router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1418,11 +1421,15 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, (req,
     }
 
     // Create message records (one per recipient)
+    const contentSnapshot = typeof campaign.message_content === 'string'
+      ? campaign.message_content
+      : JSON.stringify(campaign.message_content || {});
+
     const messageInsertStmt = db.prepare(`
       INSERT INTO messages (
         id, tenant_id, campaign_id, contact_id, channel, provider,
-        status, attempts, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        status, content_snapshot, attempts, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const now_iso = new Date().toISOString();
@@ -1443,6 +1450,7 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, (req,
             ? 'ses'
             : 'twilio',
         'queued',
+        contentSnapshot,
         1,
         now_iso,
         now_iso
@@ -1480,6 +1488,17 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, (req,
         campaign.channel === 'sms' ? audienceCount : 0,
         now_iso
       );
+    }
+
+    try {
+      await enqueueCampaignMessages({
+        messageIds,
+        contacts,
+        campaign,
+        tenantId: req.tenantId
+      });
+    } catch (err) {
+      console.error('Failed to enqueue campaign messages', err.message);
     }
 
     // Return success with metrics
@@ -2176,10 +2195,10 @@ router.get('/:id/metrics/stream', requireAuth, validateTenantAccess, (req, res) 
     metricsEmitter.on(`campaign:${id}:metrics`, onMetricsUpdate);
 
     // Cleanup on disconnect
-    res.on('close', () => {
-      metricsEmitter.removeListener(`campaign:${id}:metrics`, onMetricsUpdate);
-      console.log(`[SSE] Client disconnected from campaign ${id} stream`);
-    });
+res.on('close', () => {
+  metricsEmitter.removeListener(`campaign:${id}:metrics`, onMetricsUpdate);
+  console.log(`[SSE] Client disconnected from campaign ${id} stream`);
+});
 
   } catch (error) {
     console.error('Error in SSE endpoint:', error);
@@ -2190,5 +2209,47 @@ router.get('/:id/metrics/stream', requireAuth, validateTenantAccess, (req, res) 
     });
   }
 });
+
+async function enqueueCampaignMessages({ messageIds, contacts, campaign, tenantId }) {
+  if (!SQS_MESSAGES_URL) {
+    console.warn('SQS_MESSAGES_URL is not configured; skipping queueing');
+    return;
+  }
+
+  if (!Array.isArray(messageIds) || messageIds.length === 0) {
+    return;
+  }
+
+  const items = contacts.map((contact, index) => ({
+    Id: `${campaign.id}-${contact.id}-${messageIds[index]}`,
+    MessageBody: JSON.stringify({
+      messageId: messageIds[index],
+      tenantId,
+      campaignId: campaign.id,
+      channel: campaign.channel,
+      contactId: contact.id
+    })
+  }));
+
+  const batches = chunkArray(items, 10);
+  for (const batch of batches) {
+    try {
+      await sqs.sendMessageBatch({
+        QueueUrl: SQS_MESSAGES_URL,
+        Entries: batch
+      }).promise();
+    } catch (error) {
+      console.error('Failed to enqueue campaign messages to SQS', error.message);
+    }
+  }
+}
+
+function chunkArray(array, size = 10) {
+  const batches = [];
+  for (let i = 0; i < array.length; i += size) {
+    batches.push(array.slice(i, i + size));
+  }
+  return batches;
+}
 
 module.exports = router;
