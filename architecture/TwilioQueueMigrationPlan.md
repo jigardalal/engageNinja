@@ -9,56 +9,50 @@
 1. Merge `tenant_channel_settings` and `tenant_channel_credentials_v2` into a single schema that carries encrypted credentials, webhook URL, messaging-service SID, and enable/verify flags.
 2. Update the Twilio seed script, settings routes, campaign handlers, and provider factory to read/write the unified schema.
 3. Transition sends for SMS/WhatsApp/Email onto AWS SQS → `SendCampaignMessage` Lambda → provider (Twilio/SES) → status updates (EventBridge/Lambda or webhooks) while keeping SSE updates.
-4. Build an AWS webhook endpoint (API Gateway + Lambda) that verifies Twilio signatures and writes status updates back to SQLite via the same schema.
+4. Build an AWS webhook endpoint (API Gateway + Lambda) that verifies Twilio signatures and writes status updates back to the shared database.
 5. Keep local dev flow (existing queue and webhook) as a flag until AWS path is production-ready.
 
-## Task Breakdown
-
-### Phase 0 – Schema consolidation
+## Phase 0 – Schema consolidation
 1. Extend `backend/db/migrations/XXXX_tenant_channel_settings.sql` (or current schema file) with the new columns: `provider_config_json`, `messaging_service_sid`, `webhook_url`, `is_enabled`, `is_verified`, `verification_error`, `webhook_secret_encrypted`, credential blobs, etc.
-2. Remove `tenant_channel_credentials_v2` (drop references in code/tests/migrations); add migration that transfers any existing rows if needed.
+2. Remove `tenant_channel_credentials_v2` (drop references in code/tests/migrations); add a migration that transfers any existing rows if needed.
 3. Update `backend/scripts/seed-twilio-sms.js` to write into the consolidated table and include webhook/messaging service SID.
-4. Adjust `backend/src/routes/settings.js`, `routes/campaigns.js`, `services/messaging/providerFactory.js`, and any other consumer to read the merged schema.
-5. Add tests or scripts verifying the unified table works (e.g., seeding followed by campaign send using new columns).
+4. Adjust `backend/src/routes/settings.js`, `routes/campaigns.js`, `services/messaging/providerFactory.js`, and any other consumers to read the merged schema.
+5. Add tests or scripts verifying the unified table works (e.g., seeding followed by campaign send using the new columns).
 
-### Phase 1 – AWS Queue & Lambdas
-1. Define Terraform resources:
-   - SQS queue `engageninja-messages-{env}` and DLQ.
-   - IAM roles/policies for Lambda ↔ SQS and EventBridge.
-   - Lambda functions:
-     * `SendCampaignMessage` (Node 18) triggered by SQS.
-     * `UpdateMessageStatus` scheduled by EventBridge (for mock statuses + webhook updates).
-   - API Gateway endpoint `/webhooks/twilio` ➔ Lambda for status callbacks.
-2. Implement `lambda/functions/send-campaign-message`: decrypt tenant creds, call the correct provider, update `messages`, schedule EventBridge status updates.
-3. Implement `lambda/functions/update-message-status`: update `message_status_events` with `status_reason`, broadcast via SSE (or notify backend).
-4. Ensure Lambda has access to SQLite (or move data to RDS/CloudWatch?). If SQLite must stay local, consider invoking backend HTTP endpoint to persist updates (or share via API).
-5. Configure Terraform outputs for new env vars (`SQS_QUEUE_URL`, `TWILIO_MESSAGING_SERVICE_SID`, `WEBHOOK_BASE_URL`), update `backend/.env` to match for local dev (mock queue or local SQS emulator).
+## Phase 1 – AWS Queue & Lambdas
+1. Extend the Terraform stack inside `Terraform/` by:
+   - Adding the `engageninja-messages-{var.environment}` outbound queue + DLQ in `engageninja-terraform-sqs.tf`, and output their URLs/ARNs.
+   - Deploying a PostgreSQL RDS instance (`db.t3.micro`, free-tier compatible) and exporting its connection info for backend and Lambda environments.
+   - Creating Node 18 Lambdas (`SendCampaignMessage`, `UpdateMessageStatus`, webhook handler) with the necessary IAM roles, environment variables, and triggers (SQS, EventBridge, API Gateway).
+   - Routing `/webhooks/twilio` and `/webhooks/twilio/sms` through API Gateway to the webhook Lambda, exposing the endpoint URL as a Terraform output.
+2. Implement `lambda/functions/send-campaign-message`: pull batches from SQS, decrypt credentials (shared `ENCRYPTION_KEY`), call the provider, update Postgres `messages`/`message_status_events`, and schedule EventBridge status updates before deleting the record from SQS.
+3. Implement `lambda/functions/update-message-status`: executed by EventBridge (for mock statuses) and via the webhook Lambda, writes `delivered`/`read` updates, and notifies the backend SSE webhook so the UI reflects the new status.
+4. Keep local development functional by mapping the same env vars to test queues or local emulators until the AWS path is stable.
+5. Continue using the shared `ENCRYPTION_KEY` for both backend and Lambdas; later phases can adopt Secrets Manager/KMS if desired.
 
-### Phase 2 – Webhook handling
-1. In AWS Lambda webhook handler, use decrypted credentials to verify signature, look up `message` by `provider_message_id` in unified schema, and write status updates.
-2. Emit SSE/event notifications through established channel (API that backend consumes).
-3. Clean up old backend webhook routes once AWS endpoint is stable.
+## Phase 2 – Webhook handling
+1. Ensure the webhook Lambda validates the Twilio signature, looks up the `message` by `provider_message_id`, and writes explicit status updates into Postgres.
+2. After persisting the update, call the backend’s webhook endpoint to reuse `metricsEmitter` for SSE delivery instead of building new pub/sub plumbing.
+3. Only retire the legacy local webhook once the AWS handler reliably processes all callbacks.
 
-### Phase 3 – Cutover & Validation
-1. Provide feature flag (e.g., `USE_AWS_QUEUE`) toggling between local queue vs. SQS+Lambda for sends and webhook updates.
-2. Run campaigns through AWS flow, monitor metrics via SSE in UI, confirm `delivery`/`read`.
-3. Document Terraform redeploy steps, seeding instructions, and webhook URLs.
+## Phase 3 – Cutover & Validation
+1. Introduce a feature flag (e.g., `USE_AWS_QUEUE`) to toggle between the local processor and the new AWS flow during rollout.
+2. Run campaigns through the AWS pipeline, verify SSE metrics updates, and confirm delivery/read events appear in the UI.
+3. Document Terraform redeploy steps, seeding instructions, and webhook URLs for each environment.
 
 ## Decisions
-1. Use a network-hosted AWS database (RDS/Aurora) so Lambdas and the backend share a single datastore; SQLite stays just for local development.
-2. Add the new SQS/Lambda/webhook infrastructure inside the existing `Terraform/dev` workspace (later we can copy the stack for other environments).
-3. Lambda status updates call the backend via an authenticated webhook, letting the existing `metricsEmitter` broadcast over SSE instead of inventing a new pub/sub.
-4. Keep using the shared `ENCRYPTION_KEY` env var for now; both the backend and Lambdas will read it. We can migrate to Secrets Manager/KMS later once the architecture is stable.
+1. Use a PostgreSQL RDS instance (`db.t3.micro`) so backend and Lambdas share a hosted database; SQLite remains available for local development only.
+2. Implement Phase 1 entirely inside the existing `Terraform/` workspace (dev stack) before copying the configuration to staging/prod.
+3. Lambda status updates will call back to the backend’s webhook so the existing `metricsEmitter` can broadcast SSE notifications instead of building new realtime plumbing.
+4. Keep using the shared `ENCRYPTION_KEY` env var for now; both backend and Lambdas decrypt credentials with the same key until we migrate to a secret manager.
 
 ## Open Questions
-1. Lambda access to the new network database will need connection pooling/caching; what pool size is acceptable for our workload?
-2. Do we need to version the seed data or Twilio credentials when migrating to the new table, or can we drop/reset and reseed in dev/prod?
-3. Once the AWS flow is live, how do we will disable the local processor gracefully (feature flag or environment variable)?
+1. Lambda access to Postgres requires connection pooling; we’ll tune the pool size (e.g., 5 connections) and monitor for saturation.
+2. Since we can reset/reseed the database, we don’t need to preserve old credentials—dropping/resetting is acceptable for dev/prod.
+3. We’ll disable the local processor via a feature flag once the AWS path is reliable.
 
--## Next steps
-1. Merge schema, update seed script, and ensure local queue still runs (Phase 0).
-2. Draft Terraform + Lambda code, wire the SQS queue, and verify send flow (Phase 1).
-3. Build the AWS webhook handler, schedule updates, and retire the old webhook route (Phase 2).
-4. Switch production to AWS queue with rollback plan (Phase 3).
-
-Let me know if any of the open questions need clarification before we start executing. Also confirm whether the plan should be split into more than one issue/pr.
+## Next steps
+1. Phase 0 is complete (schema + seed consolidation and route/provider updates).
+2. Implement Phase 1 Terraform/Lambda work inside `Terraform/` (SQS queue, Postgres RDS, IAM, Lambdas, API Gateway) and capture all outputs.
+3. Build the Lambda logic/wehook handler so SQS → provider → Postgres updates trigger SSE notifications.
+4. Proceed through Phases 2 and 3 once the AWS flow is live, then retire the local queue path.
