@@ -237,7 +237,7 @@ output "next_steps" {
        - ${aws_apigatewayv2_stage.default.invoke_url}webhooks/twilio/sms
 
     5. Configure your Node.js application with the new infrastructure:
-       - DATABASE_URL: ${"postgresql://${var.db_username}:${local.db_password}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/${var.db_name}?sslmode=require"}
+       - DATABASE_URL: ${"postgresql://${var.db_username}:${urlencode(local.db_password)}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/${var.db_name}?sslmode=require"}
        - SQS_MESSAGES_URL: ${aws_sqs_queue.messages.url}
        - SQS_SMS_EVENTS_URL: ${aws_sqs_queue.sms_events.url}
        - SQS_EMAIL_EVENTS_URL: ${aws_sqs_queue.email_events.url}

@@ -1,5 +1,5 @@
 locals {
-  database_url     = "postgresql://${var.db_username}:${local.db_password}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/${var.db_name}?sslmode=require"
+  database_url     = "postgresql://${var.db_username}:${urlencode(local.db_password)}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/${var.db_name}?sslmode=require"
   metrics_endpoint = "${var.backend_url}${var.metrics_callback_path}"
   lambda_common_env = {
     DATABASE_URL       = local.database_url

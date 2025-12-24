@@ -174,7 +174,7 @@ output "postgres_port" {
 
 output "postgres_database_url" {
   description = "Postgres connection string"
-  value       = "postgresql://${var.db_username}:${local.db_password}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/${var.db_name}"
+  value       = "postgresql://${var.db_username}:${urlencode(local.db_password)}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/${var.db_name}"
   sensitive   = true
 }
 
