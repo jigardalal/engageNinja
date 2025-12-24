@@ -395,7 +395,16 @@ async function processQueuedMessages() {
  * Runs continuously, processing messages every 100ms
  */
 function startMessageProcessor() {
-  console.log('🔄 Starting message queue processor...');
+  // Check if SQS is enabled - if yes, skip local processing
+  const useSQS = !!process.env.SQS_OUTBOUND_MESSAGES_URL;
+
+  if (useSQS) {
+    console.log('ℹ️  SQS enabled - skipping local message processor');
+    console.log(`   Messages will be processed by Lambda via: ${process.env.SQS_OUTBOUND_MESSAGES_URL}`);
+    return;
+  }
+
+  console.log('🔄 Starting local message queue processor...');
 
   setInterval(async () => {
     try {
@@ -405,7 +414,7 @@ function startMessageProcessor() {
     }
   }, 100); // Check queue every 100ms
 
-  console.log('✓ Message queue processor started');
+  console.log('✓ Local message queue processor started');
 }
 
 module.exports = {
