@@ -17,6 +17,7 @@ const STATUS_SCHEDULES = [
 ];
 
 exports.handler = async (event) => {
+  console.log('Lambda handler invoked with event', { records: event.Records?.length || 0 });
   const records = event.Records || [];
   const results = [];
 
@@ -24,15 +25,19 @@ exports.handler = async (event) => {
     let payload;
     try {
       payload = JSON.parse(record.body);
+      console.log('Parsed SQS payload', { messageId: payload.messageId });
     } catch (error) {
       console.error('Invalid SQS payload', error.message);
       results.push({ error: 'invalid_payload' });
       continue;
     }
 
-    results.push(await processPayload(payload));
+    const result = await processPayload(payload);
+    console.log('Payload processed', { messageId: payload.messageId, result });
+    results.push(result);
   }
 
+  console.log('Handler returning results', { processed: results.length });
   return {
     statusCode: 200,
     processed: results.length,
@@ -45,14 +50,17 @@ async function processPayload(payload) {
     return { error: 'missing_message_id' };
   }
 
+  console.log('Processing payload for message', { messageId: payload.messageId });
   const client = await pool.connect();
   try {
     const message = await fetchMessage(client, payload.messageId);
+    console.log('Fetched message', { messageId: payload.messageId, status: message?.status });
     if (!message) {
       return { messageId: payload.messageId, error: 'message_not_found' };
     }
 
     if (message.status !== 'queued') {
+      console.log('Message not in queued status', { messageId: payload.messageId, status: message.status });
       return { messageId: payload.messageId, status: message.status };
     }
 
