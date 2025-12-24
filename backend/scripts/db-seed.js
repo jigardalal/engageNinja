@@ -18,16 +18,20 @@ const db = require('../src/db');
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '10');
 
 // Ensure global_tags table exists even if migration has not run yet
-db.exec(`
-  CREATE TABLE IF NOT EXISTS global_tags (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'archived')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE INDEX IF NOT EXISTS idx_global_tags_status ON global_tags(status);
-`);
+// Skip for PostgreSQL since migrations have already created it
+const USE_POSTGRES = !!process.env.DATABASE_URL;
+if (!USE_POSTGRES) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS global_tags (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      status TEXT DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_global_tags_status ON global_tags(status);
+  `);
+}
 
 const encryptionKey = process.env.ENCRYPTION_KEY || 'default-dev-key-change-in-production';
 const encryptCredentials = (data) => {
@@ -53,6 +57,16 @@ function ensureUserProfileColumns() {
 
 console.log('🌱 EngageNinja Database Seeding');
 console.log('================================\n');
+
+// PostgreSQL seeding is not supported due to deasync limitations
+// For PostgreSQL environments, seed data must be inserted manually or via direct SQL
+if (USE_POSTGRES) {
+  console.log('⚠️  PostgreSQL detected - skipping seeding');
+  console.log('   Seeding only works with SQLite for local development');
+  console.log('   To seed PostgreSQL, use direct SQL or a migration script\n');
+  db.close?.();
+  process.exit(0);
+}
 
 const planIds = {
   free: 'free',
