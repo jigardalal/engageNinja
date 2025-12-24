@@ -80,7 +80,7 @@ build/
 # Lambda artifacts
 lambda/build/
 lambda/functions/*/node_modules/
-lambda/node_modules/
+# Note: lambda/node_modules/ is NOT ignored - needed for AWS Lambda deployment
 
 # Package manager
 pnpm-lock.yaml
