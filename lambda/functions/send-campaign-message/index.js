@@ -68,6 +68,20 @@ async function processPayload(payload) {
       return { messageId: message.id, error: err };
     }
 
+    // Check if tenant is in demo mode
+    const tenant = await fetchTenant(client, message.tenant_id);
+    if (!tenant) {
+      const err = 'tenant_not_found';
+      await markFailed(client, message.id, err);
+      return { messageId: message.id, error: err };
+    }
+
+    if (tenant.is_demo) {
+      // Simulate the send instead of calling real provider
+      console.log(`[Demo Mode] Tenant ${message.tenant_id} is in demo mode - simulating message send`);
+      return await simulateDemoSend(client, message, campaign);
+    }
+
     const channelConfig = await fetchChannelSettings(client, message.tenant_id, message.channel);
     if (!channelConfig) {
       const err = 'channel_not_configured';
@@ -149,6 +163,11 @@ async function fetchCampaign(client, campaignId) {
   return res.rows[0];
 }
 
+async function fetchTenant(client, tenantId) {
+  const res = await client.query('SELECT id, is_demo FROM tenants WHERE id = $1', [tenantId]);
+  return res.rows[0];
+}
+
 async function fetchChannelSettings(client, tenantId, channel) {
   const res = await client.query(
     `SELECT provider, credentials_encrypted, provider_config_json, webhook_url, phone_number, messaging_service_sid
@@ -204,6 +223,46 @@ function formatMessageBody(content, fallback) {
   } catch (error) {
     return '';
   }
+}
+
+async function simulateDemoSend(client, message, campaign) {
+  /**
+   * Simulate message send for demo tenants
+   * - Generate realistic demo message ID
+   * - Update message status to 'sent'
+   * - Create provider mapping
+   * - Log status event
+   * - Schedule delivery/read updates
+   * - Notify metrics
+   */
+
+  // Generate a realistic demo message ID (similar to Twilio SID format: SMxxxxxxxxxxxxxxxxxxxxxxxx)
+  const demoMessageId = 'SM' + require('crypto').randomBytes(17).toString('hex').toUpperCase().substring(0, 30);
+
+  console.log(`[Demo] Simulating message send: ${message.id} -> ${demoMessageId}`);
+
+  // Update message as sent
+  await updateMessageSent(client, message.id, demoMessageId, 'sent');
+
+  // Create provider mapping
+  await createMapping(client, message, demoMessageId, 'sent');
+
+  // Log status event
+  await logStatusEvent(client, message.id, demoMessageId, message.status, 'sent');
+
+  // Schedule simulated delivery/read updates
+  message.status = 'sent';
+  message.provider_message_id = demoMessageId;
+  await scheduleStatusEvents(message);
+
+  // Notify metrics for real-time SSE updates
+  await notifyMetrics({
+    message_id: message.id,
+    tenant_id: message.tenant_id,
+    campaign_id: message.campaign_id
+  });
+
+  return { messageId: message.id, providerId: demoMessageId, demo: true };
 }
 
 async function markFailed(client, messageId, reason) {
