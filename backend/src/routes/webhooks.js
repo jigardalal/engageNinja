@@ -25,32 +25,23 @@ const MAX_LOG_ENTRIES = 1000;
 
 // Ensure message_status_events has status_reason column
 const ensureStatusEventsColumns = () => {
-  const cols = db.prepare(`PRAGMA table_info(message_status_events)`).all();
-  const names = cols.map(c => c.name);
-  if (!names.includes('status_reason')) {
-    try {
-      db.prepare(`ALTER TABLE message_status_events ADD COLUMN status_reason TEXT`).run();
-    } catch (e) {
-      console.warn('⚠️  Unable to add status_reason to message_status_events:', e.message);
-    }
+  try {
+    db.prepare(`ALTER TABLE message_status_events ADD COLUMN status_reason TEXT`).run();
+  } catch (e) {
+    // Column already exists - ignore
   }
 };
 
 // Ensure optional webhook columns exist (per-tenant)
 const ensureWhatsAppWebhookColumns = () => {
-  const cols = db.prepare(`PRAGMA table_info(tenant_channel_settings)`).all();
-  const names = cols.map(c => c.name);
-  const addCol = (name) => {
-    if (!names.includes(name)) {
-      try {
-        db.prepare(`ALTER TABLE tenant_channel_settings ADD COLUMN ${name} TEXT`).run();
-      } catch (e) {
-        console.warn(`⚠️ Could not add column ${name}:`, e.message);
-      }
+  const columns = ['webhook_verify_token', 'webhook_secret'];
+  columns.forEach(col => {
+    try {
+      db.prepare(`ALTER TABLE tenant_channel_settings ADD COLUMN ${col} TEXT`).run();
+    } catch (e) {
+      // Column already exists - ignore
     }
-  };
-  addCol('webhook_verify_token');
-  addCol('webhook_secret');
+  });
 };
 
 /**

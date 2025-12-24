@@ -14,19 +14,14 @@ const { logAudit, AUDIT_ACTIONS } = require('../utils/audit');
 
 // Ensure optional webhook columns exist (multi-tenant per channel)
 function ensureWhatsAppWebhookColumns() {
-  const cols = db.prepare(`PRAGMA table_info(tenant_channel_settings)`).all();
-  const names = cols.map(c => c.name);
-  const addCol = (name) => {
-    if (!names.includes(name)) {
-      try {
-        db.prepare(`ALTER TABLE tenant_channel_settings ADD COLUMN ${name} TEXT`).run();
-      } catch (e) {
-        console.warn(`⚠️ Could not add column ${name}:`, e.message);
-      }
+  const columns = ['webhook_verify_token', 'webhook_secret'];
+  columns.forEach(col => {
+    try {
+      db.prepare(`ALTER TABLE tenant_channel_settings ADD COLUMN ${col} TEXT`).run();
+    } catch (e) {
+      // Column already exists - ignore
     }
-  };
-  addCol('webhook_verify_token');
-  addCol('webhook_secret');
+  });
 }
 
 // Ensure webhook columns exist on module load (safe no-ops if already present)
@@ -34,19 +29,14 @@ ensureWhatsAppWebhookColumns();
 
 // Ensure provider ID columns exist for WhatsApp (for easier lookups/status)
 function ensureWhatsAppProviderColumns() {
-  const cols = db.prepare(`PRAGMA table_info(tenant_channel_settings)`).all();
-  const names = cols.map(c => c.name);
-  const addCol = (name) => {
-    if (!names.includes(name)) {
-      try {
-        db.prepare(`ALTER TABLE tenant_channel_settings ADD COLUMN ${name} TEXT`).run();
-      } catch (e) {
-        console.warn(`⚠️ Could not add column ${name}:`, e.message);
-      }
+  const columns = ['phone_number_id', 'business_account_id'];
+  columns.forEach(col => {
+    try {
+      db.prepare(`ALTER TABLE tenant_channel_settings ADD COLUMN ${col} TEXT`).run();
+    } catch (e) {
+      // Column already exists - ignore
     }
-  };
-  addCol('phone_number_id');
-  addCol('business_account_id');
+  });
 }
 
 ensureWhatsAppProviderColumns();

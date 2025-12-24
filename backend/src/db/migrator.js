@@ -155,9 +155,14 @@ function migrateTemplateData() {
   try {
     console.log('🔄 Checking for template data migration...');
 
-    // Check if components_schema column exists
-    const columns = db.prepare(`PRAGMA table_info(whatsapp_templates)`).all();
-    const hasComponentsSchema = columns.some(c => c.name === 'components_schema');
+    // Try to query with components_schema - if it fails, column doesn't exist
+    let hasComponentsSchema = true;
+    try {
+      db.prepare(`SELECT COUNT(*) FROM whatsapp_templates WHERE components_schema IS NOT NULL`).all();
+    } catch (e) {
+      // Column doesn't exist
+      hasComponentsSchema = false;
+    }
 
     if (!hasComponentsSchema) {
       console.log('⚠️  components_schema column not found - skipping data migration');

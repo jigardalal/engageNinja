@@ -50,14 +50,19 @@ const validatePassword = (password) => {
 };
 
 const ensureUserTableHasNameColumn = () => {
-  const columns = db.prepare("PRAGMA table_info(users)").all();
-  const has = (col) => columns.some((c) => c.name === col);
-  if (!has('name')) db.prepare("ALTER TABLE users ADD COLUMN name TEXT").run();
-  if (!has('first_name')) db.prepare("ALTER TABLE users ADD COLUMN first_name TEXT").run();
-  if (!has('last_name')) db.prepare("ALTER TABLE users ADD COLUMN last_name TEXT").run();
-  if (!has('phone')) db.prepare("ALTER TABLE users ADD COLUMN phone TEXT").run();
-  if (!has('timezone')) db.prepare("ALTER TABLE users ADD COLUMN timezone TEXT").run();
-  if (!has('locale')) db.prepare("ALTER TABLE users ADD COLUMN locale TEXT").run();
+  // Database schema is managed by migrations
+  // This function is kept for backward compatibility but does nothing
+  // Try-catch blocks silently handle migration attempts on already-existing columns
+  const columns = [
+    'name', 'first_name', 'last_name', 'phone', 'timezone', 'locale'
+  ];
+  columns.forEach(col => {
+    try {
+      db.prepare(`ALTER TABLE users ADD COLUMN ${col} TEXT`).run();
+    } catch (e) {
+      // Column already exists - ignore
+    }
+  });
 };
 
 // ===== MIDDLEWARE =====

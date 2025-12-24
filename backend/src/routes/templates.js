@@ -89,19 +89,21 @@ function normalizeWhatsAppCredentials(creds = {}) {
 }
 
 function ensureTemplateColumns() {
-  const columns = db.prepare(`PRAGMA table_info(whatsapp_templates)`).all();
-  const names = columns.map(c => c.name);
-  const addColumn = (name, type) => {
-    if (!names.includes(name)) {
+  const columnsToAdd = [
+    ['header_type', 'TEXT'],
+    ['header_text', 'TEXT'],
+    ['footer_text', 'TEXT'],
+    ['buttons_json', 'TEXT'],
+    ['body_variables', 'TEXT'],
+    ['header_variables', 'TEXT']
+  ];
+  columnsToAdd.forEach(([name, type]) => {
+    try {
       db.prepare(`ALTER TABLE whatsapp_templates ADD COLUMN ${name} ${type}`).run();
+    } catch (e) {
+      // Column already exists - ignore
     }
-  };
-  addColumn('header_type', 'TEXT');
-  addColumn('header_text', 'TEXT');
-  addColumn('footer_text', 'TEXT');
-  addColumn('buttons_json', 'TEXT');
-  addColumn('body_variables', 'TEXT');
-  addColumn('header_variables', 'TEXT');
+  });
 }
 
 /**

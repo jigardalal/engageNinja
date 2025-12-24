@@ -40,29 +40,15 @@ const encryptCredentials = (data) => {
 };
 
 function ensureWhatsAppWebhookColumns() {
-  const cols = db.prepare('PRAGMA table_info(tenant_channel_settings)').all();
-  const names = cols.map(c => c.name);
-  const addCol = (name) => {
-    if (!names.includes(name)) {
-      db.prepare(`ALTER TABLE tenant_channel_settings ADD COLUMN ${name} TEXT`).run();
-    }
-  };
-  addCol('webhook_verify_token');
-  addCol('webhook_secret');
+  // Skip column checks - migrations should have already created these
+  // This function is kept for backward compatibility but does nothing
+  // since database schema is managed by migrations
 }
 
 function ensureUserProfileColumns() {
-  const cols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
-  const addCol = (name, type = 'TEXT') => {
-    if (!cols.includes(name)) {
-      db.prepare(`ALTER TABLE users ADD COLUMN ${name} ${type}`).run();
-    }
-  };
-  addCol('first_name');
-  addCol('last_name');
-  addCol('phone');
-  addCol('timezone');
-  addCol('locale');
+  // Skip column checks - migrations should have already created these
+  // This function is kept for backward compatibility but does nothing
+  // since database schema is managed by migrations
 }
 
 console.log('🌱 EngageNinja Database Seeding');
