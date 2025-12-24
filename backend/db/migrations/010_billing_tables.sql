@@ -65,7 +65,17 @@ CREATE TABLE IF NOT EXISTS plan_overrides (
 
 -- Extend usage_counters if it doesn't exist (for SMS tracking)
 -- Assuming it already exists from earlier migrations, just add sms_sent column
-ALTER TABLE usage_counters ADD COLUMN sms_sent INTEGER DEFAULT 0;
+-- PostgreSQL: safely add column if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'usage_counters'
+        AND column_name = 'sms_sent'
+    ) THEN
+        ALTER TABLE usage_counters ADD COLUMN sms_sent INTEGER DEFAULT 0;
+    END IF;
+END $$;
 
 -- Create index for fast lookups by tenant
 CREATE INDEX IF NOT EXISTS idx_billing_customers_tenant ON billing_customers(tenant_id);

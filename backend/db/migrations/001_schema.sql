@@ -1,8 +1,7 @@
 -- EngageNinja Database Schema
 -- Complete schema with all 16 tables, relationships, and indexes
 
--- Enable foreign keys
-PRAGMA foreign_keys = ON;
+-- Foreign keys are enabled by default in PostgreSQL
 
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
