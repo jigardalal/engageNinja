@@ -45,7 +45,7 @@ CREATE TABLE tenant_10dlc_brands (
   provider_config_json TEXT,          -- JSON for provider-specific data (rate limits, features, etc.)
 
   -- Versioning & Status
-  is_active BOOLEAN DEFAULT 1,        -- Is this the currently active registration?
+  is_active BOOLEAN DEFAULT true,        -- Is this the currently active registration?
   deprecation_reason TEXT,            -- e.g., 'business_info_updated_new_registration'
 
   -- Dates

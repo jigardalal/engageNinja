@@ -39,8 +39,8 @@ CREATE TABLE tenant_business_info (
 
   -- Compliance
   sms_opt_in_language TEXT,           -- Language for SMS consent
-  gdpr_compliant BOOLEAN DEFAULT 0,   -- For EU tenants
-  tcpa_compliant BOOLEAN DEFAULT 0,   -- For US tenants
+  gdpr_compliant BOOLEAN DEFAULT false,   -- For EU tenants
+  tcpa_compliant BOOLEAN DEFAULT false,   -- For US tenants
 
   -- Verification Status (for onboarding workflow)
   verification_status TEXT DEFAULT 'pending',  -- 'pending', 'verified', 'rejected'

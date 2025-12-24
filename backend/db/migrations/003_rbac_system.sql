@@ -14,7 +14,7 @@ PRAGMA foreign_keys = ON;
 ALTER TABLE users ADD COLUMN role_global TEXT DEFAULT 'none'
   CHECK (role_global IN ('system_admin', 'platform_admin', 'platform_support', 'none'));
 
-ALTER TABLE users ADD COLUMN active BOOLEAN DEFAULT 1;
+ALTER TABLE users ADD COLUMN active BOOLEAN DEFAULT true;
 
 -- ===== USER_TENANTS TABLE MIGRATION =====
 -- Migrate role enum from (admin, member) to (owner, admin, member, viewer)
@@ -25,7 +25,7 @@ CREATE TABLE user_tenants_new (
   user_id TEXT NOT NULL,
   tenant_id TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member', 'viewer')),
-  active BOOLEAN DEFAULT 1,
+  active BOOLEAN DEFAULT true,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id, tenant_id),
@@ -55,7 +55,7 @@ ALTER TABLE tenants ADD COLUMN metadata TEXT DEFAULT '{}'; -- JSON: for future e
 ALTER TABLE tags ADD COLUMN scope TEXT DEFAULT 'tenant'
   CHECK (scope IN ('tenant', 'system'));
 
-ALTER TABLE tags ADD COLUMN is_default BOOLEAN DEFAULT 0;
+ALTER TABLE tags ADD COLUMN is_default BOOLEAN DEFAULT false;
 
 -- ===== AUDIT LOGS TABLE =====
 -- Complete audit trail for compliance (SOC 2, GDPR, etc.)

@@ -13,13 +13,24 @@ const db = require('../db');
  */
 function initMigrationsTable() {
   try {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS schema_migrations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE NOT NULL,
-        executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
+    // PostgreSQL and SQLite have different syntax for auto-incrementing IDs
+    const createTableSql = db.__type === 'postgres'
+      ? `
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+          id SERIAL PRIMARY KEY,
+          name TEXT UNIQUE NOT NULL,
+          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `
+      : `
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT UNIQUE NOT NULL,
+          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `;
+
+    db.exec(createTableSql);
   } catch (error) {
     console.error('Error creating schema_migrations table:', error);
     throw error;

@@ -11,7 +11,7 @@
 
 const crypto = require('crypto');
 const fetch = global.fetch || require('node-fetch');
-const db = require('../src/db');
+const db = require('../../src/db');
 
 const BASE_URL = process.env.WEBHOOK_BASE_URL || 'http://localhost:5173';
 const SES_SECRET = process.env.SES_WEBHOOK_SECRET || 'test-webhook-secret';

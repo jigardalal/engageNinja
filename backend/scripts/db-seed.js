@@ -3,25 +3,19 @@
 /**
  * Database Seeding Script
  * Populates database with test data
+ * Supports both SQLite and PostgreSQL
  */
 
-const Database = require('better-sqlite3');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-// Default DB inside backend dir so running from repo root doesn't create a root-level DB.
-// Resolve env path relative to backend dir to avoid cwd surprises.
-const envDbPath = process.env.DATABASE_PATH;
-const DATABASE_PATH = envDbPath
-  ? path.resolve(path.join(__dirname, '..', envDbPath))
-  : path.join(__dirname, '../database.sqlite');
+// Use the same database adapter as the main application
+// This supports both SQLite and PostgreSQL
+const db = require('../src/db');
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '10');
-
-const db = new Database(path.resolve(DATABASE_PATH));
-db.pragma('foreign_keys = ON');
 
 // Ensure global_tags table exists even if migration has not run yet
 db.exec(`
@@ -168,10 +162,10 @@ try {
   ];
 
   const insertPlan = db.prepare(`
-    INSERT OR IGNORE INTO plans
+    INSERT INTO plans
     (id, name, whatsapp_messages_per_month, email_messages_per_month, max_users, contacts_limit,
       sms_messages_per_month, api_tokens_per_month, ai_features_enabled, api_enabled)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
   `);
 
   const updatePlan = db.prepare(`
@@ -229,8 +223,8 @@ const adminHash = bcrypt.hashSync('AdminPassword123', BCRYPT_ROUNDS);
   const viewerHash = bcrypt.hashSync('ViewerPassword123', BCRYPT_ROUNDS);
 
   const insertUser = db.prepare(`
-    INSERT OR IGNORE INTO users (id, email, name, password_hash, role_global, active, first_name, last_name, phone, timezone)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO users (id, email, name, password_hash, role_global, active, first_name, last_name, phone, timezone)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
   `);
 
   const existingAdmin = db.prepare(`SELECT id FROM users WHERE email = ?`).get('admin@engageninja.local');
@@ -257,8 +251,8 @@ const adminHash = bcrypt.hashSync('AdminPassword123', BCRYPT_ROUNDS);
   // 3. Seed Tenants
   console.log('🏢 Seeding tenants...');
   const insertTenant = db.prepare(`
-    INSERT OR IGNORE INTO tenants (id, name, plan_id)
-    VALUES (?, ?, ?)
+    INSERT INTO tenants (id, name, plan_id)
+    VALUES (?, ?, ?) ON CONFLICT DO NOTHING
   `);
 
   const existingTenant = db.prepare(`SELECT id FROM tenants WHERE name = ?`).get('Demo Tenant');
@@ -283,8 +277,8 @@ const adminHash = bcrypt.hashSync('AdminPassword123', BCRYPT_ROUNDS);
   // 4. Seed User-Tenant Associations with diverse roles
   console.log('🔗 Seeding user-tenant associations with RBAC roles...');
   const insertUserTenant = db.prepare(`
-    INSERT OR IGNORE INTO user_tenants (user_id, tenant_id, role, active)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO user_tenants (user_id, tenant_id, role, active)
+    VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING
   `);
 
   // Demo Tenant: owner (auto-upgraded from previous 'admin'), admin, member, viewer
@@ -311,8 +305,8 @@ const adminHash = bcrypt.hashSync('AdminPassword123', BCRYPT_ROUNDS);
   const tagNames = ['vip', 'newsletter', 'active', 'new', 'beta_tester'];
 
 const insertTag = db.prepare(`
-  INSERT OR IGNORE INTO tags (id, tenant_id, name, created_at, updated_at, status, scope, is_default)
-  VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'active', 'tenant', 0)
+  INSERT INTO tags (id, tenant_id, name, created_at, updated_at, status, scope, is_default)
+  VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'active', 'tenant', 0) ON CONFLICT DO NOTHING
 `);
 
 function seedGlobalTags() {
@@ -324,8 +318,8 @@ function seedGlobalTags() {
 
   for (const tag of globalTags) {
     db.prepare(`
-      INSERT OR IGNORE INTO global_tags (id, name, status, created_at, updated_at)
-      VALUES (?, ?, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      INSERT INTO global_tags (id, name, status, created_at, updated_at)
+      VALUES (?, ?, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT DO NOTHING
     `).run(tag.id, tag.name);
   }
 }
@@ -336,8 +330,8 @@ function copyGlobalTagsToTenant(tenantUuid) {
   `).all();
 
   const insertTenantTag = db.prepare(`
-    INSERT OR IGNORE INTO tags (id, tenant_id, name, created_at, updated_at, status, scope, is_default)
-    VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'active', 'tenant', 1)
+    INSERT INTO tags (id, tenant_id, name, created_at, updated_at, status, scope, is_default)
+    VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'active', 'tenant', 1) ON CONFLICT DO NOTHING
   `);
 
   for (const g of activeGlobal) {
@@ -375,14 +369,14 @@ function copyGlobalTagsToTenant(tenantUuid) {
   ];
 
   const insertContact = db.prepare(`
-    INSERT OR IGNORE INTO contacts
+    INSERT INTO contacts
     (id, tenant_id, phone, email, name, consent_whatsapp, consent_email, consent_source, consent_updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', CURRENT_TIMESTAMP)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', CURRENT_TIMESTAMP) ON CONFLICT DO NOTHING
   `);
 
   const insertContactTag = db.prepare(`
-    INSERT OR IGNORE INTO contact_tags (contact_id, tag_id)
-    VALUES (?, ?)
+    INSERT INTO contact_tags (contact_id, tag_id)
+    VALUES (?, ?) ON CONFLICT DO NOTHING
   `);
 
   const seedContactsForTenant = (tenantUuid, tagIds) => {
@@ -423,9 +417,9 @@ function copyGlobalTagsToTenant(tenantUuid) {
   const yearMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 
   const insertUsageCounter = db.prepare(`
-    INSERT OR IGNORE INTO usage_counters
+    INSERT INTO usage_counters
     (id, tenant_id, year_month, whatsapp_messages_sent, email_messages_sent)
-    VALUES (?, ?, ?, 0, 0)
+    VALUES (?, ?, ?, 0, 0) ON CONFLICT DO NOTHING
   `);
 
   for (const tId of seededTenantIds) {
@@ -465,7 +459,7 @@ function copyGlobalTagsToTenant(tenantUuid) {
     db.prepare(`
       INSERT INTO tenant_channel_settings
       (id, tenant_id, channel, provider, credentials_encrypted, verified_sender_email, is_connected, connected_at, created_at, updated_at, webhook_verify_token, webhook_secret)
-      VALUES (?, ?, 'whatsapp', 'whatsapp_cloud', ?, NULL, 0, NULL, ?, ?, ?, ?)
+      VALUES (?, ?, 'whatsapp', 'whatsapp_cloud', ?, NULL, 0, NULL, ?, ?, ?, ?) ON CONFLICT DO NOTHING
     `).run(uuidv4(), tenantId.demo, whatsappCreds, now, now, webhookVerifyToken, webhookSecret);
     console.log('  ✓ Inserted WhatsApp channel for demo tenant');
   }
@@ -496,7 +490,7 @@ function copyGlobalTagsToTenant(tenantUuid) {
     db.prepare(`
       INSERT INTO tenant_channel_settings
       (id, tenant_id, channel, provider, credentials_encrypted, verified_sender_email, is_connected, connected_at, created_at, updated_at)
-      VALUES (?, ?, 'email', 'ses', ?, 'jigsd0007@gmail.com', 0, NULL, ?, ?)
+      VALUES (?, ?, 'email', 'ses', ?, 'jigsd0007@gmail.com', 0, NULL, ?, ?) ON CONFLICT DO NOTHING
     `).run(uuidv4(), tenantId.demo, emailCreds, now, now);
     console.log('  ✓ Inserted Email channel for demo tenant');
   }
@@ -575,7 +569,7 @@ function copyGlobalTagsToTenant(tenantUuid) {
          owner_name, owner_title, owner_email, owner_phone, business_contact_name, business_contact_email, business_contact_phone,
          monthly_sms_volume_estimate, use_case_description, sms_opt_in_language, gdpr_compliant, tcpa_compliant,
          verification_status, verified_by_admin, verified_at, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
       `).run(
         uuidv4(), biz.tenant_id, biz.legal_business_name, biz.dba_name, biz.business_website, biz.business_type, biz.industry_vertical,
         biz.business_registration_number, biz.country, biz.business_address, biz.business_city, biz.business_state, biz.business_zip,
@@ -629,7 +623,7 @@ function copyGlobalTagsToTenant(tenantUuid) {
          business_address, business_city, business_state, business_zip, owner_name, owner_title, owner_email, owner_phone,
          provider, provider_brand_id, provider_status, phone_number, provider_phone_id, phone_status,
          campaign_type, is_active, provider_config_json, provider_verified_at, provider_approved_at, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
       `).run(
         uuidv4(), brand.tenant_id, brand.legal_business_name, brand.dba_name, brand.business_type, brand.industry_vertical,
         brand.business_registration_number, brand.country, brand.business_address, brand.business_city, brand.business_state, brand.business_zip,
@@ -686,7 +680,7 @@ function copyGlobalTagsToTenant(tenantUuid) {
         INSERT INTO tenant_channel_settings
         (id, tenant_id, channel, provider, credentials_encrypted, is_enabled, is_verified, verified_at,
          webhook_secret_encrypted, webhook_url, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
       `).run(
         uuidv4(),
         cred.tenant_id,

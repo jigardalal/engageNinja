@@ -9,7 +9,7 @@ ALTER TABLE contacts ADD COLUMN phone_number TEXT;
 ALTER TABLE contacts ADD COLUMN whatsapp_number TEXT;
 
 -- Add SMS consent tracking
-ALTER TABLE contacts ADD COLUMN consent_sms BOOLEAN DEFAULT 0;
+ALTER TABLE contacts ADD COLUMN consent_sms BOOLEAN DEFAULT false;
 ALTER TABLE contacts ADD COLUMN consent_sms_updated_at TIMESTAMP;
 
 -- Add WhatsApp consent timestamp tracking (separates from general consent_updated_at)

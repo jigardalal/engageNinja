@@ -19,8 +19,8 @@ CREATE TABLE tenant_channel_credentials_v2 (
   credentials_json_encrypted TEXT,    -- AES-192-CBC encrypted JSON with all provider credentials
 
   -- Channel Status
-  is_enabled BOOLEAN DEFAULT 0,       -- Can send messages on this channel?
-  is_verified BOOLEAN DEFAULT 0,      -- Credentials tested and working?
+  is_enabled BOOLEAN DEFAULT false,       -- Can send messages on this channel?
+  is_verified BOOLEAN DEFAULT false,      -- Credentials tested and working?
   verification_error TEXT,            -- Last error during verification
   verified_at TIMESTAMP,
 
