@@ -75,7 +75,7 @@ router.get('/', requireAuth, validateTenantAccess, (req, res) => {
         c.consent_whatsapp,
         c.consent_email,
         c.created_at,
-        GROUP_CONCAT(t.name, ', ') as tags
+        STRING_AGG(t.name, ', ') as tags
       FROM contacts c
       LEFT JOIN contact_tags ct ON c.id = ct.contact_id
       LEFT JOIN tags t ON ct.tag_id = t.id
@@ -1286,7 +1286,7 @@ router.get('/export', requireAuth, validateTenantAccess, (req, res) => {
         c.consent_whatsapp,
         c.consent_email,
         c.created_at,
-        GROUP_CONCAT(t.name, ', ') as tags
+        STRING_AGG(t.name, ', ') as tags
       FROM contacts c
       LEFT JOIN contact_tags ct ON c.id = ct.contact_id
       LEFT JOIN tags t ON ct.tag_id = t.id

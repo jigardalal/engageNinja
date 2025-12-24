@@ -1254,7 +1254,7 @@ const ensureWebhookLogTable = () => {
   try {
     db.prepare(`
       CREATE TABLE IF NOT EXISTS webhook_processing_log (
-        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
         provider TEXT NOT NULL,
         provider_event_id TEXT NOT NULL,
         event_type TEXT,
