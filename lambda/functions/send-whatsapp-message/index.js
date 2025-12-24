@@ -2,9 +2,7 @@ const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
 const { getPool } = require('../../utils/db');
 const { decryptCredentials } = require('../../utils/crypto');
-const TwilioSmsProvider = require('../../providers/twilioSmsProvider');
 const TwilioWhatsAppProvider = require('../../providers/twilioWhatsAppProvider');
-const SESEmailProvider = require('../../providers/sesEmailProvider');
 const { notifyMetrics } = require('../../utils/metrics');
 
 const eventBridge = new AWS.EventBridge();
@@ -80,34 +78,19 @@ async function processPayload(payload) {
 
     if (tenant.is_demo) {
       // Simulate the send instead of calling real provider
-      console.log(`[Demo Mode] Tenant ${message.tenant_id} is in demo mode - simulating message send`);
+      console.log(`[Demo Mode] Tenant ${message.tenant_id} is in demo mode - simulating WhatsApp send`);
       return await simulateDemoSend(client, message, campaign);
     }
 
-    // Validate channel
-    const supportedChannels = ['sms', 'whatsapp', 'email'];
-    if (!supportedChannels.includes(message.channel)) {
-      const err = `unsupported_channel:${message.channel}`;
-      await markFailed(client, message.id, err);
-      return { messageId: message.id, error: err };
-    }
-
-    // Validate contact has required field for channel
-    if ((message.channel === 'sms' || message.channel === 'whatsapp') && !contact.phone) {
-      const err = 'contact_phone_missing';
-      await markFailed(client, message.id, err);
-      return { messageId: message.id, error: err };
-    }
-
-    if (message.channel === 'email' && !contact.email) {
-      const err = 'contact_email_missing';
-      await markFailed(client, message.id, err);
-      return { messageId: message.id, error: err };
-    }
-
-    const channelConfig = await fetchChannelSettings(client, message.tenant_id, message.channel);
+    const channelConfig = await fetchChannelSettings(client, message.tenant_id, 'whatsapp');
     if (!channelConfig) {
       const err = 'channel_not_configured';
+      await markFailed(client, message.id, err);
+      return { messageId: message.id, error: err };
+    }
+
+    if (message.channel !== 'whatsapp') {
+      const err = `unsupported_channel:${message.channel}`;
       await markFailed(client, message.id, err);
       return { messageId: message.id, error: err };
     }
@@ -119,82 +102,33 @@ async function processPayload(payload) {
       return { messageId: message.id, error: err };
     }
 
-    // Route to appropriate provider based on channel
-    let provider;
-    let payloadToSend;
+    const provider = new TwilioWhatsAppProvider(credentials, {
+      phone_number: channelConfig.phone_number,
+      messaging_service_sid: channelConfig.messaging_service_sid,
+      status_callback: process.env.TWILIO_STATUS_CALLBACK_URL
+    });
 
-    if (message.channel === 'sms') {
-      provider = new TwilioSmsProvider(credentials, {
-        phone_number: channelConfig.phone_number,
-        messaging_service_sid: channelConfig.messaging_service_sid,
-        status_callback: process.env.TWILIO_STATUS_CALLBACK_URL
-      });
+    const body = formatMessageBody(campaign.message_content, message.content_snapshot);
+    const recipient = formatRecipient('whatsapp', contact.phone);
 
-      const body = formatMessageBody(campaign.message_content, message.content_snapshot);
-      payloadToSend = {
-        to: contact.phone,
-        body,
-        messagingServiceSid: channelConfig.messaging_service_sid,
-        from: channelConfig.phone_number,
-        statusCallback: process.env.TWILIO_STATUS_CALLBACK_URL
-      };
+    const payloadToSend = {
+      to: recipient,
+      body,
+      messagingServiceSid: channelConfig.messaging_service_sid,
+      from: channelConfig.phone_number,
+      statusCallback: process.env.TWILIO_STATUS_CALLBACK_URL
+    };
 
-      console.log('✔ Sending SMS', { tenantId: message.tenant_id, messageId: message.id, to: contact.phone });
-    } else if (message.channel === 'whatsapp') {
-      provider = new TwilioWhatsAppProvider(credentials, {
-        phone_number: channelConfig.phone_number,
-        messaging_service_sid: channelConfig.messaging_service_sid,
-        status_callback: process.env.TWILIO_STATUS_CALLBACK_URL
-      });
-
-      const body = formatMessageBody(campaign.message_content, message.content_snapshot);
-      const recipient = `whatsapp:${contact.phone}`;
-      payloadToSend = {
-        to: recipient,
-        body,
-        messagingServiceSid: channelConfig.messaging_service_sid,
-        from: channelConfig.phone_number,
-        statusCallback: process.env.TWILIO_STATUS_CALLBACK_URL
-      };
-
-      console.log('✔ Sending WhatsApp', { tenantId: message.tenant_id, messageId: message.id, to: contact.phone });
-    } else if (message.channel === 'email') {
-      provider = new SESEmailProvider(credentials, {
-        from_email: channelConfig.from_email || credentials.from_email,
-        configuration_set: process.env.SES_CONFIGURATION_SET || 'engageninja-email-events'
-      });
-
-      let emailContent = {};
-      try {
-        emailContent = typeof message.content_snapshot === 'string'
-          ? JSON.parse(message.content_snapshot)
-          : message.content_snapshot;
-      } catch (error) {
-        console.warn('Unable to parse email content:', error.message);
-      }
-
-      const body = formatMessageBody(campaign.message_content, message.content_snapshot);
-      payloadToSend = {
-        to: contact.email,
-        subject: emailContent.subject || campaign.name || 'Message',
-        htmlBody: body,
-        textBody: body
-      };
-
-      console.log('✔ Sending Email', { tenantId: message.tenant_id, messageId: message.id, to: contact.email });
-    }
+    console.log('✔ Sending Twilio WhatsApp message', { tenantId: message.tenant_id, messageId: message.id, to: recipient });
 
     const result = await provider.send(payloadToSend);
 
-    // Handle different provider response formats
-    const providerId = result.sid || result.messageId;
-
-    await updateMessageSent(client, message.id, providerId, result.status || 'sent');
-    await createMapping(client, message, providerId, result.status || 'sent');
-    await logStatusEvent(client, message.id, providerId, message.status, 'sent');
+    await updateMessageSent(client, message.id, result.sid, result.status || 'sent');
+    await createMapping(client, message, result.sid, result.status || 'sent');
+    await logStatusEvent(client, message.id, result.sid, message.status, 'sent');
 
     message.status = 'sent';
-    message.provider_message_id = providerId;
+    message.provider_message_id = result.sid;
 
     await scheduleStatusEvents(message);
 
@@ -206,7 +140,7 @@ async function processPayload(payload) {
 
     return { messageId: message.id, providerId: result.sid };
   } catch (error) {
-    console.error('SendCampaignMessage error', error);
+    console.error('SendWhatsAppMessage error', error);
     await markFailed(client, payload.messageId, error.message);
     return { messageId: payload.messageId, error: error.message };
   } finally {
@@ -220,7 +154,7 @@ async function fetchMessage(client, messageId) {
 }
 
 async function fetchContact(client, contactId) {
-  const res = await client.query('SELECT phone, email FROM contacts WHERE id = $1', [contactId]);
+  const res = await client.query('SELECT phone FROM contacts WHERE id = $1', [contactId]);
   return res.rows[0];
 }
 
@@ -293,7 +227,7 @@ function formatMessageBody(content, fallback) {
 
 async function simulateDemoSend(client, message, campaign) {
   /**
-   * Simulate message send for demo tenants
+   * Simulate WhatsApp send for demo tenants
    * - Generate realistic demo message ID
    * - Update message status to 'sent'
    * - Create provider mapping
@@ -302,10 +236,10 @@ async function simulateDemoSend(client, message, campaign) {
    * - Notify metrics
    */
 
-  // Generate a realistic demo message ID (similar to Twilio SID format: SMxxxxxxxxxxxxxxxxxxxxxxxx)
+  // Generate a realistic demo message ID (similar to Twilio SID format)
   const demoMessageId = 'SM' + require('crypto').randomBytes(17).toString('hex').toUpperCase().substring(0, 30);
 
-  console.log(`[Demo] Simulating message send: ${message.id} -> ${demoMessageId}`);
+  console.log(`[Demo] Simulating WhatsApp send: ${message.id} -> ${demoMessageId}`);
 
   // Update message as sent
   await updateMessageSent(client, message.id, demoMessageId, 'sent');
@@ -368,7 +302,7 @@ async function createMapping(client, message, providerId, providerStatus) {
      (id, message_id, channel, provider, provider_message_id, provider_status, created_at, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
      ON CONFLICT (message_id, provider) DO UPDATE SET provider_message_id = $5, provider_status = $6, updated_at = $7`,
-    [uuidv4(), message.id, message.channel, message.provider || 'twilio', providerId, providerStatus, now]
+    [uuidv4(), message.id, message.channel, message.provider || 'twilio_whatsapp', providerId, providerStatus, now]
   );
 }
 
