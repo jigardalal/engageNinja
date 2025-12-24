@@ -134,10 +134,28 @@ try {
 
   console.log('\n✅ Database initialization complete!');
 
-  // Automatically seed after init so the DB is ready to use
-  // NOTE: Do NOT close the connection here - db-seed.js will use it and close it
+  // Close database connection before seeding (seeding scripts manage their own connections)
+  if (USE_POSTGRES) {
+    // PostgreSQL: close the adapter connection
+    try {
+      if (db.__pool) {
+        db.__pool.end();
+      }
+    } catch (err) {
+      // Connection might not be closable, that's ok
+    }
+  } else {
+    // SQLite: close the connection
+    try {
+      db.close();
+    } catch (err) {
+      // Already closed, that's ok
+    }
+  }
+
+  // Run seed script (works for both SQLite and PostgreSQL now)
   console.log('\n🌱 Running seed script to populate demo data...\n');
-  require('./db-seed.js');
+  require('./db-seed-async.js');
 } catch (error) {
   console.error('\n❌ Database initialization failed:');
   console.error(error.message);

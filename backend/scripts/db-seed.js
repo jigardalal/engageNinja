@@ -58,16 +58,6 @@ function ensureUserProfileColumns() {
 console.log('🌱 EngageNinja Database Seeding');
 console.log('================================\n');
 
-// PostgreSQL seeding is not supported due to deasync limitations
-// For PostgreSQL environments, seed data must be inserted manually or via direct SQL
-if (USE_POSTGRES) {
-  console.log('⚠️  PostgreSQL detected - skipping seeding');
-  console.log('   Seeding only works with SQLite for local development');
-  console.log('   To seed PostgreSQL, use direct SQL or a migration script\n');
-  db.close?.();
-  process.exit(0);
-}
-
 const planIds = {
   free: 'free',
   starter: 'starter',
@@ -277,23 +267,23 @@ const adminHash = bcrypt.hashSync('AdminPassword123', BCRYPT_ROUNDS);
   // 4. Seed User-Tenant Associations with diverse roles
   console.log('🔗 Seeding user-tenant associations with RBAC roles...');
   const insertUserTenant = db.prepare(`
-    INSERT INTO user_tenants (user_id, tenant_id, role, active)
-    VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING
+    INSERT INTO user_tenants (user_id, tenant_id, role)
+    VALUES (?, ?, ?) ON CONFLICT DO NOTHING
   `);
 
   // Demo Tenant: owner (auto-upgraded from previous 'admin'), admin, member, viewer
-  insertUserTenant.run(userId.admin, tenantId.demo, 'owner', 1);
-  insertUserTenant.run(userId.user, tenantId.demo, 'admin', 1);
-  insertUserTenant.run(userId.member, tenantId.demo, 'member', 1);
-  insertUserTenant.run(userId.viewer, tenantId.demo, 'viewer', 1);
+  insertUserTenant.run(userId.admin, tenantId.demo, 'owner');
+  insertUserTenant.run(userId.user, tenantId.demo, 'admin');
+  insertUserTenant.run(userId.member, tenantId.demo, 'member');
+  insertUserTenant.run(userId.viewer, tenantId.demo, 'viewer');
 
   // Beta Tenant: multi-tenant users with different roles
-  insertUserTenant.run(userId.user, tenantId.beta, 'owner', 1);
-  insertUserTenant.run(userId.switcher, tenantId.demo, 'member', 1);
-  insertUserTenant.run(userId.switcher, tenantId.beta, 'member', 1);
+  insertUserTenant.run(userId.user, tenantId.beta, 'owner');
+  insertUserTenant.run(userId.switcher, tenantId.demo, 'member');
+  insertUserTenant.run(userId.switcher, tenantId.beta, 'member');
 
   // Platform admin can optionally access tenants (for support purposes)
-  insertUserTenant.run(userId.platformAdmin, tenantId.demo, 'admin', 1);
+  insertUserTenant.run(userId.platformAdmin, tenantId.demo, 'admin');
 
   console.log('  ✓ User-tenant associations seeded with diverse roles');
   console.log('    - Demo Tenant: owner (admin), admin (user), member (member), viewer (viewer)');
