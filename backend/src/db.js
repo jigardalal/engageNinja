@@ -73,7 +73,7 @@ if (USE_POSTGRES) {
           const timeout = setTimeout(() => {
             timedOut = true;
             error = new Error(`Query timeout: ${sql.substring(0, 80)}`);
-          }, 15000); // 15 second timeout
+          }, 30000); // 30 second timeout
 
           pool.query(convertedSql, params).then(
             res => {
@@ -105,7 +105,7 @@ if (USE_POSTGRES) {
           const timeout = setTimeout(() => {
             timedOut = true;
             error = new Error(`Query timeout: ${sql.substring(0, 80)}`);
-          }, 15000);
+          }, 30000); // 30 second timeout
 
           pool.query(convertedSql, params).then(
             res => {
@@ -148,7 +148,7 @@ if (USE_POSTGRES) {
           const timeout = setTimeout(() => {
             timedOut = true;
             error = new Error(`Query timeout: ${sql.substring(0, 80)}`);
-          }, 15000);
+          }, 30000); // 30 second timeout
 
           pool.query(convertedSql, params).then(
             res => {
