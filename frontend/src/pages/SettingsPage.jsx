@@ -218,11 +218,9 @@ export default function SettingsPage() {
 
     try {
       const payload = {
-        phoneNumber: smsPhone.trim()
+        phoneNumber: smsPhone.trim(),
+        webhookUrl: smsWebhook.trim() || null
       };
-      if (smsWebhook.trim()) {
-        payload.webhookUrl = smsWebhook.trim();
-      }
 
       const response = await fetch('/api/settings/channels/sms', {
         method: 'POST',

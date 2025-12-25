@@ -715,8 +715,12 @@ router.post('/channels/sms', requireAuth, requireAdmin, (req, res) => {
     }
 
     config.phone_number = String(phoneNumber).trim();
-    if (webhookUrl) {
-      config.webhook_url = String(webhookUrl).trim();
+
+    // Handle webhook URL: if explicitly provided (even as null), use it; otherwise keep existing
+    let finalWebhookUrl = channelRow.webhook_url;
+    if (webhookUrl !== undefined) {
+      finalWebhookUrl = webhookUrl ? String(webhookUrl).trim() : null;
+      config.webhook_url = finalWebhookUrl;
     }
 
     const now = new Date().toISOString();
@@ -730,7 +734,7 @@ router.post('/channels/sms', requireAuth, requireAdmin, (req, res) => {
        WHERE id = ?`
     ).run(
       JSON.stringify(config),
-      webhookUrl || config.webhook_url || channelRow.webhook_url,
+      finalWebhookUrl,
       phoneNumber,
       config.messaging_service_sid || channelRow.messaging_service_sid || null,
       now,
