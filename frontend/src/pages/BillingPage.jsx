@@ -348,7 +348,7 @@ export default function BillingPage({ embedded = false }) {
                   <div>
                     {plan.price ? (
                       <div className="flex items-baseline gap-1">
-                        <span className="text-4xl font-bold text-[var(--text)]">${plan.price.toFixed(2)}</span>
+                        <span className="text-4xl font-bold text-[var(--text)]">${Number(plan.price).toFixed(2)}</span>
                         <span className="text-sm text-[var(--text-muted)]">/month</span>
                       </div>
                     ) : (
