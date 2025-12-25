@@ -57,7 +57,7 @@ if (USE_POSTGRES) {
      */
     prepare: (sql) => {
       // Convert SQLite ? placeholders to PostgreSQL $1, $2, etc.
-      const convertPlaceholders = (sqlStr, params) => {
+      const convertPlaceholders = (sqlStr) => {
         let paramIndex = 1;
         const converted = sqlStr.replace(/\?/g, () => `$${paramIndex++}`);
         return converted;
@@ -68,7 +68,7 @@ if (USE_POSTGRES) {
           let result = null;
           let error = null;
 
-          const convertedSql = convertPlaceholders(sql, params);
+          const convertedSql = convertPlaceholders(sql);
 
           pool.query(convertedSql, params).then(
             res => { result = convertResult(res); },
@@ -86,7 +86,7 @@ if (USE_POSTGRES) {
           let result = null;
           let error = null;
 
-          const convertedSql = convertPlaceholders(sql, params);
+          const convertedSql = convertPlaceholders(sql);
           pool.query(convertedSql, params).then(
             res => { result = res.rows[0] || null; },
             err => { error = err; }
@@ -114,7 +114,7 @@ if (USE_POSTGRES) {
           let result = null;
           let error = null;
 
-          const convertedSql = convertPlaceholders(sql, params);
+          const convertedSql = convertPlaceholders(sql);
           pool.query(convertedSql, params).then(
             res => { result = res.rows; },
             err => { error = err; }
