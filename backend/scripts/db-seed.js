@@ -296,7 +296,7 @@ const adminHash = bcrypt.hashSync('AdminPassword123', BCRYPT_ROUNDS);
 
 const insertTag = db.prepare(`
   INSERT INTO tags (id, tenant_id, name, created_at, updated_at, status, scope, is_default)
-  VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'active', 'tenant', 0) ON CONFLICT DO NOTHING
+  VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'active', 'tenant', false) ON CONFLICT DO NOTHING
 `);
 
 function seedGlobalTags() {
@@ -321,7 +321,7 @@ function copyGlobalTagsToTenant(tenantUuid) {
 
   const insertTenantTag = db.prepare(`
     INSERT INTO tags (id, tenant_id, name, created_at, updated_at, status, scope, is_default)
-    VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'active', 'tenant', 1) ON CONFLICT DO NOTHING
+    VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'active', 'tenant', true) ON CONFLICT DO NOTHING
   `);
 
   for (const g of activeGlobal) {
@@ -440,7 +440,7 @@ function copyGlobalTagsToTenant(tenantUuid) {
   if (existingChannel) {
     db.prepare(`
       UPDATE tenant_channel_settings
-      SET credentials_encrypted = ?, provider = 'whatsapp_cloud', is_connected = 0, connected_at = NULL,
+      SET credentials_encrypted = ?, provider = 'whatsapp_cloud', is_connected = false, connected_at = NULL,
           updated_at = ?, webhook_verify_token = ?, webhook_secret = ?
       WHERE tenant_id = ? AND channel = 'whatsapp'
     `).run(whatsappCreds, now, webhookVerifyToken, webhookSecret, tenantId.demo);
@@ -449,7 +449,7 @@ function copyGlobalTagsToTenant(tenantUuid) {
     db.prepare(`
       INSERT INTO tenant_channel_settings
       (id, tenant_id, channel, provider, credentials_encrypted, verified_sender_email, is_connected, connected_at, created_at, updated_at, webhook_verify_token, webhook_secret)
-      VALUES (?, ?, 'whatsapp', 'whatsapp_cloud', ?, NULL, 0, NULL, ?, ?, ?, ?) ON CONFLICT DO NOTHING
+      VALUES (?, ?, 'whatsapp', 'whatsapp_cloud', ?, NULL, false, NULL, ?, ?, ?, ?) ON CONFLICT DO NOTHING
     `).run(uuidv4(), tenantId.demo, whatsappCreds, now, now, webhookVerifyToken, webhookSecret);
     console.log('  ✓ Inserted WhatsApp channel for demo tenant');
   }
@@ -472,7 +472,7 @@ function copyGlobalTagsToTenant(tenantUuid) {
     db.prepare(`
       UPDATE tenant_channel_settings
       SET credentials_encrypted = ?, provider = 'ses', verified_sender_email = 'jigsd0007@gmail.com',
-          is_connected = 0, connected_at = NULL, updated_at = ?
+          is_connected = false, connected_at = NULL, updated_at = ?
       WHERE tenant_id = ? AND channel = 'email'
     `).run(emailCreds, now, tenantId.demo);
     console.log('  ✓ Updated existing Email channel for demo tenant');
@@ -480,7 +480,7 @@ function copyGlobalTagsToTenant(tenantUuid) {
     db.prepare(`
       INSERT INTO tenant_channel_settings
       (id, tenant_id, channel, provider, credentials_encrypted, verified_sender_email, is_connected, connected_at, created_at, updated_at)
-      VALUES (?, ?, 'email', 'ses', ?, 'jigsd0007@gmail.com', 0, NULL, ?, ?) ON CONFLICT DO NOTHING
+      VALUES (?, ?, 'email', 'ses', ?, 'jigsd0007@gmail.com', false, NULL, ?, ?) ON CONFLICT DO NOTHING
     `).run(uuidv4(), tenantId.demo, emailCreds, now, now);
     console.log('  ✓ Inserted Email channel for demo tenant');
   }
@@ -605,7 +605,7 @@ function copyGlobalTagsToTenant(tenantUuid) {
   ];
 
   for (const brand of brands) {
-    const existing = db.prepare('SELECT id FROM tenant_10dlc_brands WHERE tenant_id = ? AND is_active = 1').get(brand.tenant_id);
+    const existing = db.prepare('SELECT id FROM tenant_10dlc_brands WHERE tenant_id = ? AND is_active').get(brand.tenant_id);
     if (!existing) {
       db.prepare(`
         INSERT INTO tenant_10dlc_brands
@@ -691,8 +691,8 @@ function copyGlobalTagsToTenant(tenantUuid) {
 
   // 13. Update tenants table with demo flag
   console.log('🎭 Seeding demo flag on tenants...');
-  db.prepare('UPDATE tenants SET is_demo = 1, demo_created_at = ?, demo_created_by = ? WHERE id = ?').run(now, userId.platformAdmin, tenantId.demo);
-  db.prepare('UPDATE tenants SET is_demo = 0 WHERE id = ?').run(tenantId.beta);
+  db.prepare('UPDATE tenants SET is_demo = true, demo_created_at = ?, demo_created_by = ? WHERE id = ?').run(now, userId.platformAdmin, tenantId.demo);
+  db.prepare('UPDATE tenants SET is_demo = false WHERE id = ?').run(tenantId.beta);
   console.log('  ✓ Demo flag set (demo=true, beta=false)');
 
   // Summary

@@ -382,8 +382,9 @@ router.post('/switch-tenant', requireAuth, (req, res) => {
         }
 
         db.prepare(`
-          INSERT OR IGNORE INTO user_tenants (user_id, tenant_id, role, active, created_at)
-          VALUES (?, ?, 'admin', 1, CURRENT_TIMESTAMP)
+          INSERT INTO user_tenants (user_id, tenant_id, role, active, created_at)
+          VALUES (?, ?, 'admin', true, CURRENT_TIMESTAMP)
+          ON CONFLICT (user_id, tenant_id) DO NOTHING
         `).run(req.session.userId, tenantId);
 
         tenant = {
@@ -516,13 +517,13 @@ router.get('/me', requireAuth, (req, res) => {
       phone: user.phone || null,
       timezone: user.timezone || null,
       role_global: user.role_global,
-      active: user.active === 1,
+      active: Boolean(user.active),
       tenants: userTenants.map(t => ({
         tenant_id: t.tenant_id,
         name: t.name,
         plan: t.plan,
         role: t.role,
-        active: t.active === 1
+        active: Boolean(t.active)
       })),
       active_tenant_id: req.session.activeTenantId,
       active_tenant_role: currentTenantRole,

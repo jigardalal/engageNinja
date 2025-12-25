@@ -290,12 +290,30 @@ router.post('/sync', requireAuth, validateTenantAccess, requireAdmin, async (req
     // Store templates in database with new columns
     const now = new Date().toISOString();
     const insertStmt = db.prepare(`
-      INSERT OR REPLACE INTO whatsapp_templates (
+      INSERT INTO whatsapp_templates (
         id, tenant_id, waba_id, meta_template_id, name, status, language, category,
         variable_count, body_template, header_type, header_text, footer_text, buttons_json,
         body_variables, header_variables, components_schema,
         synced_at, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT (id) DO UPDATE SET
+        waba_id = EXCLUDED.waba_id,
+        meta_template_id = EXCLUDED.meta_template_id,
+        name = EXCLUDED.name,
+        status = EXCLUDED.status,
+        language = EXCLUDED.language,
+        category = EXCLUDED.category,
+        variable_count = EXCLUDED.variable_count,
+        body_template = EXCLUDED.body_template,
+        header_type = EXCLUDED.header_type,
+        header_text = EXCLUDED.header_text,
+        footer_text = EXCLUDED.footer_text,
+        buttons_json = EXCLUDED.buttons_json,
+        body_variables = EXCLUDED.body_variables,
+        header_variables = EXCLUDED.header_variables,
+        components_schema = EXCLUDED.components_schema,
+        synced_at = EXCLUDED.synced_at,
+        updated_at = EXCLUDED.updated_at
     `);
 
     for (const template of templates) {

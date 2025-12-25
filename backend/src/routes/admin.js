@@ -106,7 +106,7 @@ router.get('/tenants', (req, res) => {
         COUNT(DISTINCT ut.user_id) as user_count
       FROM tenants t
       LEFT JOIN plans p ON t.plan_id = p.id
-      LEFT JOIN user_tenants ut ON t.id = ut.tenant_id AND ut.active = 1
+      LEFT JOIN user_tenants ut ON t.id = ut.tenant_id AND ut.active
       WHERE 1=1
     `;
     const params = [];
@@ -130,7 +130,7 @@ router.get('/tenants', (req, res) => {
     }
 
     query += `
-      GROUP BY t.id
+      GROUP BY t.id, p.id
       ORDER BY t.created_at DESC
       LIMIT ? OFFSET ?
     `;
@@ -495,8 +495,9 @@ router.post('/tenants', (req, res) => {
 
     // Ensure creator has access when no owner is provided
     const addCreatorAccess = db.prepare(`
-      INSERT OR IGNORE INTO user_tenants (user_id, tenant_id, role, active)
-      VALUES (?, ?, 'admin', 1)
+      INSERT INTO user_tenants (user_id, tenant_id, role, active)
+      VALUES (?, ?, 'admin', true)
+      ON CONFLICT (user_id, tenant_id) DO NOTHING
     `);
     addCreatorAccess.run(req.session.userId, tenantId);
 
@@ -1058,7 +1059,7 @@ router.get('/users', (req, res) => {
         u.created_at,
         COUNT(DISTINCT ut.tenant_id) as tenant_count
       FROM users u
-      LEFT JOIN user_tenants ut ON u.id = ut.user_id AND ut.active = 1
+      LEFT JOIN user_tenants ut ON u.id = ut.user_id AND ut.active
       WHERE 1=1
     `;
     const params = [];
@@ -1402,7 +1403,7 @@ router.patch('/users/:userId/tenants/:tenantId', (req, res) => {
       const ownerCount = db.prepare(`
         SELECT COUNT(*) as count
         FROM user_tenants
-        WHERE tenant_id = ? AND role = 'owner' AND active = 1
+        WHERE tenant_id = ? AND role = 'owner' AND active
       `).get(tenantId);
 
       if (ownerCount.count <= 1) {
@@ -1656,7 +1657,7 @@ router.get('/audit-logs/stats', (req, res) => {
       FROM audit_logs al
       LEFT JOIN users u ON al.actor_user_id = u.id
       WHERE actor_user_id IS NOT NULL
-      GROUP BY actor_user_id
+      GROUP BY actor_user_id, u.email
       ORDER BY action_count DESC
       LIMIT 10
     `).all();
@@ -1771,7 +1772,7 @@ router.get('/stats', (req, res) => {
       tenants: db.prepare('SELECT COUNT(*) as count FROM tenants').get().count,
       active_tenants: db.prepare(`SELECT COUNT(*) as count FROM tenants WHERE status = 'active'`).get().count,
       users: db.prepare('SELECT COUNT(*) as count FROM users').get().count,
-      active_users: db.prepare('SELECT COUNT(*) as count FROM users WHERE active = 1').get().count,
+      active_users: db.prepare('SELECT COUNT(*) as count FROM users WHERE active').get().count,
       platform_admins: db.prepare('SELECT COUNT(*) as count FROM users WHERE role_global = ?').get('platform_admin').count,
       campaigns: db.prepare('SELECT COUNT(*) as count FROM campaigns').get().count,
       contacts: db.prepare('SELECT COUNT(*) as count FROM contacts').get().count,

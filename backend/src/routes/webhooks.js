@@ -1191,8 +1191,9 @@ router.post('/test/stripe-event', async (req, res) => {
 
     // Log the test event
     db.prepare(
-      `INSERT OR IGNORE INTO webhook_processing_log (provider, provider_event_id, event_type, result, created_at)
-       VALUES ('stripe', ?, ?, ?, CURRENT_TIMESTAMP)`
+      `INSERT INTO webhook_processing_log (provider, provider_event_id, event_type, result, created_at)
+       VALUES ('stripe', ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT (provider, provider_event_id) DO NOTHING`
     ).run(eventId, event_type, JSON.stringify(result));
 
     console.log(`✅ Test event processed:`, result);

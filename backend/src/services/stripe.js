@@ -63,8 +63,9 @@ class StripeProvider extends BillingProvider {
       // Store in database
       this.db
         .prepare(
-          `INSERT OR REPLACE INTO billing_customers (tenant_id, provider, provider_customer_id, created_at)
-           VALUES (?, 'stripe', ?, CURRENT_TIMESTAMP)`
+          `INSERT INTO billing_customers (tenant_id, provider, provider_customer_id, created_at)
+           VALUES (?, 'stripe', ?, CURRENT_TIMESTAMP)
+           ON CONFLICT (tenant_id, provider) DO UPDATE SET provider_customer_id = EXCLUDED.provider_customer_id`
         )
         .run(tenant.id, customer.id);
 
@@ -430,10 +431,17 @@ class StripeProvider extends BillingProvider {
 
       this.db
         .prepare(
-          `INSERT OR REPLACE INTO subscriptions (
+          `INSERT INTO subscriptions (
              id, tenant_id, provider, provider_subscription_id, plan_key, status,
              current_period_start, current_period_end, cancel_at_period_end, created_at, updated_at
-           ) VALUES (?, ?, 'stripe', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+           ) VALUES (?, ?, 'stripe', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+           ON CONFLICT (tenant_id, provider_subscription_id) DO UPDATE SET
+             plan_key = EXCLUDED.plan_key,
+             status = EXCLUDED.status,
+             current_period_start = EXCLUDED.current_period_start,
+             current_period_end = EXCLUDED.current_period_end,
+             cancel_at_period_end = EXCLUDED.cancel_at_period_end,
+             updated_at = CURRENT_TIMESTAMP`
         )
         .run(
           crypto.randomUUID(),
@@ -693,10 +701,15 @@ class StripeProvider extends BillingProvider {
       const invoiceDate = new Date(stripeInvoice.created * 1000).toISOString();
       this.db
         .prepare(
-          `INSERT OR REPLACE INTO invoices (
+          `INSERT INTO invoices (
              id, tenant_id, provider, provider_invoice_id, amount_total, currency,
              status, hosted_invoice_url, created_at
-           ) VALUES (?, ?, 'stripe', ?, ?, ?, ?, ?, ?)`
+           ) VALUES (?, ?, 'stripe', ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (tenant_id, provider_invoice_id) DO UPDATE SET
+             amount_total = EXCLUDED.amount_total,
+             currency = EXCLUDED.currency,
+             status = EXCLUDED.status,
+             hosted_invoice_url = EXCLUDED.hosted_invoice_url`
         )
         .run(
           invoiceId,

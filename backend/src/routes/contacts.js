@@ -215,7 +215,7 @@ router.post('/bulk/tags', requireAuth, validateTenantAccess, (req, res) => {
       });
     }
 
-    const insertContactTag = db.prepare('INSERT OR IGNORE INTO contact_tags (contact_id, tag_id) VALUES (?, ?)');
+    const insertContactTag = db.prepare('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?) ON CONFLICT (contact_id, tag_id) DO NOTHING');
     const addTagsTransaction = db.transaction((contactIds, tags) => {
       for (const contact of contactIds) {
         for (const tag of tags) {
@@ -357,7 +357,7 @@ router.post('/bulk/tags', requireAuth, validateTenantAccess, (req, res) => {
       });
     }
 
-    const insertContactTag = db.prepare('INSERT OR IGNORE INTO contact_tags (contact_id, tag_id) VALUES (?, ?)');
+    const insertContactTag = db.prepare('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?) ON CONFLICT (contact_id, tag_id) DO NOTHING');
     const addTagsTransaction = db.transaction((contactIds, tags) => {
       for (const contact of contactIds) {
         for (const tag of tags) {
@@ -582,7 +582,7 @@ router.post('/bulk/tags', requireAuth, validateTenantAccess, (req, res) => {
       });
     }
 
-    const insertContactTag = db.prepare('INSERT OR IGNORE INTO contact_tags (contact_id, tag_id) VALUES (?, ?)');
+    const insertContactTag = db.prepare('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?) ON CONFLICT (contact_id, tag_id) DO NOTHING');
     const addTagsTransaction = db.transaction((contactIds, tags) => {
       for (const contact of contactIds) {
         for (const tag of tags) {

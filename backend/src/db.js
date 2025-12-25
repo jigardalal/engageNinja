@@ -67,30 +67,41 @@ if (USE_POSTGRES) {
         run: (...params) => {
           let result = null;
           let error = null;
-          let timedOut = false;
+          let done = false;
 
           const convertedSql = convertPlaceholders(sql);
           const timeout = setTimeout(() => {
-            timedOut = true;
-            error = new Error(`Query timeout: ${sql.substring(0, 80)}`);
+            if (!done) {
+              done = true;
+              error = new Error(`Query timeout: ${sql.substring(0, 80)}`);
+            }
           }, 30000); // 30 second timeout
 
           pool.query(convertedSql, params).then(
             res => {
               clearTimeout(timeout);
-              result = convertResult(res);
+              if (!done) {
+                done = true;
+                result = convertResult(res);
+              }
             },
             err => {
               clearTimeout(timeout);
-              error = err;
+              if (!done) {
+                done = true;
+                error = err;
+              }
             }
           ).catch(err => {
             clearTimeout(timeout);
-            error = err;
+            if (!done) {
+              done = true;
+              error = err;
+            }
           });
 
           // Use deasync to wait for async operation synchronously
-          deasync.loopWhile(() => !timedOut && result === null && error === null);
+          deasync.loopWhile(() => !done);
 
           if (error) throw error;
           return result;
@@ -99,29 +110,40 @@ if (USE_POSTGRES) {
         get: (...params) => {
           let result = null;
           let error = null;
-          let timedOut = false;
+          let done = false;
 
           const convertedSql = convertPlaceholders(sql);
           const timeout = setTimeout(() => {
-            timedOut = true;
-            error = new Error(`Query timeout: ${sql.substring(0, 80)}`);
+            if (!done) {
+              done = true;
+              error = new Error(`Query timeout: ${sql.substring(0, 80)}`);
+            }
           }, 30000); // 30 second timeout
 
           pool.query(convertedSql, params).then(
             res => {
               clearTimeout(timeout);
-              result = res.rows[0] || null;
+              if (!done) {
+                done = true;
+                result = res.rows[0] || null;
+              }
             },
             err => {
               clearTimeout(timeout);
-              error = err;
+              if (!done) {
+                done = true;
+                error = err;
+              }
             }
           ).catch(err => {
             clearTimeout(timeout);
-            error = err;
+            if (!done) {
+              done = true;
+              error = err;
+            }
           });
 
-          deasync.loopWhile(() => !timedOut && result === null && error === null);
+          deasync.loopWhile(() => !done);
 
           if (error) throw error;
           return result;
@@ -142,29 +164,40 @@ if (USE_POSTGRES) {
 
           let result = null;
           let error = null;
-          let timedOut = false;
+          let done = false;
 
           const convertedSql = convertPlaceholders(sql);
           const timeout = setTimeout(() => {
-            timedOut = true;
-            error = new Error(`Query timeout: ${sql.substring(0, 80)}`);
+            if (!done) {
+              done = true;
+              error = new Error(`Query timeout: ${sql.substring(0, 80)}`);
+            }
           }, 30000); // 30 second timeout
 
           pool.query(convertedSql, params).then(
             res => {
               clearTimeout(timeout);
-              result = res.rows;
+              if (!done) {
+                done = true;
+                result = res.rows;
+              }
             },
             err => {
               clearTimeout(timeout);
-              error = err;
+              if (!done) {
+                done = true;
+                error = err;
+              }
             }
           ).catch(err => {
             clearTimeout(timeout);
-            error = err;
+            if (!done) {
+              done = true;
+              error = err;
+            }
           });
 
-          deasync.loopWhile(() => !timedOut && result === null && error === null);
+          deasync.loopWhile(() => !done);
 
           if (error) throw error;
           return result || [];

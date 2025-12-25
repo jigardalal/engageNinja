@@ -80,10 +80,10 @@ function createBillingRoutes(db, billingService) {
    * GET /billing/summary
    * Returns current plan, usage, and remaining quota for this tenant
    */
-  router.get('/summary', requireAuth, validateTenantAccess, async (req, res) => {
+  router.get('/summary', requireAuth, validateTenantAccess, (req, res) => {
     try {
       const tenantId = req.tenantId;
-      const summary = await getBillingSummary(db, tenantId);
+      const summary = getBillingSummary(db, tenantId);
       res.json(summary);
     } catch (error) {
       if (error instanceof BillingSummaryError) {

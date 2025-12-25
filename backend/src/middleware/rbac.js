@@ -8,18 +8,10 @@
  * Owner role automatically includes all admin permissions
  */
 
-const Database = require('better-sqlite3');
-const path = require('path');
-
-// Get database connection
+// Get database connection - use the shared db from src/db.js
 let db;
 try {
-  const envDbPath = process.env.DATABASE_PATH;
-  const DATABASE_PATH = envDbPath
-    ? path.resolve(path.join(__dirname, '../..', envDbPath))
-    : path.join(__dirname, '../../database.sqlite');
-  db = new Database(DATABASE_PATH);
-  db.pragma('foreign_keys = ON');
+  db = require('../db');
 } catch (error) {
   console.error('Failed to initialize database in RBAC middleware:', error);
 }
