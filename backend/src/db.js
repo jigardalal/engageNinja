@@ -67,16 +67,30 @@ if (USE_POSTGRES) {
         run: (...params) => {
           let result = null;
           let error = null;
+          let timedOut = false;
 
           const convertedSql = convertPlaceholders(sql);
+          const timeout = setTimeout(() => {
+            timedOut = true;
+            error = new Error(`Query timeout: ${sql.substring(0, 80)}`);
+          }, 15000); // 15 second timeout
 
           pool.query(convertedSql, params).then(
-            res => { result = convertResult(res); },
-            err => { error = err; }
-          );
+            res => {
+              clearTimeout(timeout);
+              result = convertResult(res);
+            },
+            err => {
+              clearTimeout(timeout);
+              error = err;
+            }
+          ).catch(err => {
+            clearTimeout(timeout);
+            error = err;
+          });
 
           // Use deasync to wait for async operation synchronously
-          deasync.loopWhile(() => result === null && error === null);
+          deasync.loopWhile(() => !timedOut && result === null && error === null);
 
           if (error) throw error;
           return result;
@@ -85,14 +99,29 @@ if (USE_POSTGRES) {
         get: (...params) => {
           let result = null;
           let error = null;
+          let timedOut = false;
 
           const convertedSql = convertPlaceholders(sql);
-          pool.query(convertedSql, params).then(
-            res => { result = res.rows[0] || null; },
-            err => { error = err; }
-          );
+          const timeout = setTimeout(() => {
+            timedOut = true;
+            error = new Error(`Query timeout: ${sql.substring(0, 80)}`);
+          }, 15000);
 
-          deasync.loopWhile(() => result === null && error === null);
+          pool.query(convertedSql, params).then(
+            res => {
+              clearTimeout(timeout);
+              result = res.rows[0] || null;
+            },
+            err => {
+              clearTimeout(timeout);
+              error = err;
+            }
+          ).catch(err => {
+            clearTimeout(timeout);
+            error = err;
+          });
+
+          deasync.loopWhile(() => !timedOut && result === null && error === null);
 
           if (error) throw error;
           return result;
@@ -113,14 +142,29 @@ if (USE_POSTGRES) {
 
           let result = null;
           let error = null;
+          let timedOut = false;
 
           const convertedSql = convertPlaceholders(sql);
-          pool.query(convertedSql, params).then(
-            res => { result = res.rows; },
-            err => { error = err; }
-          );
+          const timeout = setTimeout(() => {
+            timedOut = true;
+            error = new Error(`Query timeout: ${sql.substring(0, 80)}`);
+          }, 15000);
 
-          deasync.loopWhile(() => result === null && error === null);
+          pool.query(convertedSql, params).then(
+            res => {
+              clearTimeout(timeout);
+              result = res.rows;
+            },
+            err => {
+              clearTimeout(timeout);
+              error = err;
+            }
+          ).catch(err => {
+            clearTimeout(timeout);
+            error = err;
+          });
+
+          deasync.loopWhile(() => !timedOut && result === null && error === null);
 
           if (error) throw error;
           return result || [];
