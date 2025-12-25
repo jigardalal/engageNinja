@@ -5,61 +5,90 @@ const BillingSummaryError = class extends Error {
   }
 };
 
-function getBillingSummary(db, tenantId) {
-  const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
+/**
+ * Promisify database query to allow async/await and parallelization
+ * Wraps synchronous db.prepare().get()/all() calls
+ */
+function promisifyQuery(queryFn) {
+  return new Promise((resolve, reject) => {
+    try {
+      const result = queryFn();
+      resolve(result);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+async function getBillingSummary(db, tenantId) {
+  // PHASE 1: Get tenant (required for other queries)
+  const tenant = await promisifyQuery(() =>
+    db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId)
+  );
+
   if (!tenant) {
     throw new BillingSummaryError('Tenant not found', 404);
   }
 
   const planId = tenant.plan_id || 'free';
-  const plan = db.prepare('SELECT * FROM plans WHERE id = ?').get(planId);
+  const now = new Date();
+  const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  // PHASE 2: Run independent queries in parallel
+  const [plan, usage, subscription, overrides, invoices] = await Promise.all([
+    promisifyQuery(() =>
+      db.prepare('SELECT * FROM plans WHERE id = ?').get(planId)
+    ),
+    promisifyQuery(() =>
+      db.prepare(
+        `SELECT whatsapp_messages_sent, email_messages_sent, sms_sent FROM usage_counters
+         WHERE tenant_id = ? AND year_month = ?`
+      ).get(tenantId, yearMonth)
+    ),
+    promisifyQuery(() =>
+      db.prepare('SELECT * FROM subscriptions WHERE tenant_id = ?').get(tenantId)
+    ),
+    promisifyQuery(() =>
+      db.prepare('SELECT * FROM plan_overrides WHERE tenant_id = ?').get(tenantId)
+    ),
+    promisifyQuery(() =>
+      db.prepare(
+        `SELECT id, provider_invoice_id, amount_total, currency, status, hosted_invoice_url, created_at
+         FROM invoices
+         WHERE tenant_id = ?
+         ORDER BY created_at DESC`
+      ).all(tenantId)
+    )
+  ]);
+
   if (!plan) {
     throw new BillingSummaryError('Plan not found', 404);
   }
 
-  const now = new Date();
-  const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-  const usage =
-    db
-      .prepare(
-        `SELECT whatsapp_messages_sent, email_messages_sent, sms_sent FROM usage_counters
-         WHERE tenant_id = ? AND year_month = ?`
-      )
-      .get(tenantId, yearMonth) || {
-        whatsapp_messages_sent: 0,
-        email_messages_sent: 0,
-        sms_sent: 0
-      };
-  const usedWhatsapp = usage.whatsapp_messages_sent ?? 0;
-  const usedEmail = usage.email_messages_sent ?? 0;
-  const usedSms = usage.sms_sent ?? 0;
-
-  const subscription = db.prepare('SELECT * FROM subscriptions WHERE tenant_id = ?').get(tenantId);
-  const overrides = db.prepare('SELECT * FROM plan_overrides WHERE tenant_id = ?').get(tenantId);
+  // Extract usage data with fallback defaults
+  const usageData = usage || {
+    whatsapp_messages_sent: 0,
+    email_messages_sent: 0,
+    sms_sent: 0
+  };
+  const usedWhatsapp = usageData.whatsapp_messages_sent ?? 0;
+  const usedEmail = usageData.email_messages_sent ?? 0;
+  const usedSms = usageData.sms_sent ?? 0;
 
   const waLimit = overrides?.wa_messages_override ?? plan.whatsapp_messages_per_month ?? 0;
   const emailLimit = overrides?.emails_override ?? plan.email_messages_per_month ?? 0;
   const smsLimit = overrides?.sms_override ?? plan.sms_messages_per_month ?? 0;
 
-  const invoices =
-    db
-      .prepare(
-        `SELECT id, provider_invoice_id, amount_total, currency, status, hosted_invoice_url, created_at
-         FROM invoices
-         WHERE tenant_id = ?
-         ORDER BY created_at DESC`
-      )
-      .all(tenantId)
-      .map((invoice) => ({
-        id: invoice.id,
-        provider_id: invoice.provider_invoice_id,
-        amount: invoice.amount_total,
-        currency: invoice.currency,
-        status: invoice.status,
-        download_url: invoice.hosted_invoice_url,
-        created_at: invoice.created_at
-      }));
+  // Transform invoices
+  const formattedInvoices = invoices.map((invoice) => ({
+    id: invoice.id,
+    provider_id: invoice.provider_invoice_id,
+    amount: invoice.amount_total,
+    currency: invoice.currency,
+    status: invoice.status,
+    download_url: invoice.hosted_invoice_url,
+    created_at: invoice.created_at
+  }));
 
   const computed = {
     plan: {
@@ -119,7 +148,7 @@ function getBillingSummary(db, tenantId) {
       emails: emailLimit > 0 ? (usedEmail / emailLimit) * 100 : 0,
       sms: smsLimit > 0 ? (usedSms / smsLimit) * 100 : 0
     },
-    invoices
+    invoices: formattedInvoices
   };
 
   return computed;
