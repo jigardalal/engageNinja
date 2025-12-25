@@ -32,9 +32,6 @@ export const AuthProvider = ({ children }) => {
 
       if (response.ok) {
         const data = await response.json();
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🔐 checkAuth() success:', { user_id: data.user_id, active_tenant_id: data.active_tenant_id });
-        }
         setUser({
           id: data.user_id,
           email: data.email,
@@ -63,9 +60,6 @@ export const AuthProvider = ({ children }) => {
           !!data.must_select_tenant || (!data.active_tenant_id && incomingTenants.length > 1)
         );
       } else {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🔐 checkAuth() failed - not OK:', response.status);
-        }
         setUser(null);
         setTenants([]);
         setActiveTenant(null);
@@ -75,9 +69,6 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (err) {
       // Silently handle auth check errors
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔐 checkAuth() error:', err.message);
-      }
       setUser(null);
       setTenants([]);
       setActiveTenant(null);

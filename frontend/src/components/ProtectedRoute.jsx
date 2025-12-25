@@ -33,11 +33,6 @@ export const ProtectedRoute = ({
   const isAdminPath = location.pathname.startsWith('/admin');
   const platformUser = hasPlatformRole ? hasPlatformRole() : false;
 
-  // Debug logging
-  if (process.env.NODE_ENV === 'development' && location.pathname.includes('settings')) {
-    console.log(`🔍 PROTECTED-ROUTE: path=${location.pathname}, admin=${isAdminPath}, activeTenant=${activeTenant}, mustSelect=${mustSelectTenant}, auth=${isAuthenticated}, loading=${loading}`);
-  }
-
   // CRITICAL: Redirect to tenant selection BEFORE loading check
   // This prevents users from accessing tenant-scoped pages while auth is loading
   const needsTenantSelection = !isAdminPath && location.pathname !== '/tenants' && !activeTenant && !platformUser;
