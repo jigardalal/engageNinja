@@ -242,7 +242,7 @@ export default function SettingsPage() {
           provider: prev.sms.provider || 'twilio',
           is_connected: true,
           phone_number: data.phone_number,
-          webhook_url: data.webhook_url || prev.sms.webhook_url,
+          webhook_url: data.webhook_url === undefined ? prev.sms.webhook_url : data.webhook_url,
           updated_at: prev.sms.updated_at || new Date().toISOString()
         }
       }));
