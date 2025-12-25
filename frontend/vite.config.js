@@ -14,7 +14,11 @@ export default defineConfig({
         // Try to use BACKEND_PORT from env, but default to 5173 which is the project standard
         target: `http://localhost:${process.env.BACKEND_PORT || process.env.npm_package_config_backendPort || 5173}`,
         changeOrigin: true,
-        secure: false
+        secure: false,
+        // Handle cookies properly - rewrite to localhost so cookies work
+        cookieDomainRewrite: {
+          '*': 'localhost'
+        }
       }
     }
   },
