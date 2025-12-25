@@ -47,7 +47,31 @@ console.log('=============================\n');
           }
         }
 
-        console.log('✓ All data cleared from PostgreSQL\n');
+        console.log('✓ All data cleared from PostgreSQL');
+
+        // Mark all migrations as executed in schema_migrations
+        console.log('\n📋 Recording migrations in schema_migrations...');
+        const migrationsDir = path.join(__dirname, '../db/migrations');
+        const migrationFiles = fs.readdirSync(migrationsDir)
+          .filter(f => f.endsWith('.sql'))
+          .sort();
+
+        // Clear existing schema_migrations records
+        await pool.query('DELETE FROM schema_migrations');
+
+        // Insert all migration files
+        for (const file of migrationFiles) {
+          try {
+            await pool.query(
+              'INSERT INTO schema_migrations (name) VALUES ($1) ON CONFLICT DO NOTHING',
+              [file]
+            );
+          } catch (err) {
+            console.warn(`⚠️  Could not record migration ${file}: ${err.message}`);
+          }
+        }
+
+        console.log(`✓ Recorded ${migrationFiles.length} migrations\n`);
       } finally {
         await pool.end();
       }
