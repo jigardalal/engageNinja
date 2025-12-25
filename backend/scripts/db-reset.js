@@ -30,48 +30,126 @@ console.log('=============================\n');
       });
 
       try {
-        console.log('\n🧹 Clearing all data from PostgreSQL...');
+        console.log('\n🧹 Dropping all tables from PostgreSQL...');
 
-        // Get all tables and clear them in reverse order (respecting foreign keys)
+        // Drop all tables in reverse order (respecting foreign keys)
         const tablesResult = await pool.query(`
           SELECT tablename FROM pg_tables
-          WHERE schemaname = 'public' AND tablename != 'schema_migrations'
+          WHERE schemaname = 'public'
           ORDER BY tablename DESC
         `);
 
         for (const { tablename } of tablesResult.rows) {
           try {
-            await pool.query(`DELETE FROM "${tablename}"`);
+            await pool.query(`DROP TABLE IF EXISTS "${tablename}" CASCADE`);
           } catch (err) {
-            // Table might have FK constraints, that's ok
+            console.warn(`  ⚠️  Could not drop table ${tablename}: ${err.message}`);
           }
         }
 
-        console.log('✓ All data cleared from PostgreSQL');
+        console.log('✓ All tables dropped from PostgreSQL');
 
-        // Mark all migrations as executed in schema_migrations
-        console.log('\n📋 Recording migrations in schema_migrations...');
+        // Create schema_migrations table and run migrations
+        console.log('\n📋 Running migrations to recreate schema...\n');
+
+        // Create migrations tracking table
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS schema_migrations (
+            id SERIAL PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+
+        // Run migrations
         const migrationsDir = path.join(__dirname, '../db/migrations');
         const migrationFiles = fs.readdirSync(migrationsDir)
           .filter(f => f.endsWith('.sql'))
           .sort();
 
-        // Clear existing schema_migrations records
-        await pool.query('DELETE FROM schema_migrations');
+        console.log(`📋 Running ${migrationFiles.length} migration(s):\n`);
 
-        // Insert all migration files
         for (const file of migrationFiles) {
+          const migrationPath = path.join(migrationsDir, file);
+          const migrationSql = fs.readFileSync(migrationPath, 'utf8');
+
           try {
-            await pool.query(
-              'INSERT INTO schema_migrations (name) VALUES ($1) ON CONFLICT DO NOTHING',
+            const executed = await pool.query(
+              'SELECT name FROM schema_migrations WHERE name = $1',
               [file]
             );
+
+            if (executed.rows.length > 0) {
+              console.log(`⏭️  ${file} (already executed)`);
+              continue;
+            }
+
+            // Split and execute statements properly (handle DO $$ blocks)
+            const statements = [];
+            let current = '';
+            let inDoBlock = false;
+            let i = 0;
+
+            while (i < migrationSql.length) {
+              const char = migrationSql[i];
+              if (!inDoBlock && migrationSql.substring(i, i + 5).toUpperCase() === 'DO $$') {
+                inDoBlock = true;
+                current += migrationSql.substring(i, i + 5);
+                i += 5;
+              } else if (inDoBlock && migrationSql.substring(i, i + 4) === 'END $$') {
+                current += migrationSql.substring(i, i + 6);
+                i += 7;
+                inDoBlock = false;
+                statements.push(current.trim());
+                current = '';
+              } else if (!inDoBlock && char === ';') {
+                if (current.trim()) {
+                  statements.push(current.trim());
+                }
+                current = '';
+                i++;
+              } else {
+                current += char;
+                i++;
+              }
+            }
+            if (current.trim()) {
+              statements.push(current.trim());
+            }
+
+            // Execute each statement
+            for (const stmt of statements) {
+              const cleanedStmt = stmt
+                .replace(/--.*$/gm, '')
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                .trim();
+
+              if (cleanedStmt && !/^\s*PRAGMA\s/i.test(cleanedStmt)) {
+                try {
+                  await pool.query(cleanedStmt);
+                } catch (err) {
+                  if (err.message && err.message.includes('already exists')) {
+                    // Idempotent migration - column/index might already exist
+                    continue;
+                  }
+                  throw err;
+                }
+              }
+            }
+
+            await pool.query(
+              'INSERT INTO schema_migrations (name) VALUES ($1)',
+              [file]
+            );
+
+            console.log(`✓ ${file}`);
           } catch (err) {
-            console.warn(`⚠️  Could not record migration ${file}: ${err.message}`);
+            console.error(`\n❌ Error executing migration ${file}:`, err.message);
+            throw err;
           }
         }
 
-        console.log(`✓ Recorded ${migrationFiles.length} migrations\n`);
+        console.log('\n✓ All migrations executed successfully\n');
       } finally {
         await pool.end();
       }

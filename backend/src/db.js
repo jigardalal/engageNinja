@@ -130,10 +130,51 @@ if (USE_POSTGRES) {
 
     /**
      * Execute multiple statements
+     * Properly handles PostgreSQL DO $$ ... END $$; blocks
      */
     exec: (sql) => {
-      // Split by semicolon and execute each statement
-      const statements = sql.split(';').map(s => s.trim()).filter(Boolean);
+      // Smart statement splitter that respects DO $$ blocks
+      const statements = [];
+      let current = '';
+      let inDoBlock = false;
+      let i = 0;
+
+      while (i < sql.length) {
+        const char = sql[i];
+
+        // Check for DO $$ block start
+        if (!inDoBlock && sql.substring(i, i + 5).toUpperCase() === 'DO $$') {
+          inDoBlock = true;
+          current += sql.substring(i, i + 5);
+          i += 5;
+        }
+        // Check for DO $$ block end
+        else if (inDoBlock && sql.substring(i, i + 4) === 'END $$') {
+          current += sql.substring(i, i + 6); // Include the trailing semicolon
+          i += 7; // Skip 'END $$;'
+          inDoBlock = false;
+          statements.push(current.trim());
+          current = '';
+        }
+        // Regular statement terminator (semicolon, outside DO block)
+        else if (!inDoBlock && char === ';') {
+          if (current.trim()) {
+            statements.push(current.trim());
+          }
+          current = '';
+          i++;
+        }
+        // Regular character
+        else {
+          current += char;
+          i++;
+        }
+      }
+
+      // Add any remaining statement
+      if (current.trim()) {
+        statements.push(current.trim());
+      }
 
       for (let statement of statements) {
         // Remove SQL comments (-- single-line and /* */ multi-line) for analysis
