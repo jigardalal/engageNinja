@@ -456,7 +456,7 @@ router.post('/channels/whatsapp', requireAuth, requireAdmin, async (req, res) =>
       // Update existing channel
       db.prepare(
         `UPDATE tenant_channel_settings
-         SET credentials_encrypted = ?, provider = ?, is_connected = 1, connected_at = ?, updated_at = ?, webhook_verify_token = ?, webhook_secret = ?, phone_number_id = ?, business_account_id = ?
+         SET credentials_encrypted = ?, provider = ?, is_connected = true, connected_at = ?, updated_at = ?, webhook_verify_token = ?, webhook_secret = ?, phone_number_id = ?, business_account_id = ?
          WHERE tenant_id = ? AND channel = ?`
       ).run(
         encryptedCredentials,
@@ -476,7 +476,7 @@ router.post('/channels/whatsapp', requireAuth, requireAdmin, async (req, res) =>
       db.prepare(
         `INSERT INTO tenant_channel_settings
          (id, tenant_id, channel, provider, credentials_encrypted, is_connected, connected_at, created_at, updated_at, webhook_verify_token, webhook_secret, phone_number_id, business_account_id)
-         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         id,
         tenantId,
@@ -622,7 +622,7 @@ router.post('/channels/email', requireAuth, requireAdmin, async (req, res) => {
       // Update existing channel
       db.prepare(
         `UPDATE tenant_channel_settings
-         SET credentials_encrypted = ?, provider = ?, is_connected = 1, connected_at = ?, verified_sender_email = ?, updated_at = ?
+         SET credentials_encrypted = ?, provider = ?, is_connected = true, connected_at = ?, verified_sender_email = ?, updated_at = ?
          WHERE tenant_id = ? AND channel = ?`
       ).run(encryptedCredentials, provider, now, verifiedSenderEmail, now, tenantId, 'email');
     } else {
@@ -631,7 +631,7 @@ router.post('/channels/email', requireAuth, requireAdmin, async (req, res) => {
       db.prepare(
         `INSERT INTO tenant_channel_settings
          (id, tenant_id, channel, provider, credentials_encrypted, verified_sender_email, is_connected, connected_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, true, ?, ?, ?)`
       ).run(id, tenantId, 'email', provider, encryptedCredentials, verifiedSenderEmail, now, now, now);
     }
 
@@ -722,7 +722,7 @@ router.post('/channels/sms', requireAuth, requireAdmin, (req, res) => {
     const now = new Date().toISOString();
     db.prepare(
       `UPDATE tenant_channel_settings
-       SET provider_config_json = ?, is_enabled = 1,
+       SET provider_config_json = ?, is_enabled = true,
            webhook_url = ?,
            phone_number = ?,
            messaging_service_sid = ?,
@@ -782,7 +782,7 @@ router.delete('/channels/:channel', requireAuth, requireAdmin, (req, res) => {
     // Soft-disconnect: preserve credentials but mark inactive
     const result = db.prepare(
       `UPDATE tenant_channel_settings
-       SET is_connected = 0, connected_at = NULL, updated_at = ?
+       SET is_connected = false, connected_at = NULL, updated_at = ?
        WHERE tenant_id = ? AND channel = ?`
     ).run(new Date().toISOString(), tenantId, channel);
 
