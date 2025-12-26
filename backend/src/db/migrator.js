@@ -1,5 +1,5 @@
 /**
- * Database Migration Runner
+ * Database Migration Runner - Async/Await Version
  * Applies pending migrations to the database
  * Called on application startup
  */
@@ -11,26 +11,18 @@ const db = require('../db');
 /**
  * Initialize migrations tracking table
  */
-function initMigrationsTable() {
+async function initMigrationsTable() {
   try {
-    // PostgreSQL and SQLite have different syntax for auto-incrementing IDs
-    const createTableSql = db.__type === 'postgres'
-      ? `
-        CREATE TABLE IF NOT EXISTS schema_migrations (
-          id SERIAL PRIMARY KEY,
-          name TEXT UNIQUE NOT NULL,
-          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `
-      : `
-        CREATE TABLE IF NOT EXISTS schema_migrations (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT UNIQUE NOT NULL,
-          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `;
+    // PostgreSQL only (no SQLite support)
+    const createTableSql = `
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
 
-    db.exec(createTableSql);
+    await db.exec(createTableSql);
   } catch (error) {
     console.error('Error creating schema_migrations table:', error);
     throw error;
@@ -40,9 +32,9 @@ function initMigrationsTable() {
 /**
  * Get list of already executed migrations
  */
-function getExecutedMigrations() {
+async function getExecutedMigrations() {
   try {
-    const result = db.prepare(
+    const result = await db.prepare(
       'SELECT name FROM schema_migrations ORDER BY executed_at'
     ).all();
     return result.map(r => r.name);
@@ -53,9 +45,9 @@ function getExecutedMigrations() {
 }
 
 /**
- * Get list of pending migration files
+ * Get list of pending migration files (synchronous file operations)
  */
-function getPendingMigrations() {
+function getPendingMigrations(executed) {
   const migrationsDir = path.join(__dirname, '../../db/migrations');
 
   if (!fs.existsSync(migrationsDir)) {
@@ -66,14 +58,13 @@ function getPendingMigrations() {
     .filter(f => f.endsWith('.sql'))
     .sort();
 
-  const executed = getExecutedMigrations();
   return files.filter(f => !executed.includes(f));
 }
 
 /**
  * Execute a single migration file
  */
-function executeMigration(filename) {
+async function executeMigration(filename) {
   const migrationsDir = path.join(__dirname, '../../db/migrations');
   const filePath = path.join(migrationsDir, filename);
 
@@ -84,7 +75,7 @@ function executeMigration(filename) {
     const statements = sql.split(';').map(stmt => stmt.trim()).filter(Boolean);
     for (const statement of statements) {
       try {
-        db.exec(statement);
+        await db.exec(statement);
       } catch (error) {
         if (error.message && error.message.includes('duplicate column name')) {
           console.warn(`  ⚠️  Skipping duplicate column in ${filename}: ${error.message}`);
@@ -95,7 +86,7 @@ function executeMigration(filename) {
     }
 
     // Record migration
-    db.prepare(
+    await db.prepare(
       'INSERT INTO schema_migrations (name) VALUES (?)'
     ).run(filename);
 
@@ -109,15 +100,18 @@ function executeMigration(filename) {
 /**
  * Apply all pending migrations
  */
-function runMigrations() {
+async function runMigrations() {
   console.log('\n🔄 Checking for pending database migrations...');
 
   try {
     // Initialize migrations table
-    initMigrationsTable();
+    await initMigrationsTable();
+
+    // Get already executed migrations
+    const executed = await getExecutedMigrations();
 
     // Get pending migrations
-    const pending = getPendingMigrations();
+    const pending = getPendingMigrations(executed);
 
     if (pending.length === 0) {
       console.log('✓ Database is up to date (no pending migrations)\n');
@@ -130,7 +124,7 @@ function runMigrations() {
     for (const migrationFile of pending) {
       try {
         console.log(`  Running: ${migrationFile}...`);
-        executeMigration(migrationFile);
+        await executeMigration(migrationFile);
         applied.push(migrationFile);
         console.log(`  ✓ ${migrationFile} applied\n`);
       } catch (error) {
@@ -151,14 +145,14 @@ function runMigrations() {
 /**
  * Migrate existing template data to components_schema JSON
  */
-function migrateTemplateData() {
+async function migrateTemplateData() {
   try {
     console.log('🔄 Checking for template data migration...');
 
     // Try to query with components_schema - if it fails, column doesn't exist
     let hasComponentsSchema = true;
     try {
-      db.prepare(`SELECT COUNT(*) FROM whatsapp_templates WHERE components_schema IS NOT NULL`).all();
+      await db.prepare(`SELECT COUNT(*) FROM whatsapp_templates WHERE components_schema IS NOT NULL`).all();
     } catch (e) {
       // Column doesn't exist
       hasComponentsSchema = false;
@@ -170,7 +164,7 @@ function migrateTemplateData() {
     }
 
     // Get all templates that don't have components_schema yet
-    const templates = db.prepare(`
+    const templates = await db.prepare(`
       SELECT id, body_template, header_type, header_text, footer_text,
              buttons_json, body_variables, header_variables
       FROM whatsapp_templates
@@ -188,7 +182,7 @@ function migrateTemplateData() {
     for (const template of templates) {
       try {
         const componentsSchema = buildComponentsSchema(template);
-        db.prepare(`
+        await db.prepare(`
           UPDATE whatsapp_templates
           SET components_schema = ?, updated_at = CURRENT_TIMESTAMP
           WHERE id = ?
@@ -271,14 +265,14 @@ function buildComponentsSchema(template) {
 /**
  * Run all migrations on startup
  */
-function initialize() {
+async function initialize() {
   try {
     // Run schema migrations
-    const migrationResult = runMigrations();
+    const migrationResult = await runMigrations();
 
     // Run data migrations if needed
     if (migrationResult.applied > 0) {
-      migrateTemplateData();
+      await migrateTemplateData();
     }
 
     return { success: true, ...migrationResult };

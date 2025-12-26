@@ -168,46 +168,79 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ===== DATABASE INITIALIZATION =====
+// ===== DATABASE INITIALIZATION & SERVER STARTUP =====
 
-// Run pending database migrations on startup
-const migrator = require('./db/migrator');
-try {
-  migrator.initialize();
-} catch (error) {
-  console.error('Failed to run database migrations:');
-  console.error(error);
-  process.exit(1);
+/**
+ * Async startup function
+ * Initializes database and starts the server
+ */
+async function startServer() {
+  try {
+    // Run pending database migrations on startup
+    const migrator = require('./db/migrator');
+    console.log('\n[Startup] Initializing database...');
+    await migrator.initialize();
+    console.log('[Startup] Database initialization complete');
+
+    // Start Express server
+    const server = app.listen(PORT, () => {
+      console.log(`\n🚀 EngageNinja Backend Server`);
+      console.log(`================================`);
+      console.log(`✓ Server running on http://localhost:${PORT}`);
+      console.log(`✓ Environment: ${NODE_ENV}`);
+      console.log(`✓ CORS Origin: ${FRONTEND_URL}`);
+      console.log(`✓ Health check: GET /health\n`);
+    });
+
+    // Start message queue processor for sending queued messages
+    console.log('[Startup] Starting message queue processor...');
+    const messageQueue = require('./services/messageQueue');
+    await messageQueue.startMessageProcessor();
+    console.log('[Startup] Message queue processor started\n');
+
+    return server;
+  } catch (error) {
+    console.error('\n❌ Failed to start server:');
+    console.error(error);
+    process.exit(1);
+  }
 }
 
-// ===== SERVER STARTUP =====
-
-const server = app.listen(PORT, () => {
-  console.log(`\n🚀 EngageNinja Backend Server`);
-  console.log(`================================`);
-  console.log(`✓ Server running on http://localhost:${PORT}`);
-  console.log(`✓ Environment: ${NODE_ENV}`);
-  console.log(`✓ CORS Origin: ${FRONTEND_URL}`);
-  console.log(`✓ Health check: GET /health\n`);
-
-  // Start message queue processor for sending queued messages
-  const messageQueue = require('./services/messageQueue');
-  messageQueue.startMessageProcessor();
-});
+// Start the server
+const serverPromise = startServer();
 
 // Graceful shutdown handling
-const gracefulShutdown = (signal) => {
+const gracefulShutdown = async (signal) => {
   console.log(`\n📍 Received ${signal}, shutting down gracefully...`);
-  server.close(() => {
-    console.log('✓ Server closed');
-    process.exit(0);
-  });
 
-  // Force shutdown after 10 seconds
-  setTimeout(() => {
-    console.error('❌ Forced shutdown');
+  try {
+    // Wait for server to be initialized
+    const server = await serverPromise;
+
+    server.close(async () => {
+      console.log('✓ Server closed');
+
+      // Close database connection pool
+      try {
+        const db = require('./db');
+        await db.close();
+        console.log('✓ Database connection closed');
+      } catch (error) {
+        console.warn('⚠ Error closing database:', error.message);
+      }
+
+      process.exit(0);
+    });
+
+    // Force shutdown after 10 seconds
+    setTimeout(() => {
+      console.error('❌ Forced shutdown');
+      process.exit(1);
+    }, 10000);
+  } catch (error) {
+    console.error('Error during shutdown:', error);
     process.exit(1);
-  }, 10000);
+  }
 };
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

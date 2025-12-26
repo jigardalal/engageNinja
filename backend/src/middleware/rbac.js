@@ -1,5 +1,5 @@
 /**
- * RBAC Middleware for EngageNinja
+ * RBAC Middleware for EngageNinja - Async/Await Version
  * Enforces role-based access control for tenant and platform routes
  *
  * Role Hierarchy (for tenant roles):
@@ -28,21 +28,21 @@ function requireTenantRole(minRole) {
     owner: 3
   };
 
-  return (req, res, next) => {
-    // Check if user is authenticated
-    if (!req.session?.userId) {
-      return res.status(401).json({ error: 'Unauthorized - no session' });
-    }
-
-    // Get active tenant from session
-    const tenantId = req.tenantId || req.session.activeTenantId;
-    if (!tenantId) {
-      return res.status(400).json({ error: 'No active tenant context' });
-    }
-
+  return async (req, res, next) => {
     try {
+      // Check if user is authenticated
+      if (!req.session?.userId) {
+        return res.status(401).json({ error: 'Unauthorized - no session' });
+      }
+
+      // Get active tenant from session
+      const tenantId = req.tenantId || req.session.activeTenantId;
+      if (!tenantId) {
+        return res.status(400).json({ error: 'No active tenant context' });
+      }
+
       // Get user's role in this tenant
-      const membership = db.prepare(`
+      const membership = await db.prepare(`
         SELECT role, active FROM user_tenants
         WHERE user_id = ? AND tenant_id = ?
       `).get(req.session.userId, tenantId);
@@ -85,15 +85,15 @@ function requireTenantRole(minRole) {
  * Check if user has platform-level role
  */
 function requirePlatformRole(allowedRoles) {
-  return (req, res, next) => {
-    // Check if user is authenticated
-    if (!req.session?.userId) {
-      return res.status(401).json({ error: 'Unauthorized - no session' });
-    }
-
+  return async (req, res, next) => {
     try {
+      // Check if user is authenticated
+      if (!req.session?.userId) {
+        return res.status(401).json({ error: 'Unauthorized - no session' });
+      }
+
       // Get user's global role
-      const user = db.prepare(`
+      const user = await db.prepare(`
         SELECT role_global, active FROM users WHERE id = ?
       `).get(req.session.userId);
 
@@ -143,7 +143,7 @@ const requireSystemAdmin = requirePlatformRole(['system_admin']);
  * Used for actions that viewers cannot perform (create, edit, delete, send, etc.)
  */
 function requireNonViewer() {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (req.userRole === 'viewer') {
       return res.status(403).json({
         error: 'Viewers cannot perform this action'
@@ -155,16 +155,19 @@ function requireNonViewer() {
 
 /**
  * Special check: verify user is last owner of tenant (blocks removal/demotion)
+ * ASYNC version - must be awaited when called
  */
-function checkLastOwner(tenantId, userId) {
-  const ownerCount = db.prepare(`
+async function checkLastOwner(tenantId, userId) {
+  const ownerCount = await db.prepare(`
     SELECT COUNT(*) as count FROM user_tenants
-    WHERE tenant_id = ? AND role = 'owner' AND active = 1
+    WHERE tenant_id = ? AND role = 'owner' AND active = true
   `).get(tenantId);
 
-  const isLastOwner = ownerCount.count === 1 &&
-    db.prepare(`SELECT role FROM user_tenants WHERE user_id = ? AND tenant_id = ?`)
-      .get(userId, tenantId)?.role === 'owner';
+  const userRole = await db.prepare(
+    `SELECT role FROM user_tenants WHERE user_id = ? AND tenant_id = ?`
+  ).get(userId, tenantId);
+
+  const isLastOwner = ownerCount.count === 1 && userRole?.role === 'owner';
 
   return isLastOwner;
 }
@@ -178,6 +181,30 @@ function logRBACDecision(decision, details) {
   }
 }
 
+/**
+ * Validate tenant access for route handlers
+ * Sets req.tenantId from query param or session
+ * Used with async route handlers
+ */
+const validateTenantAccess = async (req, res, next) => {
+  try {
+    // Get tenant ID from query params, body, or session
+    let tenantId = req.query.tenant_id || req.body?.tenant_id || req.session?.activeTenantId;
+
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant ID is required' });
+    }
+
+    // Store in request for handlers to access
+    req.tenantId = tenantId;
+
+    next();
+  } catch (error) {
+    console.error('Tenant access validation error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   requireTenantRole,
   requirePlatformRole,
@@ -189,5 +216,6 @@ module.exports = {
   requireSystemAdmin,
   requireNonViewer,
   checkLastOwner,
-  logRBACDecision
+  logRBACDecision,
+  validateTenantAccess
 };
