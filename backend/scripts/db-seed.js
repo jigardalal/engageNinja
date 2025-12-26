@@ -485,6 +485,34 @@ function copyGlobalTagsToTenant(tenantUuid) {
     console.log('  ✓ Inserted Email channel for demo tenant');
   }
 
+  // 9b. Seed Tenant Channel Settings (SMS Twilio)
+  console.log('📱 Seeding tenant channel settings (SMS Twilio)...');
+  const smsCreds = encryptCredentials({
+    account_sid: process.env.TWILIO_ACCOUNT_SID || '[REDACTED]',
+    auth_token: process.env.TWILIO_AUTH_TOKEN || '[REDACTED]'
+  });
+
+  const existingSms = db.prepare(`
+    SELECT id FROM tenant_channel_settings WHERE tenant_id = ? AND channel = 'sms'
+  `).get(tenantId.demo);
+
+  if (existingSms) {
+    db.prepare(`
+      UPDATE tenant_channel_settings
+      SET credentials_encrypted = ?, provider = 'twilio', is_enabled = true, phone_number = '+18444595810',
+          is_connected = true, connected_at = ?, updated_at = ?
+      WHERE tenant_id = ? AND channel = 'sms'
+    `).run(smsCreds, now, now, tenantId.demo);
+    console.log('  ✓ Updated existing SMS channel for demo tenant');
+  } else {
+    db.prepare(`
+      INSERT INTO tenant_channel_settings
+      (id, tenant_id, channel, provider, credentials_encrypted, phone_number, is_enabled, is_connected, connected_at, created_at, updated_at)
+      VALUES (?, ?, 'sms', 'twilio', ?, '+18444595810', true, true, ?, ?, ?) ON CONFLICT DO NOTHING
+    `).run(uuidv4(), tenantId.demo, smsCreds, now, now, now);
+    console.log('  ✓ Inserted SMS channel for demo tenant');
+  }
+
   // 10. Seed Tenant Business Info (for 10DLC)
   console.log('\n🏢 Seeding tenant business info (for 10DLC)...');
 
