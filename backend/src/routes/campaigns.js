@@ -44,8 +44,8 @@ const normalizeWhatsAppCredentials = (creds = {}) => {
   };
 };
 
-const getWhatsAppCredentials = (tenantId) => {
-  const row = db.prepare(`
+const getWhatsAppCredentials = async (tenantId) => {
+  const row = await db.prepare(`
     SELECT credentials_encrypted, phone_number_id, business_account_id
     FROM tenant_channel_settings
     WHERE tenant_id = ? AND channel = 'whatsapp'
@@ -66,8 +66,8 @@ const getWhatsAppCredentials = (tenantId) => {
   };
 };
 
-const getEmailCredentials = (tenantId) => {
-  const row = db.prepare(`
+const getEmailCredentials = async (tenantId) => {
+  const row = await db.prepare(`
     SELECT credentials_encrypted FROM tenant_channel_settings
     WHERE tenant_id = ? AND channel = ?
   `).get(tenantId, 'email');
@@ -77,8 +77,8 @@ const getEmailCredentials = (tenantId) => {
   return decryptCredentials(row.credentials_encrypted);
 };
 
-const getSmsConfig = (tenantId) => {
-  const row = db.prepare(`
+const getSmsConfig = async (tenantId) => {
+  const row = await db.prepare(`
     SELECT provider, provider_config_json, webhook_url, phone_number, messaging_service_sid, is_enabled
     FROM tenant_channel_settings
     WHERE tenant_id = ? AND channel = ?
@@ -129,7 +129,7 @@ const requireAuth = (req, res, next) => {
 };
 
 // Validate tenant access (ensure user has access to tenant)
-const validateTenantAccess = (req, res, next) => {
+const validateTenantAccess = async (req, res, next) => {
   const tenantId = req.session.activeTenantId || req.body.tenant_id || req.query.tenant_id;
 
   if (!tenantId) {
@@ -141,7 +141,7 @@ const validateTenantAccess = (req, res, next) => {
   }
 
   // Check if user has access to this tenant
-  const userTenant = db.prepare(`
+  const userTenant = await db.prepare(`
     SELECT ut.tenant_id FROM user_tenants ut
     WHERE ut.user_id = ? AND ut.tenant_id = ?
   `).get(req.session.userId, tenantId);
@@ -164,7 +164,7 @@ const validateTenantAccess = (req, res, next) => {
  * GET /campaigns
  * List all campaigns for current tenant with optional search and filtering
  */
-router.get('/', requireAuth, validateTenantAccess, (req, res) => {
+router.get('/', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const { search, status, limit = 50, offset = 0, hide_archived } = req.query;
     const parsedLimit = Math.min(parseInt(limit) || 50, 500); // Max 500 per request
@@ -211,7 +211,7 @@ router.get('/', requireAuth, validateTenantAccess, (req, res) => {
     query += ` GROUP BY c.id ORDER BY c.created_at DESC LIMIT ? OFFSET ?`;
     params.push(parsedLimit, parsedOffset);
 
-    const campaigns = db.prepare(query).all(...params);
+    const campaigns = await db.prepare(query).all(...params);
 
     // Count total campaigns
     let countQuery = `SELECT COUNT(*) as total FROM campaigns WHERE tenant_id = ?`;
@@ -228,7 +228,7 @@ router.get('/', requireAuth, validateTenantAccess, (req, res) => {
       countQuery += ` AND status != 'archived'`;
     }
 
-    const { total } = db.prepare(countQuery).get(...countParams);
+    const { total } = await db.prepare(countQuery).get(...countParams);
 
     return res.json({
       data: campaigns.map(campaign => ({
@@ -265,7 +265,7 @@ router.get('/', requireAuth, validateTenantAccess, (req, res) => {
  * POST /campaigns/bulk/archive
  * Archive multiple campaigns (keeps metrics/messages)
  */
-router.post('/bulk/archive', requireAuth, validateTenantAccess, requireAdmin, (req, res) => {
+router.post('/bulk/archive', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
     const { campaign_ids = [] } = req.body || {};
 
@@ -286,7 +286,7 @@ router.post('/bulk/archive', requireAuth, validateTenantAccess, requireAdmin, (r
     }
 
     const placeholders = campaign_ids.map(() => '?').join(',');
-    const campaigns = db.prepare(
+    const campaigns = await db.prepare(
       `SELECT id FROM campaigns WHERE tenant_id = ? AND id IN (${placeholders})`
     ).all(req.tenantId, ...campaign_ids);
 
@@ -298,13 +298,12 @@ router.post('/bulk/archive', requireAuth, validateTenantAccess, requireAdmin, (r
       });
     }
 
-    const archiveTransaction = db.transaction((ids) => {
+    await db.transaction(async (txDb) => {
+      const ids = campaigns.map(c => c.id);
       const ph = ids.map(() => '?').join(',');
-      db.prepare(`UPDATE campaigns SET status = 'archived', updated_at = ? WHERE id IN (${ph}) AND tenant_id = ?`)
+      await txDb.prepare(`UPDATE campaigns SET status = 'archived', updated_at = ? WHERE id IN (${ph}) AND tenant_id = ?`)
         .run(new Date().toISOString(), ...ids, req.tenantId);
     });
-
-    archiveTransaction(campaigns.map(c => c.id));
 
     // Log audit event
     logAudit({
@@ -339,7 +338,7 @@ router.post('/bulk/archive', requireAuth, validateTenantAccess, requireAdmin, (r
  * POST /campaigns
  * Create a new campaign draft
  */
-router.post('/', requireAuth, validateTenantAccess, (req, res) => {
+router.post('/', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const {
       name,
@@ -362,7 +361,7 @@ router.post('/', requireAuth, validateTenantAccess, (req, res) => {
 
     // Channel-specific validation
     if (channel === 'whatsapp') {
-      const creds = getWhatsAppCredentials(req.tenantId);
+      const creds = await getWhatsAppCredentials(req.tenantId);
       if (!creds || !creds.phone_number_id || !creds.access_token) {
         return res.status(400).json({
           error: 'WhatsApp Not Configured',
@@ -380,7 +379,7 @@ router.post('/', requireAuth, validateTenantAccess, (req, res) => {
     }
 
     if (channel === 'sms') {
-      const smsConfig = getSmsConfig(req.tenantId);
+      const smsConfig = await getSmsConfig(req.tenantId);
       if (!smsConfig) {
         return res.status(400).json({
           error: 'SMS Not Configured',
@@ -400,7 +399,7 @@ router.post('/', requireAuth, validateTenantAccess, (req, res) => {
     let normalizedMessageContent = message_content || null;
 
     if (channel === 'email') {
-      const creds = getEmailCredentials(req.tenantId);
+      const creds = await getEmailCredentials(req.tenantId);
       if (!creds) {
         return res.status(400).json({
           error: 'Email Not Configured',
@@ -460,7 +459,7 @@ router.post('/', requireAuth, validateTenantAccess, (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(
+    await stmt.run(
       campaignId,
       req.tenantId,
       name,
@@ -475,7 +474,7 @@ router.post('/', requireAuth, validateTenantAccess, (req, res) => {
     );
 
     // Fetch the created campaign
-    const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(campaignId);
+    const campaign = await db.prepare('SELECT * FROM campaigns WHERE id = ?').get(campaignId);
 
     return res.status(201).json({
       data: {
@@ -503,12 +502,12 @@ router.post('/', requireAuth, validateTenantAccess, (req, res) => {
  * POST /campaigns/:id/duplicate
  * Duplicate an existing campaign into a new draft for edits/retries
  */
-router.post('/:id/duplicate', requireAuth, validateTenantAccess, (req, res) => {
+router.post('/:id/duplicate', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const { id } = req.params;
     const { name_override } = req.body || {};
 
-    const campaign = db.prepare(`
+    const campaign = await db.prepare(`
       SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?
     `).get(id, req.tenantId);
 
@@ -523,7 +522,7 @@ router.post('/:id/duplicate', requireAuth, validateTenantAccess, (req, res) => {
     const now = new Date().toISOString();
     const newId = uuidv4();
 
-    const deriveVersionedName = () => {
+    const deriveVersionedName = async () => {
       if (name_override && name_override.trim()) {
         return name_override.trim();
       }
@@ -534,7 +533,7 @@ router.post('/:id/duplicate', requireAuth, validateTenantAccess, (req, res) => {
       const currentVersion = match ? parseInt(match[2], 10) : 1;
 
       // Find highest existing version for this base
-      const rows = db.prepare(`
+      const rows = await db.prepare(`
         SELECT name FROM campaigns
         WHERE tenant_id = ? AND name LIKE ?
       `).all(req.tenantId, `${baseName}_v%`);
@@ -553,9 +552,9 @@ router.post('/:id/duplicate', requireAuth, validateTenantAccess, (req, res) => {
       return `${baseName}_v${maxVersion + 1}`;
     };
 
-    const newName = deriveVersionedName();
+    const newName = await deriveVersionedName();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO campaigns (
         id, tenant_id, name, description, channel, status, template_id,
         message_content, audience_filters, created_at, updated_at
@@ -597,7 +596,7 @@ router.post('/:id/duplicate', requireAuth, validateTenantAccess, (req, res) => {
  * PUT /campaigns/:id
  * Update an existing campaign (drafts only)
  */
-router.put('/:id', requireAuth, validateTenantAccess, (req, res) => {
+router.put('/:id', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -609,7 +608,7 @@ router.put('/:id', requireAuth, validateTenantAccess, (req, res) => {
       audience_filters
     } = req.body;
 
-    const campaign = db.prepare(`
+    const campaign = await db.prepare(`
       SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?
     `).get(id, req.tenantId);
 
@@ -631,7 +630,7 @@ router.put('/:id', requireAuth, validateTenantAccess, (req, res) => {
 
     // Validate channel-specific requirements
     if (channel === 'whatsapp') {
-      const creds = getWhatsAppCredentials(req.tenantId);
+      const creds = await getWhatsAppCredentials(req.tenantId);
       if (!creds) {
         return res.status(400).json({
           error: 'WhatsApp Not Configured',
@@ -651,7 +650,7 @@ router.put('/:id', requireAuth, validateTenantAccess, (req, res) => {
     let normalizedMessageContent = message_content;
 
     if (channel === 'email') {
-      const creds = getEmailCredentials(req.tenantId);
+      const creds = await getEmailCredentials(req.tenantId);
       if (!creds) {
         return res.status(400).json({
           error: 'Email Not Configured',
@@ -692,7 +691,7 @@ router.put('/:id', requireAuth, validateTenantAccess, (req, res) => {
     }
 
     if (channel === 'sms') {
-      const smsConfig = getSmsConfig(req.tenantId);
+      const smsConfig = await getSmsConfig(req.tenantId);
       if (!smsConfig) {
         return res.status(400).json({
           error: 'SMS Not Configured',
@@ -723,7 +722,7 @@ router.put('/:id', requireAuth, validateTenantAccess, (req, res) => {
     }
 
     const now = new Date().toISOString();
-    db.prepare(`
+    await db.prepare(`
       UPDATE campaigns
       SET name = ?, description = ?, channel = ?, template_id = ?, message_content = ?, audience_filters = ?, updated_at = ?
       WHERE id = ? AND tenant_id = ?
@@ -739,7 +738,7 @@ router.put('/:id', requireAuth, validateTenantAccess, (req, res) => {
       req.tenantId
     );
 
-    const updated = db.prepare(`SELECT id, name, channel, status, updated_at FROM campaigns WHERE id = ?`).get(id);
+    const updated = await db.prepare(`SELECT id, name, channel, status, updated_at FROM campaigns WHERE id = ?`).get(id);
 
     return res.json({
       data: updated,
@@ -760,13 +759,13 @@ router.put('/:id', requireAuth, validateTenantAccess, (req, res) => {
  * GET /campaigns/:id/metrics
  * Get campaign metrics (sent, delivered, read, failed counts and read rate)
  */
-router.get('/roi-snapshot', requireAuth, validateTenantAccess, (req, res) => {
+router.get('/roi-snapshot', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const { limit = 25 } = req.query;
     const parsedLimit = Math.min(parseInt(limit) || 25, 100);
 
     // Fetch recent campaigns (non-draft) for this tenant
-    const campaigns = db.prepare(`
+    const campaigns = await db.prepare(`
       SELECT id, name, status, channel, sent_at, created_at, resend_of_campaign_id
       FROM campaigns
       WHERE tenant_id = ? AND status != 'draft'
@@ -799,7 +798,7 @@ router.get('/roi-snapshot', requireAuth, validateTenantAccess, (req, res) => {
     });
 
     const placeholders = Array.from(campaignIds).map(() => '?').join(',');
-    const statsRows = db.prepare(`
+    const statsRows = await db.prepare(`
       SELECT
         campaign_id,
         COUNT(*) as total,
@@ -887,12 +886,12 @@ router.get('/roi-snapshot', requireAuth, validateTenantAccess, (req, res) => {
   }
 });
 
-router.get('/:id/metrics', requireAuth, validateTenantAccess, (req, res) => {
+router.get('/:id/metrics', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const { id } = req.params;
 
     // Get campaign details
-    const campaign = db.prepare(`
+    const campaign = await db.prepare(`
       SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?
     `).get(id, req.tenantId);
 
@@ -905,7 +904,7 @@ router.get('/:id/metrics', requireAuth, validateTenantAccess, (req, res) => {
     }
 
     // Get message metrics for this campaign
-    const metrics = db.prepare(`
+    const metrics = await db.prepare(`
       SELECT
         COUNT(*) as total_sent,
         SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) as queued_count,
@@ -931,7 +930,7 @@ router.get('/:id/metrics', requireAuth, validateTenantAccess, (req, res) => {
 
     if (campaign.resend_of_campaign_id) {
       // This is a resend - get metrics for original campaign
-      const originalMetrics = db.prepare(`
+      const originalMetrics = await db.prepare(`
         SELECT
           COUNT(*) as original_total,
           SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as original_delivered_count,
@@ -1013,11 +1012,11 @@ router.get('/:id/metrics', requireAuth, validateTenantAccess, (req, res) => {
  * GET /campaigns/:id
  * Get campaign details
  */
-router.get('/:id', requireAuth, validateTenantAccess, (req, res) => {
+router.get('/:id', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const campaign = db.prepare(`
+    const campaign = await db.prepare(`
       SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?
     `).get(id, req.tenantId);
 
@@ -1030,7 +1029,7 @@ router.get('/:id', requireAuth, validateTenantAccess, (req, res) => {
     }
 
     // Get message metrics
-    const metrics = db.prepare(`
+    const metrics = await db.prepare(`
       SELECT
         COUNT(*) as total,
         SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) as queued_count,
@@ -1081,13 +1080,13 @@ router.get('/:id', requireAuth, validateTenantAccess, (req, res) => {
  * PATCH /campaigns/:id
  * Update campaign (draft only)
  */
-router.patch('/:id', requireAuth, validateTenantAccess, (req, res) => {
+router.patch('/:id', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, message_content, audience_filters } = req.body;
 
     // Check if campaign exists and is in draft status
-    const campaign = db.prepare(`
+    const campaign = await db.prepare(`
       SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?
     `).get(id, req.tenantId);
 
@@ -1120,7 +1119,7 @@ router.patch('/:id', requireAuth, validateTenantAccess, (req, res) => {
       WHERE id = ? AND tenant_id = ?
     `);
 
-    stmt.run(
+    await stmt.run(
       name || null,
       description || null,
       message_content || null,
@@ -1131,7 +1130,7 @@ router.patch('/:id', requireAuth, validateTenantAccess, (req, res) => {
     );
 
     // Fetch updated campaign
-    const updated = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(id);
+    const updated = await db.prepare('SELECT * FROM campaigns WHERE id = ?').get(id);
 
     return res.json({
       data: {
@@ -1165,7 +1164,7 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async
     const { id } = req.params;
 
     // Get campaign
-    const campaign = db.prepare(`
+    const campaign = await db.prepare(`
       SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?
     `).get(id, req.tenantId);
 
@@ -1207,7 +1206,7 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async
       params = [req.tenantId, ...audienceFilters.tags, audienceFilters.tags.length];
     }
 
-    const contacts = db.prepare(contactQuery).all(...params);
+    const contacts = await db.prepare(contactQuery).all(...params);
     const audienceCount = contacts.length;
 
     if (audienceCount === 0) {
@@ -1220,7 +1219,7 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async
 
     // Channel-level validations before queueing messages
     if (campaign.channel === 'whatsapp') {
-      const creds = getWhatsAppCredentials(req.tenantId);
+      const creds = await getWhatsAppCredentials(req.tenantId);
       if (!creds || !creds.access_token || !creds.phone_number_id) {
         return res.status(400).json({
           error: 'WhatsApp Not Configured',
@@ -1237,7 +1236,7 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async
       }
 
       // Validate template variable count matches payload
-      const tmpl = db.prepare(`
+      const tmpl = await db.prepare(`
         SELECT body_variables, header_variables, variable_count, buttons_json
         FROM whatsapp_templates
         WHERE id = ? AND tenant_id = ?
@@ -1301,7 +1300,7 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async
         }
       }
     } else if (campaign.channel === 'email') {
-      const creds = getEmailCredentials(req.tenantId);
+      const creds = await getEmailCredentials(req.tenantId);
       if (!creds) {
         return res.status(400).json({
           error: 'Email Not Configured',
@@ -1329,7 +1328,7 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async
       }
     }
     else if (campaign.channel === 'sms') {
-      const smsConfig = getSmsConfig(req.tenantId);
+      const smsConfig = await getSmsConfig(req.tenantId);
       if (!smsConfig) {
         return res.status(400).json({
           error: 'SMS Not Configured',
@@ -1347,11 +1346,11 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async
     }
 
     // Get user's plan
-    const tenant = db.prepare('SELECT plan_id FROM tenants WHERE id = ?').get(req.tenantId);
-    const plan = db.prepare('SELECT * FROM plans WHERE id = ?').get(tenant.plan_id);
+    const tenant = await db.prepare('SELECT plan_id FROM tenants WHERE id = ?').get(req.tenantId);
+    const plan = await db.prepare('SELECT * FROM plans WHERE id = ?').get(tenant.plan_id);
 
     // Check subscription status and grace period before allowing campaign send
-    const subscriptionCheck = canTenantSendCampaigns(db, req.tenantId);
+    const subscriptionCheck = await canTenantSendCampaigns(req.tenantId);
     if (!subscriptionCheck.allowed) {
       return res.status(403).json({
         error: 'Subscription Issue',
@@ -1367,13 +1366,13 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async
     const now = new Date();
     const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    let usage = db.prepare(`
+    let usage = await db.prepare(`
       SELECT * FROM usage_counters
       WHERE tenant_id = ? AND year_month = ?
     `).get(req.tenantId, yearMonth);
 
     // Get plan overrides if they exist
-    const overrides = db.prepare(`SELECT * FROM plan_overrides WHERE tenant_id = ?`).get(req.tenantId);
+    const overrides = await db.prepare(`SELECT * FROM plan_overrides WHERE tenant_id = ?`).get(req.tenantId);
 
     // Determine message type and get current usage
     let currentUsage = 0;
@@ -1438,7 +1437,7 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async
     for (const contact of contacts) {
       const messageId = uuidv4();
       messageIds.push(messageId);
-      messageInsertStmt.run(
+      await messageInsertStmt.run(
         messageId,
         req.tenantId,
         campaign.id,
@@ -1458,7 +1457,7 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async
     }
 
     // Update campaign status to "sending"
-    db.prepare(`
+    await db.prepare(`
       UPDATE campaigns
       SET status = 'sending', sent_at = ?, sent_by = ?, updated_at = ?
       WHERE id = ?
@@ -1466,7 +1465,7 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async
 
     // Update usage counter
     if (usage) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE usage_counters
         SET ${messageType} = ${messageType} + ?
         WHERE tenant_id = ? AND year_month = ?
@@ -1479,7 +1478,7 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
       const counterId = uuidv4();
-      counterStmt.run(
+      await counterStmt.run(
         counterId,
         req.tenantId,
         yearMonth,
@@ -1551,12 +1550,12 @@ router.post('/:id/send', requireAuth, validateTenantAccess, requireMember, async
  * POST /campaigns/:id/resend
  * Resend campaign to non-readers (24h after original send)
  */
-router.post('/:id/resend', requireAuth, validateTenantAccess, requireMember, (req, res) => {
+router.post('/:id/resend', requireAuth, validateTenantAccess, requireMember, async (req, res) => {
   try {
     const { id } = req.params;
 
     // Get original campaign
-    const campaign = db.prepare(`
+    const campaign = await db.prepare(`
       SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?
     `).get(id, req.tenantId);
 
@@ -1587,7 +1586,7 @@ router.post('/:id/resend', requireAuth, validateTenantAccess, requireMember, (re
     }
 
     // Check if campaign has already been resent (only one resend allowed)
-    const existingResend = db.prepare(`
+    const existingResend = await db.prepare(`
       SELECT id FROM campaigns
       WHERE resend_of_campaign_id = ? AND tenant_id = ?
     `).get(id, req.tenantId);
@@ -1625,7 +1624,7 @@ router.post('/:id/resend', requireAuth, validateTenantAccess, requireMember, (re
 
     // Validate channel credentials/content before resending
     if (campaign.channel === 'whatsapp') {
-      const creds = getWhatsAppCredentials(req.tenantId);
+      const creds = await getWhatsAppCredentials(req.tenantId);
       if (!creds || !creds.access_token || !creds.phone_number_id) {
         return res.status(400).json({
           error: 'WhatsApp Not Configured',
@@ -1641,7 +1640,7 @@ router.post('/:id/resend', requireAuth, validateTenantAccess, requireMember, (re
         });
       }
     } else if (campaign.channel === 'email') {
-      const creds = getEmailCredentials(req.tenantId);
+      const creds = await getEmailCredentials(req.tenantId);
       if (!creds) {
         return res.status(400).json({
           error: 'Email Not Configured',
@@ -1669,7 +1668,7 @@ router.post('/:id/resend', requireAuth, validateTenantAccess, requireMember, (re
       }
     }
     else if (campaign.channel === 'sms') {
-      const smsConfig = getSmsConfig(req.tenantId);
+      const smsConfig = await getSmsConfig(req.tenantId);
       if (!smsConfig) {
         return res.status(400).json({
           error: 'SMS Not Configured',
@@ -1688,7 +1687,7 @@ router.post('/:id/resend', requireAuth, validateTenantAccess, requireMember, (re
 
     // Get non-readers from original campaign
     // Non-readers = delivered but not read
-    const nonReaders = db.prepare(`
+    const nonReaders = await db.prepare(`
       SELECT DISTINCT contact_id FROM messages
       WHERE campaign_id = ?
         AND status = 'delivered'
@@ -1707,11 +1706,11 @@ router.post('/:id/resend', requireAuth, validateTenantAccess, requireMember, (re
     }
 
     // Get usage limits for the tenant
-    const tenant = db.prepare('SELECT plan_id FROM tenants WHERE id = ?').get(req.tenantId);
-    const plan = db.prepare('SELECT * FROM plans WHERE id = ?').get(tenant.plan_id);
+    const tenant = await db.prepare('SELECT plan_id FROM tenants WHERE id = ?').get(req.tenantId);
+    const plan = await db.prepare('SELECT * FROM plans WHERE id = ?').get(tenant.plan_id);
 
     // Check subscription status and grace period before allowing campaign resend
-    const subscriptionCheck = canTenantSendCampaigns(db, req.tenantId);
+    const subscriptionCheck = await canTenantSendCampaigns(req.tenantId);
     if (!subscriptionCheck.allowed) {
       return res.status(403).json({
         error: 'Subscription Issue',
@@ -1724,13 +1723,13 @@ router.post('/:id/resend', requireAuth, validateTenantAccess, requireMember, (re
     }
 
     // Get plan overrides if they exist
-    const overrides = db.prepare(`SELECT * FROM plan_overrides WHERE tenant_id = ?`).get(req.tenantId);
+    const overrides = await db.prepare(`SELECT * FROM plan_overrides WHERE tenant_id = ?`).get(req.tenantId);
 
     // Get current month usage
     const now_date = new Date();
     const yearMonth = `${now_date.getFullYear()}-${String(now_date.getMonth() + 1).padStart(2, '0')}`;
 
-    let usage = db.prepare(`
+    let usage = await db.prepare(`
       SELECT * FROM usage_counters
       WHERE tenant_id = ? AND year_month = ?
     `).get(req.tenantId, yearMonth);
@@ -1785,7 +1784,7 @@ router.post('/:id/resend', requireAuth, validateTenantAccess, requireMember, (re
     const resendCampaignId = uuidv4();
     const now_iso = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO campaigns (
         id, tenant_id, name, description, channel, template_id,
         audience_filters, message_content, status, resend_of_campaign_id,
@@ -1820,7 +1819,7 @@ router.post('/:id/resend', requireAuth, validateTenantAccess, requireMember, (re
     for (const record of nonReaders) {
       const messageId = uuidv4();
       messageIds.push(messageId);
-      messageInsertStmt.run(
+      await messageInsertStmt.run(
         messageId,
         req.tenantId,
         resendCampaignId,
@@ -1850,14 +1849,14 @@ router.post('/:id/resend', requireAuth, validateTenantAccess, requireMember, (re
       messageType = 'whatsapp_messages_sent';
     }
     if (usage) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE usage_counters
         SET ${messageType} = ${messageType} + ?
         WHERE tenant_id = ? AND year_month = ?
       `).run(nonReaders.length, req.tenantId, yearMonth);
     } else {
       const counterId = uuidv4();
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO usage_counters (
           id, tenant_id, year_month, whatsapp_messages_sent,
           email_messages_sent, sms_sent, updated_at
@@ -1924,11 +1923,11 @@ router.post('/:id/resend', requireAuth, validateTenantAccess, requireMember, (re
  * POST /campaigns/:id/retry-failed
  * Re-queue failed messages for this campaign (use when provider errors occurred)
  */
-router.post('/:id/retry-failed', requireAuth, validateTenantAccess, (req, res) => {
+router.post('/:id/retry-failed', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const campaign = db.prepare(`
+    const campaign = await db.prepare(`
       SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?
     `).get(id, req.tenantId);
 
@@ -1942,7 +1941,7 @@ router.post('/:id/retry-failed', requireAuth, validateTenantAccess, (req, res) =
 
     // Validate channel is still configured
     if (campaign.channel === 'whatsapp') {
-      const creds = getWhatsAppCredentials(req.tenantId);
+      const creds = await getWhatsAppCredentials(req.tenantId);
       if (!creds || !creds.access_token || !creds.phone_number_id) {
         return res.status(400).json({
           error: 'WhatsApp Not Configured',
@@ -1958,7 +1957,7 @@ router.post('/:id/retry-failed', requireAuth, validateTenantAccess, (req, res) =
         });
       }
     } else if (campaign.channel === 'email') {
-      const creds = getEmailCredentials(req.tenantId);
+      const creds = await getEmailCredentials(req.tenantId);
       if (!creds) {
         return res.status(400).json({
           error: 'Email Not Configured',
@@ -1969,10 +1968,10 @@ router.post('/:id/retry-failed', requireAuth, validateTenantAccess, (req, res) =
     }
 
     // Prevent stacking retries while there are already queued messages for this campaign
-    const queuedCount = db.prepare(`
+    const queuedCount = (await db.prepare(`
       SELECT COUNT(*) as count FROM messages
       WHERE campaign_id = ? AND status = 'queued'
-    `).get(id).count;
+    `).get(id)).count;
 
     if (queuedCount > 0) {
       return res.status(400).json({
@@ -1983,7 +1982,7 @@ router.post('/:id/retry-failed', requireAuth, validateTenantAccess, (req, res) =
     }
 
     // Get failed messages (non-archived campaigns only, but allow sent/sending)
-    const failedMessages = db.prepare(`
+    const failedMessages = await db.prepare(`
       SELECT id FROM messages
       WHERE campaign_id = ? AND status = 'failed'
     `).all(id);
@@ -1997,9 +1996,10 @@ router.post('/:id/retry-failed', requireAuth, validateTenantAccess, (req, res) =
     }
 
     const now = new Date().toISOString();
-    const retryTransaction = db.transaction((ids) => {
+    await db.transaction(async (txDb) => {
+      const ids = failedMessages.map(m => m.id);
       const placeholders = ids.map(() => '?').join(',');
-      db.prepare(`
+      await txDb.prepare(`
         UPDATE messages
         SET status = 'queued',
             attempts = 0,
@@ -2008,8 +2008,6 @@ router.post('/:id/retry-failed', requireAuth, validateTenantAccess, (req, res) =
         WHERE id IN (${placeholders})
       `).run(now, ...ids);
     });
-
-    retryTransaction(failedMessages.map(m => m.id));
 
     return res.json({
       status: 'success',
@@ -2032,12 +2030,12 @@ router.post('/:id/retry-failed', requireAuth, validateTenantAccess, (req, res) =
  * DELETE /campaigns/:id
  * Delete campaign (draft only)
  */
-router.delete('/:id', requireAuth, validateTenantAccess, (req, res) => {
+router.delete('/:id', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const { id } = req.params;
 
     // Check if campaign exists
-    const campaign = db.prepare(`
+    const campaign = await db.prepare(`
       SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?
     `).get(id, req.tenantId);
 
@@ -2058,8 +2056,8 @@ router.delete('/:id', requireAuth, validateTenantAccess, (req, res) => {
     }
 
     // Delete campaign and related messages
-    db.prepare('DELETE FROM messages WHERE campaign_id = ?').run(id);
-    db.prepare('DELETE FROM campaigns WHERE id = ?').run(id);
+    await db.prepare('DELETE FROM messages WHERE campaign_id = ?').run(id);
+    await db.prepare('DELETE FROM campaigns WHERE id = ?').run(id);
 
     return res.json({
       status: 'success',
@@ -2086,12 +2084,12 @@ router.delete('/:id', requireAuth, validateTenantAccess, (req, res) => {
  * 3. As webhooks arrive, metrics are broadcast to all connected clients
  * 4. Connection auto-closes after 30 minutes of inactivity
  */
-router.get('/:id/metrics/stream', requireAuth, validateTenantAccess, (req, res) => {
+router.get('/:id/metrics/stream', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const { id } = req.params;
 
     // Get campaign details
-    const campaign = db.prepare(`
+    const campaign = await db.prepare(`
       SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?
     `).get(id, req.tenantId);
 
@@ -2113,9 +2111,9 @@ router.get('/:id/metrics/stream', requireAuth, validateTenantAccess, (req, res) 
     res.setHeader('Access-Control-Allow-Methods', 'GET');
 
     // Helper function to send metrics
-    const sendMetrics = () => {
+    const sendMetrics = async () => {
       try {
-        const metrics = db.prepare(`
+        const metrics = await db.prepare(`
           SELECT
             COUNT(*) as total_sent,
             SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) as queued_count,
@@ -2152,7 +2150,7 @@ router.get('/:id/metrics/stream', requireAuth, validateTenantAccess, (req, res) 
 
         // Check if this is a resend for uplift calculation
         if (campaign.resend_of_campaign_id) {
-          const originalMetrics = db.prepare(`
+          const originalMetrics = await db.prepare(`
             SELECT
               SUM(CASE WHEN status = 'read' THEN 1 ELSE 0 END) as original_read_count,
               COUNT(*) as original_total
@@ -2182,14 +2180,14 @@ router.get('/:id/metrics/stream', requireAuth, validateTenantAccess, (req, res) 
     };
 
     // Send initial metrics immediately
-    sendMetrics();
+    await sendMetrics();
 
     // Register for future updates
     metricsEmitter.subscribe(id, res);
 
     // Listen for metric update events
-    const onMetricsUpdate = () => {
-      sendMetrics();
+    const onMetricsUpdate = async () => {
+      await sendMetrics();
     };
 
     metricsEmitter.on(`campaign:${id}:metrics`, onMetricsUpdate);
