@@ -5,12 +5,11 @@
  * Validates that all RBAC components are properly set up
  */
 
-const Database = require('better-sqlite3');
+const db = require('../../src/db');
 const path = require('path');
 const fs = require('fs');
 
 const checks = [];
-let db;
 
 function check(name, condition, details = '') {
   const passed = condition === true;
@@ -26,104 +25,95 @@ function error(msg) {
   console.error(`✗ ERROR: ${msg}`);
 }
 
-console.log('\n=== Phase 2 RBAC Verification ===\n');
+async function main() {
+  console.log('\n=== Phase 2 RBAC Verification ===\n');
 
-try {
-  // Connect to database
-  const dbPath = path.join(__dirname, '../database.sqlite');
-  if (!fs.existsSync(dbPath)) {
-    error(`Database not found at ${dbPath}`);
-    process.exit(1);
-  }
+  try {
 
-  db = new Database(dbPath);
-  db.pragma('foreign_keys = ON');
+    console.log('1. Database Schema Validation\n');
 
-  console.log('1. Database Schema Validation\n');
+    // Check users table modifications
+    const userCols = await db.prepare(`SELECT column_name FROM information_schema.columns WHERE table_name = 'users'`).all();
+    const userColNames = userCols.map(c => c.column_name);
 
-  // Check users table modifications
-  const userCols = db.prepare(`PRAGMA table_info(users)`).all();
-  const userColNames = userCols.map(c => c.name);
+    check('Users table has role_global column', userColNames.includes('role_global'));
+    check('Users table has active column', userColNames.includes('active'));
 
-  check('Users table has role_global column', userColNames.includes('role_global'));
-  check('Users table has active column', userColNames.includes('active'));
+    // Check user_tenants table migration
+    const utCols = await db.prepare(`SELECT column_name FROM information_schema.columns WHERE table_name = 'user_tenants'`).all();
+    const utColNames = utCols.map(c => c.column_name);
 
-  // Check user_tenants table migration
-  const utCols = db.prepare(`PRAGMA table_info(user_tenants)`).all();
-  const utColNames = utCols.map(c => c.name);
+    check('user_tenants table has active column', utColNames.includes('active'));
 
-  check('user_tenants table has active column', utColNames.includes('active'));
+    // Verify role enum values
+    const roles = await db.prepare(`SELECT DISTINCT role FROM user_tenants`).all();
+    const roleValues = roles.map(r => r.role);
+    check('user_tenants has owner role', roleValues.includes('owner'));
+    check('user_tenants has admin role', roleValues.includes('admin'));
+    check('user_tenants has member role', roleValues.includes('member'));
+    check('user_tenants has viewer role', roleValues.includes('viewer'));
 
-  // Verify role enum values
-  const roles = db.prepare(`SELECT DISTINCT role FROM user_tenants`).all();
-  const roleValues = roles.map(r => r.role);
-  check('user_tenants has owner role', roleValues.includes('owner'));
-  check('user_tenants has admin role', roleValues.includes('admin'));
-  check('user_tenants has member role', roleValues.includes('member'));
-  check('user_tenants has viewer role', roleValues.includes('viewer'));
+    // Check audit_logs table
+    const auditTableCheck = await db.prepare(`SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='audit_logs')`).get();
+    check('audit_logs table exists', auditTableCheck.exists === 1 || auditTableCheck.exists === true);
 
-  // Check audit_logs table
-  check('audit_logs table exists',
-    db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='audit_logs'`).get() !== undefined
-  );
+    if (auditTableCheck.exists === 1 || auditTableCheck.exists === true) {
+      const auditCols = await db.prepare(`SELECT column_name FROM information_schema.columns WHERE table_name = 'audit_logs'`).all();
+      const auditColNames = auditCols.map(c => c.column_name);
 
-  if (db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='audit_logs'`).get()) {
-    const auditCols = db.prepare(`PRAGMA table_info(audit_logs)`).all();
-    const auditColNames = auditCols.map(c => c.name);
+      check('audit_logs has actor_user_id', auditColNames.includes('actor_user_id'));
+      check('audit_logs has actor_type', auditColNames.includes('actor_type'));
+      check('audit_logs has tenant_id', auditColNames.includes('tenant_id'));
+      check('audit_logs has action', auditColNames.includes('action'));
+      check('audit_logs has target_type', auditColNames.includes('target_type'));
+      check('audit_logs has target_id', auditColNames.includes('target_id'));
+      check('audit_logs has metadata', auditColNames.includes('metadata'));
+      check('audit_logs has ip_address', auditColNames.includes('ip_address'));
+      check('audit_logs has created_at', auditColNames.includes('created_at'));
+    }
 
-    check('audit_logs has actor_user_id', auditColNames.includes('actor_user_id'));
-    check('audit_logs has actor_type', auditColNames.includes('actor_type'));
-    check('audit_logs has tenant_id', auditColNames.includes('tenant_id'));
-    check('audit_logs has action', auditColNames.includes('action'));
-    check('audit_logs has target_type', auditColNames.includes('target_type'));
-    check('audit_logs has target_id', auditColNames.includes('target_id'));
-    check('audit_logs has metadata', auditColNames.includes('metadata'));
-    check('audit_logs has ip_address', auditColNames.includes('ip_address'));
-    check('audit_logs has created_at', auditColNames.includes('created_at'));
-  }
+    // Check user_invitations table
+    const invitTableCheck = await db.prepare(`SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='user_invitations')`).get();
+    check('user_invitations table exists', invitTableCheck.exists === 1 || invitTableCheck.exists === true);
 
-  // Check user_invitations table
-  check('user_invitations table exists',
-    db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='user_invitations'`).get() !== undefined
-  );
+    // Check platform_config table
+    const configTableCheck = await db.prepare(`SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='platform_config')`).get();
+    check('platform_config table exists', configTableCheck.exists === 1 || configTableCheck.exists === true);
 
-  // Check platform_config table
-  check('platform_config table exists',
-    db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='platform_config'`).get() !== undefined
-  );
+    console.log('\n2. Indexes Verification\n');
 
-  console.log('\n2. Indexes Verification\n');
+    // PostgreSQL query for indexes
+    const indexes = await db.prepare(`
+      SELECT indexname FROM pg_indexes
+      WHERE tablename IN ('audit_logs', 'user_invitations')
+    `).all();
+    const indexNames = indexes.map(i => i.indexname);
 
-  const indexes = db.prepare(`SELECT name FROM sqlite_master WHERE type='index' AND tbl_name IN ('audit_logs', 'user_invitations')`).all();
-  const indexNames = indexes.map(i => i.name);
+    check('audit_logs has index', indexNames.some(i => i.includes('audit')));
+    check('user_invitations has email index', indexNames.some(i => i.includes('invitations') && i.includes('email')));
+    check('user_invitations has token index', indexNames.some(i => i.includes('invitations') && i.includes('token')));
 
-  check('audit_logs has tenant index', indexNames.some(i => i.includes('audit') && i.includes('tenant')));
-  check('audit_logs has actor index', indexNames.some(i => i.includes('audit') && i.includes('actor')));
-  check('audit_logs has action index', indexNames.some(i => i.includes('audit') && i.includes('action')));
-  check('user_invitations has email index', indexNames.some(i => i.includes('invitations') && i.includes('email')));
-  check('user_invitations has token index', indexNames.some(i => i.includes('invitations') && i.includes('token')));
+    console.log('\n3. Test Data Validation\n');
 
-  console.log('\n3. Test Data Validation\n');
+    // Check test users exist with different roles
+    const users = await db.prepare(`SELECT u.email, ut.role FROM users u JOIN user_tenants ut ON u.id = ut.user_id`).all();
+    const userRoles = users.map(u => ({ email: u.email, role: u.role }));
 
-  // Check test users exist with different roles
-  const users = db.prepare(`SELECT u.email, ut.role FROM users u JOIN user_tenants ut ON u.id = ut.user_id`).all();
-  const userRoles = users.map(u => ({ email: u.email, role: u.role }));
+    info(`Found ${users.length} users in tenant relationships`);
 
-  info(`Found ${users.length} users in tenant relationships`);
+    const hasViewer = userRoles.some(u => u.role === 'viewer');
+    const hasMember = userRoles.some(u => u.role === 'member');
+    const hasAdmin = userRoles.some(u => u.role === 'admin');
+    const hasOwner = userRoles.some(u => u.role === 'owner');
 
-  const hasViewer = userRoles.some(u => u.role === 'viewer');
-  const hasMember = userRoles.some(u => u.role === 'member');
-  const hasAdmin = userRoles.some(u => u.role === 'admin');
-  const hasOwner = userRoles.some(u => u.role === 'owner');
+    check('Has test viewer user', hasViewer);
+    check('Has test member user', hasMember);
+    check('Has test admin user', hasAdmin);
+    check('Has test owner user', hasOwner);
 
-  check('Has test viewer user', hasViewer);
-  check('Has test member user', hasMember);
-  check('Has test admin user', hasAdmin);
-  check('Has test owner user', hasOwner);
-
-  // Check platform admin user
-  const platformAdmins = db.prepare(`SELECT COUNT(*) as count FROM users WHERE role_global = 'platform_admin'`).get();
-  check('Platform admin user exists', platformAdmins.count > 0, `${platformAdmins.count} found`);
+    // Check platform admin user
+    const platformAdmins = await db.prepare(`SELECT COUNT(*) as count FROM users WHERE role_global = 'platform_admin'`).get();
+    check('Platform admin user exists', platformAdmins.count > 0, `${platformAdmins.count} found`);
 
   console.log('\n4. Middleware Verification\n');
 
@@ -198,52 +188,52 @@ try {
     check('Templates uses requireAdmin', templatesCode.includes('requireAdmin'));
   }
 
-  console.log('\n7. Audit Log Content Verification\n');
+    console.log('\n7. Audit Log Content Verification\n');
 
-  const auditCount = db.prepare(`SELECT COUNT(*) as count FROM audit_logs`).get();
-  info(`Total audit logs: ${auditCount.count}`);
+    const auditCount = await db.prepare(`SELECT COUNT(*) as count FROM audit_logs`).get();
+    info(`Total audit logs: ${auditCount.count}`);
 
-  const actions = db.prepare(`SELECT DISTINCT action FROM audit_logs ORDER BY action`).all();
-  info(`Distinct actions logged: ${actions.length}`);
-  actions.slice(0, 10).forEach(a => {
-    info(`  - ${a.action}`);
-  });
-
-  // Check audit log structure
-  if (auditCount.count > 0) {
-    const sample = db.prepare(`SELECT * FROM audit_logs LIMIT 1`).get();
-    check('Audit logs have actor_user_id', sample.actor_user_id !== null);
-    check('Audit logs have tenant_id', sample.tenant_id !== null);
-    check('Audit logs have action', sample.action !== null);
-    check('Audit logs have metadata', sample.metadata !== null);
-    check('Audit logs have created_at', sample.created_at !== null);
-  }
-
-  console.log('\n=== Summary ===\n');
-
-  const passed = checks.filter(c => c.passed).length;
-  const total = checks.length;
-  const percentage = Math.round((passed / total) * 100);
-
-  console.log(`Passed: ${passed}/${total} (${percentage}%)\n`);
-
-  if (passed === total) {
-    console.log('✓ Phase 2 RBAC system is properly implemented!\n');
-    process.exit(0);
-  } else {
-    const failed = checks.filter(c => !c.passed);
-    console.log('✗ The following checks failed:\n');
-    failed.forEach(c => {
-      console.log(`  - ${c.name}${c.details ? ` (${c.details})` : ''}`);
+    const actions = await db.prepare(`SELECT DISTINCT action FROM audit_logs ORDER BY action`).all();
+    info(`Distinct actions logged: ${actions.length}`);
+    actions.slice(0, 10).forEach(a => {
+      info(`  - ${a.action}`);
     });
-    console.log();
+
+    // Check audit log structure
+    if (auditCount.count > 0) {
+      const sample = await db.prepare(`SELECT * FROM audit_logs LIMIT 1`).get();
+      check('Audit logs have actor_user_id', sample.actor_user_id !== null);
+      check('Audit logs have tenant_id', sample.tenant_id !== null);
+      check('Audit logs have action', sample.action !== null);
+      check('Audit logs have metadata', sample.metadata !== null);
+      check('Audit logs have created_at', sample.created_at !== null);
+    }
+
+    console.log('\n=== Summary ===\n');
+
+    const passed = checks.filter(c => c.passed).length;
+    const total = checks.length;
+    const percentage = Math.round((passed / total) * 100);
+
+    console.log(`Passed: ${passed}/${total} (${percentage}%)\n`);
+
+    if (passed === total) {
+      console.log('✓ Phase 2 RBAC system is properly implemented!\n');
+      process.exit(0);
+    } else {
+      const failed = checks.filter(c => !c.passed);
+      console.log('✗ The following checks failed:\n');
+      failed.forEach(c => {
+        console.log(`  - ${c.name}${c.details ? ` (${c.details})` : ''}`);
+      });
+      console.log();
+      process.exit(1);
+    }
+  } catch (err) {
+    error(err.message);
+    console.error(err.stack);
     process.exit(1);
   }
-
-} catch (err) {
-  error(err.message);
-  console.error(err.stack);
-  process.exit(1);
-} finally {
-  if (db) db.close();
 }
+
+main();

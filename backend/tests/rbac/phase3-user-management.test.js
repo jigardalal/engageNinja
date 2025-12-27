@@ -4,12 +4,11 @@
  */
 
 const request = require('supertest');
-const Database = require('better-sqlite3');
+const db = require('../../src/db');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 let app;
-let db;
 const testCases = [];
 
 // Test user sessions
@@ -31,32 +30,27 @@ let testData = {
 describe('Phase 3: User Management System', () => {
 
   beforeAll(async () => {
-    process.env.DATABASE_PATH = 'database.test.sqlite';
-    app = require('../src/index');
-
-    const dbPath = path.join(__dirname, '../database.test.sqlite');
-    db = new Database(dbPath);
-    db.pragma('foreign_keys = ON');
+    app = require('../../src/index');
 
     // Get test data IDs from seeded database
-    const demo = db.prepare('SELECT id FROM tenants WHERE name = ?').get('Demo Tenant');
+    const demo = await db.prepare('SELECT id FROM tenants WHERE name = ?').get('Demo Tenant');
     testData.demoTenantId = demo?.id;
 
-    const ownerUser = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@engageninja.local');
+    const ownerUser = await db.prepare('SELECT id FROM users WHERE email = ?').get('admin@engageninja.local');
     testData.ownerUserId = ownerUser?.id;
 
-    const adminUser = db.prepare('SELECT id FROM users WHERE email = ?').get('user@engageninja.local');
+    const adminUser = await db.prepare('SELECT id FROM users WHERE email = ?').get('user@engageninja.local');
     testData.adminUserId = adminUser?.id;
 
-    const memberUser = db.prepare('SELECT id FROM users WHERE email = ?').get('member@engageninja.local');
+    const memberUser = await db.prepare('SELECT id FROM users WHERE email = ?').get('member@engageninja.local');
     testData.memberUserId = memberUser?.id;
 
-    const viewerUser = db.prepare('SELECT id FROM users WHERE email = ?').get('viewer@engageninja.local');
+    const viewerUser = await db.prepare('SELECT id FROM users WHERE email = ?').get('viewer@engageninja.local');
     testData.viewerUserId = viewerUser?.id;
   });
 
   afterAll(async () => {
-    if (db) db.close();
+    // Connection pooling handles cleanup
   });
 
   describe('1. User Listing', () => {
@@ -362,7 +356,7 @@ describe('Phase 3: User Management System', () => {
   describe('6. Audit Logging', () => {
 
     test('USER_INVITE action logged', async () => {
-      const logs = db.prepare('SELECT * FROM audit_logs WHERE action = ? ORDER BY created_at DESC LIMIT 1')
+      const logs = await db.prepare('SELECT * FROM audit_logs WHERE action = ? ORDER BY created_at DESC LIMIT 1')
         .all('user.invite');
 
       if (logs.length > 0) {
@@ -378,7 +372,7 @@ describe('Phase 3: User Management System', () => {
     });
 
     test('USER_ROLE_CHANGED action logged', async () => {
-      const logs = db.prepare('SELECT * FROM audit_logs WHERE action = ? ORDER BY created_at DESC LIMIT 1')
+      const logs = await db.prepare('SELECT * FROM audit_logs WHERE action = ? ORDER BY created_at DESC LIMIT 1')
         .all('user.role_changed');
 
       if (logs.length > 0) {
@@ -392,7 +386,7 @@ describe('Phase 3: User Management System', () => {
     });
 
     test('USER_REMOVED action logged', async () => {
-      const logs = db.prepare('SELECT * FROM audit_logs WHERE action = ? ORDER BY created_at DESC LIMIT 1')
+      const logs = await db.prepare('SELECT * FROM audit_logs WHERE action = ? ORDER BY created_at DESC LIMIT 1')
         .all('user.removed');
 
       if (logs.length > 0) {

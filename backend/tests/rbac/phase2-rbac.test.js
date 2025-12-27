@@ -4,12 +4,11 @@
  */
 
 const request = require('supertest');
-const Database = require('better-sqlite3');
+const db = require('../../src/db');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 let app;
-let db;
 let testUser = {};
 let testTenant = {};
 
@@ -28,17 +27,11 @@ describe('Phase 2: RBAC Middleware & Audit Logging', () => {
 
   beforeAll(async () => {
     // Initialize app
-    process.env.DATABASE_PATH = 'database.test.sqlite';
-    app = require('../src/index');
-
-    // Setup test database
-    const dbPath = path.join(__dirname, '../database.test.sqlite');
-    db = new Database(dbPath);
-    db.pragma('foreign_keys = ON');
+    app = require('../../src/index');
   });
 
   afterAll(async () => {
-    if (db) db.close();
+    // Connection pooling handles cleanup
   });
 
   describe('1. Settings Routes RBAC', () => {
@@ -197,7 +190,7 @@ describe('Phase 2: RBAC Middleware & Audit Logging', () => {
   describe('5. Audit Logging Verification', () => {
 
     test('Audit logs should exist for channel connect', async () => {
-      const logs = db.prepare('SELECT * FROM audit_logs WHERE action = ? ORDER BY created_at DESC LIMIT 1')
+      const logs = await db.prepare('SELECT * FROM audit_logs WHERE action = ? ORDER BY created_at DESC LIMIT 1')
         .all('channel.connect');
 
       expect(logs.length).toBeGreaterThan(0);
@@ -207,7 +200,7 @@ describe('Phase 2: RBAC Middleware & Audit Logging', () => {
     });
 
     test('Audit logs should exist for campaign send', async () => {
-      const logs = db.prepare('SELECT * FROM audit_logs WHERE action = ? ORDER BY created_at DESC LIMIT 1')
+      const logs = await db.prepare('SELECT * FROM audit_logs WHERE action = ? ORDER BY created_at DESC LIMIT 1')
         .all('campaign.send');
 
       if (logs.length > 0) {
@@ -220,7 +213,7 @@ describe('Phase 2: RBAC Middleware & Audit Logging', () => {
     });
 
     test('Audit logs should exist for contact import', async () => {
-      const logs = db.prepare('SELECT * FROM audit_logs WHERE action = ? ORDER BY created_at DESC LIMIT 1')
+      const logs = await db.prepare('SELECT * FROM audit_logs WHERE action = ? ORDER BY created_at DESC LIMIT 1')
         .all('contact.import');
 
       if (logs.length > 0) {
@@ -236,7 +229,7 @@ describe('Phase 2: RBAC Middleware & Audit Logging', () => {
   describe('6. Role Hierarchy Validation', () => {
 
     test('Owner role should have admin permissions', async () => {
-      const membership = db.prepare('SELECT role FROM user_tenants WHERE role = ? LIMIT 1')
+      const membership = await db.prepare('SELECT role FROM user_tenants WHERE role = ? LIMIT 1')
         .get('owner');
 
       expect(membership).toBeDefined();

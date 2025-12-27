@@ -5,12 +5,11 @@
  */
 
 const request = require('supertest');
-const Database = require('better-sqlite3');
+const db = require('../../src/db');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 let app;
-let db;
 
 const testUsers = {
   viewer: null,
@@ -23,37 +22,32 @@ const testCases = [];
 describe('SQL Injection Prevention', () => {
 
   beforeAll(async () => {
-    process.env.DATABASE_PATH = 'database.test.sqlite';
     app = require('../../src/index');
 
-    const dbPath = path.join(__dirname, '../../database.test.sqlite');
-    db = new Database(dbPath);
-    db.pragma('foreign_keys = ON');
-
     // Get test users
-    const viewerUser = db.prepare('SELECT id FROM users WHERE email = ?').get('viewer@engageninja.local');
-    const memberUser = db.prepare('SELECT id FROM users WHERE email = ?').get('member@engageninja.local');
-    const adminUser = db.prepare('SELECT id FROM users WHERE email = ?').get('user@engageninja.local');
+    const viewerUser = await db.prepare('SELECT id FROM users WHERE email = ?').get('viewer@engageninja.local');
+    const memberUser = await db.prepare('SELECT id FROM users WHERE email = ?').get('member@engageninja.local');
+    const adminUser = await db.prepare('SELECT id FROM users WHERE email = ?').get('user@engageninja.local');
 
     testUsers.viewer = { id: viewerUser?.id };
     testUsers.member = { id: memberUser?.id };
     testUsers.admin = { id: adminUser?.id };
 
     // Create sessions
-    Object.keys(testUsers).forEach(userKey => {
+    for (const userKey of Object.keys(testUsers)) {
       if (testUsers[userKey].id) {
         const sessionId = uuidv4();
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO sessions (session_id, user_id, expires_at)
-          VALUES (?, ?, datetime('now', '+24 hours'))
+          VALUES (?, ?, NOW() + INTERVAL '24 hours')
         `).run(sessionId, testUsers[userKey].id);
         testUsers[userKey].sessionId = sessionId;
       }
-    });
+    }
   });
 
   afterAll(async () => {
-    if (db) db.close();
+    // Connection pooling handles cleanup
   });
 
   // ===== SEARCH PARAMETER INJECTION =====
