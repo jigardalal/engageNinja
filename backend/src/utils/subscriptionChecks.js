@@ -1,15 +1,18 @@
 /**
  * Subscription and Billing Checks
  * Utilities for checking tenant billing status and grace periods
+ * PostgreSQL with async/await
  */
+
+const db = require('../db');
 
 /**
  * Check if tenant can send campaigns
  * Returns { allowed: boolean, reason?: string }
  */
-function canTenantSendCampaigns(db, tenantId) {
+async function canTenantSendCampaigns(tenantId) {
   try {
-  const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
+  const tenant = await db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
   if (!tenant) {
     return { allowed: false, reason: 'Tenant not found' };
   }
@@ -24,7 +27,7 @@ function canTenantSendCampaigns(db, tenantId) {
   }
 
     // Check subscription status
-    const subscription = db.prepare('SELECT * FROM subscriptions WHERE tenant_id = ?').get(tenantId);
+    const subscription = await db.prepare('SELECT * FROM subscriptions WHERE tenant_id = ?').get(tenantId);
 
     // If no subscription, check if in grace period
     if (!subscription || subscription.status === 'past_due') {
@@ -77,12 +80,12 @@ function canTenantSendCampaigns(db, tenantId) {
 /**
  * Get subscription status summary for a tenant
  */
-function getSubscriptionStatus(db, tenantId) {
+async function getSubscriptionStatus(tenantId) {
   try {
-    const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
+    const tenant = await db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
     if (!tenant) return null;
 
-    const subscription = db.prepare('SELECT * FROM subscriptions WHERE tenant_id = ?').get(tenantId);
+    const subscription = await db.prepare('SELECT * FROM subscriptions WHERE tenant_id = ?').get(tenantId);
 
     return {
       tenantId,
@@ -105,8 +108,8 @@ function getSubscriptionStatus(db, tenantId) {
 /**
  * Check if tenant is in billing trouble
  */
-function isInBillingTrouble(db, tenantId) {
-  const status = getSubscriptionStatus(db, tenantId);
+async function isInBillingTrouble(tenantId) {
+  const status = await getSubscriptionStatus(tenantId);
   if (!status) return false;
 
   return status.subscriptionStatus === 'failed' || status.subscriptionStatus === 'past_due';
@@ -115,9 +118,9 @@ function isInBillingTrouble(db, tenantId) {
 /**
  * Get grace period remaining time
  */
-function getGraceTimeRemaining(db, tenantId) {
+async function getGraceTimeRemaining(tenantId) {
   try {
-    const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
+    const tenant = await db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
     if (!tenant || !tenant.subscription_grace_period_until) {
       return null;
     }

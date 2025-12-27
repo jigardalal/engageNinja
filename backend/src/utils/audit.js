@@ -1,24 +1,11 @@
 /**
  * Audit Logging Utility for EngageNinja RBAC
  * Tracks all critical actions for compliance (SOC 2, GDPR, etc.)
+ * PostgreSQL with async/await
  */
 
 const crypto = require('crypto');
-const Database = require('better-sqlite3');
-const path = require('path');
-
-// Get database connection
-let db;
-try {
-  const envDbPath = process.env.DATABASE_PATH;
-  const DATABASE_PATH = envDbPath
-    ? path.resolve(path.join(__dirname, '../..', envDbPath))
-    : path.join(__dirname, '../../database.sqlite');
-  db = new Database(DATABASE_PATH);
-  db.pragma('foreign_keys = ON');
-} catch (error) {
-  console.error('Failed to initialize database in audit utility:', error);
-}
+const db = require('../db');
 
 /**
  * Log an audit event
@@ -35,7 +22,7 @@ try {
  *
  * @returns {string} Audit log entry ID
  */
-function logAudit({
+async function logAudit({
   actorUserId,
   actorType = 'tenant_user',
   tenantId = null,
@@ -48,7 +35,7 @@ function logAudit({
   const id = crypto.randomUUID();
 
   try {
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO audit_logs (
         id, actor_user_id, actor_type, tenant_id, action,
         target_type, target_id, metadata, ip_address
@@ -170,7 +157,7 @@ const AUDIT_ACTIONS = {
  *
  * @returns {Array} Audit log entries with actor and tenant info
  */
-function getAuditLogs({
+async function getAuditLogs({
   tenantId = null,
   userId = null,
   action = null,
@@ -209,7 +196,7 @@ function getAuditLogs({
   params.push(parseInt(limit), parseInt(offset));
 
   try {
-    return db.prepare(query).all(...params);
+    return await db.prepare(query).all(...params);
   } catch (error) {
     console.error('Failed to query audit logs:', error);
     return [];
@@ -223,7 +210,7 @@ function getAuditLogs({
  *
  * @returns {Object} Stats including action counts and date range
  */
-function getAuditStats(tenantId = null) {
+async function getAuditStats(tenantId = null) {
   try {
     let query = 'SELECT COUNT(*) as total FROM audit_logs';
     const params = [];
@@ -233,16 +220,16 @@ function getAuditStats(tenantId = null) {
       params.push(tenantId);
     }
 
-    const stats = db.prepare(query).get(...params);
+    const stats = await db.prepare(query).get(...params);
 
     query = 'SELECT MIN(created_at) as oldest, MAX(created_at) as newest FROM audit_logs';
-    params.pop();
+    const params2 = [];
     if (tenantId) {
       query += ' WHERE tenant_id = ?';
-      params.push(tenantId);
+      params2.push(tenantId);
     }
 
-    const dateRange = db.prepare(query).get(...params);
+    const dateRange = await db.prepare(query).get(...params2);
 
     return {
       totalEntries: stats.total,
@@ -265,13 +252,13 @@ function getAuditStats(tenantId = null) {
  *
  * @returns {number} Number of logs deleted
  */
-function cleanupOldAuditLogs(retentionDays = null) {
+async function cleanupOldAuditLogs(retentionDays = null) {
   // Get retention setting from platform config
   let daysToKeep = retentionDays;
 
   if (daysToKeep === null) {
     try {
-      const config = db.prepare(`
+      const config = await db.prepare(`
         SELECT value FROM platform_config WHERE key = 'audit_retention_days'
       `).get();
 
@@ -291,9 +278,9 @@ function cleanupOldAuditLogs(retentionDays = null) {
   }
 
   try {
-    const result = db.prepare(`
+    const result = await db.prepare(`
       DELETE FROM audit_logs
-      WHERE created_at < datetime('now', '-' || ? || ' days')
+      WHERE created_at < NOW() - INTERVAL '? days'
     `).run(daysToKeep);
 
     if (process.env.DEBUG_AUDIT === 'true') {
