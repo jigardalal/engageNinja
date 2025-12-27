@@ -93,7 +93,7 @@ router.use(requirePlatformAdmin);
  *   - limit: Number of results (default 50, max 100)
  *   - offset: Pagination offset (default 0)
  */
-router.get('/tenants', (req, res) => {
+router.get('/tenants', async (req, res) => {
   try {
     const { status, plan, search, limit = 50, offset = 0 } = req.query;
     const limitNum = Math.min(parseInt(limit) || 50, 100);
@@ -136,7 +136,7 @@ router.get('/tenants', (req, res) => {
     `;
     params.push(limitNum, offsetNum);
 
-    const tenants = db.prepare(query).all(...params);
+    const tenants = await db.prepare(query).all(...params);
 
     // Get total count for pagination
     let countQuery = 'SELECT COUNT(*) as total FROM tenants WHERE 1=1';
@@ -155,7 +155,7 @@ router.get('/tenants', (req, res) => {
       countParams.push(`%${search}%`, `%${search}%`);
     }
 
-    const { total } = db.prepare(countQuery).get(...countParams);
+    const { total } = await db.prepare(countQuery).get(...countParams);
 
     res.json({
       tenants,
@@ -177,11 +177,11 @@ router.get('/tenants', (req, res) => {
  * Get detailed information about a specific tenant
  * Includes usage metrics and member details
  */
-router.get('/tenants/:tenantId', (req, res) => {
+router.get('/tenants/:tenantId', async (req, res) => {
   try {
     const { tenantId } = req.params;
 
-    const tenant = db.prepare(`
+    const tenant = await db.prepare(`
       SELECT
         t.*,
         p.name as plan_name
@@ -195,7 +195,7 @@ router.get('/tenants/:tenantId', (req, res) => {
     }
 
     // Get user count and details
-    const users = db.prepare(`
+    const users = await db.prepare(`
       SELECT
         u.id,
         u.email,
@@ -210,17 +210,17 @@ router.get('/tenants/:tenantId', (req, res) => {
     `).all(tenantId);
 
     // Get campaign count
-    const { campaign_count } = db.prepare(`
+    const { campaign_count } = await db.prepare(`
       SELECT COUNT(*) as campaign_count FROM campaigns WHERE tenant_id = ?
     `).get(tenantId) || { campaign_count: 0 };
 
     // Get contact count
-    const { contact_count } = db.prepare(`
+    const { contact_count } = await db.prepare(`
       SELECT COUNT(*) as contact_count FROM contacts WHERE tenant_id = ?
     `).get(tenantId) || { contact_count: 0 };
 
     // Get plan overrides if they exist
-    const planOverrides = db.prepare(`
+    const planOverrides = await db.prepare(`
       SELECT wa_messages_override, emails_override, sms_override
       FROM plan_overrides WHERE tenant_id = ?
     `).get(tenantId);
@@ -335,9 +335,9 @@ router.post('/tenants/:tenantId/billing/checkout-session', async (req, res) => {
  * GET /api/admin/plans
  * List platform plans with editable fields
  */
-router.get('/plans', (req, res) => {
+router.get('/plans', async (req, res) => {
   try {
-    const rawPlans = db
+    const rawPlans = await db
       .prepare(`SELECT ${PLAN_COLUMNS.join(', ')} FROM plans ORDER BY created_at`)
       .all();
     res.json({
@@ -353,10 +353,10 @@ router.get('/plans', (req, res) => {
  * PATCH /api/admin/plans/:planId
  * Update plan metadata (name, limits, feature toggles, pricing)
  */
-router.patch('/plans/:planId', (req, res) => {
+router.patch('/plans/:planId', async (req, res) => {
   try {
     const { planId } = req.params;
-    const plan = db.prepare('SELECT * FROM plans WHERE id = ?').get(planId);
+    const plan = await db.prepare('SELECT * FROM plans WHERE id = ?').get(planId);
     if (!plan) {
       return res.status(404).json({ error: 'Plan not found' });
     }
@@ -439,9 +439,9 @@ router.patch('/plans/:planId', (req, res) => {
     params.push(planId);
 
     const updateQuery = `UPDATE plans SET ${updates.join(', ')} WHERE id = ?`;
-    db.prepare(updateQuery).run(...params);
+    await db.prepare(updateQuery).run(...params);
 
-    const updated = db
+    const updated = await db
       .prepare(`SELECT ${PLAN_COLUMNS.join(', ')} FROM plans WHERE id = ?`)
       .get(planId);
 
@@ -460,7 +460,7 @@ router.patch('/plans/:planId', (req, res) => {
  *   - planId: Plan ID (default: Free plan)
  *   - ownerEmail: Email of user to assign as owner (optional)
  */
-router.post('/tenants', (req, res) => {
+router.post('/tenants', async (req, res) => {
   try {
     const { name, planId, ownerEmail } = req.body;
 
@@ -471,10 +471,10 @@ router.post('/tenants', (req, res) => {
     // Get default plan if not specified (prefer free plan, otherwise first available)
     let finalPlanId = planId;
     if (!finalPlanId) {
-      const defaultPlan = db.prepare(`
+      const defaultPlan = await db.prepare(`
         SELECT id FROM plans WHERE id = 'free' OR name IN ('Free', 'Free Plan') LIMIT 1
       `).get();
-      const fallbackPlan = defaultPlan || db.prepare(`
+      const fallbackPlan = defaultPlan || await db.prepare(`
         SELECT id FROM plans ORDER BY created_at LIMIT 1
       `).get();
       finalPlanId = fallbackPlan?.id;
@@ -485,39 +485,39 @@ router.post('/tenants', (req, res) => {
 
     // Create tenant
     const tenantId = uuidv4();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO tenants (id, name, plan_id, status)
       VALUES (?, ?, ?, 'active')
     `).run(tenantId, name.trim(), finalPlanId);
 
     // Copy active global tags into new tenant
-    copyActiveGlobalTagsToTenant(db, tenantId);
+    await copyActiveGlobalTagsToTenant(tenantId);
 
     // Ensure creator has access when no owner is provided
-    const addCreatorAccess = db.prepare(`
+    const addCreatorAccess = await db.prepare(`
       INSERT INTO user_tenants (user_id, tenant_id, role, active)
       VALUES (?, ?, 'admin', true)
       ON CONFLICT (user_id, tenant_id) DO NOTHING
     `);
-    addCreatorAccess.run(req.session.userId, tenantId);
+    await addCreatorAccess.run(req.session.userId, tenantId);
 
     // Assign owner if email provided
     if (ownerEmail && ownerEmail.trim()) {
       const email = ownerEmail.trim().toLowerCase();
 
       // Check if user exists
-      let user = db.prepare(`
+      let user = await db.prepare(`
         SELECT id FROM users WHERE email = ?
       `).get(email);
 
       if (user) {
         // Add existing user as owner
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO user_tenants (user_id, tenant_id, role, active)
           VALUES (?, ?, 'owner', 1)
         `).run(user.id, tenantId);
 
-        logAudit({
+        await logAudit({
           actorUserId: req.session.userId,
           actorType: 'platform_user',
           tenantId: null,
@@ -548,13 +548,13 @@ router.post('/tenants', (req, res) => {
         const token = require('crypto').randomBytes(32).toString('hex');
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO user_invitations (
             id, tenant_id, email, role, invited_by, token, expires_at
           ) VALUES (?, ?, ?, 'owner', ?, ?, ?)
         `).run(inviteId, tenantId, email, req.session.userId, token, expiresAt.toISOString());
 
-        logAudit({
+        await logAudit({
           actorUserId: req.session.userId,
           actorType: 'platform_user',
           tenantId: null,
@@ -585,7 +585,7 @@ router.post('/tenants', (req, res) => {
     }
 
     // No owner assigned
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'platform_user',
       tenantId: null,
@@ -613,26 +613,26 @@ router.post('/tenants', (req, res) => {
  * POST /api/admin/tenants/:tenantId/sync-global-tags
  * Add missing active global tags into the tenant (non-destructive)
  */
-router.post('/tenants/:tenantId/sync-global-tags', (req, res) => {
+router.post('/tenants/:tenantId/sync-global-tags', async (req, res) => {
   try {
     const { tenantId } = req.params;
-    const tenant = db.prepare(`SELECT id, name FROM tenants WHERE id = ?`).get(tenantId);
+    const tenant = await db.prepare(`SELECT id, name FROM tenants WHERE id = ?`).get(tenantId);
     if (!tenant) {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    const globalTags = db.prepare(`SELECT name FROM global_tags WHERE status = 'active'`).all();
-    const existingTags = db.prepare(`
+    const globalTags = await db.prepare(`SELECT name FROM global_tags WHERE status = 'active'`).all();
+    const existingTags = (await db.prepare(`
       SELECT LOWER(name) as name FROM tags WHERE tenant_id = ?
-    `).all(tenantId).map(t => t.name);
+    `).all(tenantId)).map(t => t.name);
     const existingSet = new Set(existingTags);
     const missing = globalTags.filter(g => !existingSet.has(g.name.toLowerCase()));
 
     if (missing.length > 0) {
-      copyActiveGlobalTagsToTenant(db, tenantId);
+      await copyActiveGlobalTagsToTenant(tenantId);
     }
 
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'platform_user',
       tenantId: tenantId,
@@ -668,7 +668,7 @@ router.post('/tenants/:tenantId/sync-global-tags', (req, res) => {
  *   - limits: JSON limits object
  *   - metadata: JSON metadata object
  */
-router.patch('/tenants/:tenantId', (req, res) => {
+router.patch('/tenants/:tenantId', async (req, res) => {
   try {
     const { tenantId } = req.params;
     const {
@@ -695,7 +695,7 @@ router.patch('/tenants/:tenantId', (req, res) => {
     } = req.body;
 
     // Verify tenant exists
-    const tenant = db.prepare(`
+    const tenant = await db.prepare(`
       SELECT id FROM tenants WHERE id = ?
     `).get(tenantId);
 
@@ -726,7 +726,7 @@ router.patch('/tenants/:tenantId', (req, res) => {
         updates.push('price = NULL');
       } else {
         // Look up default price from plan
-        const plan = db.prepare('SELECT default_price FROM plans WHERE id = ?').get(planId);
+        const plan = await db.prepare('SELECT default_price FROM plans WHERE id = ?').get(planId);
         if (plan && plan.default_price) {
           updates.push('price = ?');
           params.push(plan.default_price);
@@ -806,7 +806,7 @@ router.patch('/tenants/:tenantId', (req, res) => {
 
     if (hasOverrideUpdates) {
       // Check if override record exists
-      const existingOverride = db.prepare(`SELECT id FROM plan_overrides WHERE tenant_id = ?`).get(tenantId);
+      const existingOverride = await db.prepare(`SELECT id FROM plan_overrides WHERE tenant_id = ?`).get(tenantId);
 
       if (existingOverride) {
         // Update existing override
@@ -829,12 +829,12 @@ router.patch('/tenants/:tenantId', (req, res) => {
         overrideUpdates.push('updated_at = CURRENT_TIMESTAMP');
         overrideParams.push(tenantId);
 
-        db.prepare(`
+        await db.prepare(`
           UPDATE plan_overrides SET ${overrideUpdates.join(', ')} WHERE tenant_id = ?
         `).run(...overrideParams);
       } else {
         // Create new override record
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO plan_overrides (
             id, tenant_id, wa_messages_override, emails_override, sms_override,
             created_by, created_at, updated_at
@@ -864,12 +864,12 @@ router.patch('/tenants/:tenantId', (req, res) => {
       updates.push('updated_at = CURRENT_TIMESTAMP');
       params.push(tenantId);
 
-      db.prepare(`
+      await db.prepare(`
         UPDATE tenants SET ${updates.join(', ')} WHERE id = ?
       `).run(...params);
     }
 
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'platform_user',
       tenantId: null,
@@ -896,14 +896,14 @@ router.patch('/tenants/:tenantId', (req, res) => {
  * GET /api/admin/global-tags
  * List all global tags
  */
-router.get('/global-tags', (req, res) => {
+router.get('/global-tags', async (req, res) => {
   try {
     const { status } = req.query;
     const normalizedStatus = status ? String(status).toLowerCase() : 'all';
     const where = ['active', 'archived'].includes(normalizedStatus) ? 'WHERE status = ?' : '';
     const params = ['active', 'archived'].includes(normalizedStatus) ? [normalizedStatus] : [];
 
-    const tags = db.prepare(`
+    const tags = await db.prepare(`
       SELECT id, name, status, created_at, updated_at
       FROM global_tags
       ${where}
@@ -920,7 +920,7 @@ router.get('/global-tags', (req, res) => {
  * POST /api/admin/global-tags
  * Create a new global tag
  */
-router.post('/global-tags', (req, res) => {
+router.post('/global-tags', async (req, res) => {
   try {
     const { name } = req.body;
     if (!name || !name.trim()) {
@@ -928,18 +928,18 @@ router.post('/global-tags', (req, res) => {
     }
 
     // Enforce unique name
-    const existing = db.prepare(`SELECT id FROM global_tags WHERE LOWER(name) = LOWER(?)`).get(name.trim());
+    const existing = await db.prepare(`SELECT id FROM global_tags WHERE LOWER(name) = LOWER(?)`).get(name.trim());
     if (existing) {
       return res.status(400).json({ error: 'A global tag with this name already exists' });
     }
 
     const id = uuidv4();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO global_tags (id, name, status, created_at, updated_at)
       VALUES (?, ?, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `).run(id, name.trim());
 
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'platform_user',
       tenantId: null,
@@ -961,12 +961,12 @@ router.post('/global-tags', (req, res) => {
  * PATCH /api/admin/global-tags/:tagId
  * Update global tag name or status
  */
-router.patch('/global-tags/:tagId', (req, res) => {
+router.patch('/global-tags/:tagId', async (req, res) => {
   try {
     const { tagId } = req.params;
     const { name, status } = req.body;
 
-    const tag = db.prepare(`SELECT id, name, status FROM global_tags WHERE id = ?`).get(tagId);
+    const tag = await db.prepare(`SELECT id, name, status FROM global_tags WHERE id = ?`).get(tagId);
     if (!tag) {
       return res.status(404).json({ error: 'Global tag not found' });
     }
@@ -979,7 +979,7 @@ router.patch('/global-tags/:tagId', (req, res) => {
       if (!name || !name.trim()) {
         return res.status(400).json({ error: 'Tag name cannot be empty' });
       }
-      const existing = db.prepare(`SELECT id FROM global_tags WHERE LOWER(name) = LOWER(?) AND id <> ?`)
+      const existing = await db.prepare(`SELECT id FROM global_tags WHERE LOWER(name) = LOWER(?) AND id <> ?`)
         .get(name.trim(), tagId);
       if (existing) {
         return res.status(400).json({ error: 'A global tag with this name already exists' });
@@ -1005,11 +1005,11 @@ router.patch('/global-tags/:tagId', (req, res) => {
     updates.push('updated_at = CURRENT_TIMESTAMP');
     params.push(tagId);
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE global_tags SET ${updates.join(', ')} WHERE id = ?
     `).run(...params);
 
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'platform_user',
       tenantId: null,
@@ -1039,7 +1039,7 @@ router.patch('/global-tags/:tagId', (req, res) => {
  *   - limit: Number of results (default 50, max 100)
  *   - offset: Pagination offset (default 0)
  */
-router.get('/users', (req, res) => {
+router.get('/users', async (req, res) => {
   try {
     const { search, active, role, limit = 50, offset = 0 } = req.query;
     const limitNum = Math.min(parseInt(limit) || 50, 100);
@@ -1086,7 +1086,7 @@ router.get('/users', (req, res) => {
     `;
     params.push(limitNum, offsetNum);
 
-    const users = db.prepare(query).all(...params);
+    const users = await db.prepare(query).all(...params);
 
     // Get total count
     let countQuery = 'SELECT COUNT(DISTINCT u.id) as total FROM users u WHERE 1=1';
@@ -1105,7 +1105,7 @@ router.get('/users', (req, res) => {
       countParams.push(role);
     }
 
-    const { total } = db.prepare(countQuery).get(...countParams);
+    const { total } = await db.prepare(countQuery).get(...countParams);
 
     res.json({
       users,
@@ -1126,11 +1126,11 @@ router.get('/users', (req, res) => {
  * GET /api/admin/users/:userId
  * Get detailed user information including all tenant memberships
  */
-router.get('/users/:userId', (req, res) => {
+router.get('/users/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const user = db.prepare(`
+    const user = await db.prepare(`
       SELECT
         id, email, name, first_name, last_name, phone, timezone, role_global, active, created_at, updated_at
       FROM users
@@ -1142,7 +1142,7 @@ router.get('/users/:userId', (req, res) => {
     }
 
     // Get all tenant memberships
-    const tenants = db.prepare(`
+    const tenants = await db.prepare(`
       SELECT
         ut.tenant_id,
         ut.role,
@@ -1173,7 +1173,7 @@ router.get('/users/:userId', (req, res) => {
  *   - active: true/false
  *   - role_global: none/platform_support/platform_admin/system_admin
  */
-router.patch('/users/:userId', (req, res) => {
+router.patch('/users/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const { active, role_global } = req.body;
@@ -1188,7 +1188,7 @@ router.patch('/users/:userId', (req, res) => {
     }
 
     // Verify user exists
-    const user = db.prepare(`
+    const user = await db.prepare(`
       SELECT id, active, role_global FROM users WHERE id = ?
     `).get(userId);
 
@@ -1242,12 +1242,12 @@ router.patch('/users/:userId', (req, res) => {
     updates.push('updated_at = CURRENT_TIMESTAMP');
     params.push(userId);
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE users SET ${updates.join(', ')} WHERE id = ?
     `).run(...params);
 
     if (active !== undefined) {
-      logAudit({
+      await logAudit({
         actorUserId: req.session.userId,
         actorType: 'platform_user',
         tenantId: null,
@@ -1263,7 +1263,7 @@ router.patch('/users/:userId', (req, res) => {
     }
 
     if (role_global !== undefined) {
-      logAudit({
+      await logAudit({
         actorUserId: req.session.userId,
         actorType: 'platform_user',
         tenantId: null,
@@ -1295,7 +1295,7 @@ router.patch('/users/:userId', (req, res) => {
  * Body:
  *   - role: Tenant role (owner, admin, member, viewer)
  */
-router.post('/users/:userId/tenants/:tenantId/assign', (req, res) => {
+router.post('/users/:userId/tenants/:tenantId/assign', async (req, res) => {
   try {
     const { userId, tenantId } = req.params;
     const { role } = req.body;
@@ -1309,7 +1309,7 @@ router.post('/users/:userId/tenants/:tenantId/assign', (req, res) => {
     }
 
     // Verify user exists
-    const user = db.prepare(`
+    const user = await db.prepare(`
       SELECT id FROM users WHERE id = ?
     `).get(userId);
 
@@ -1318,7 +1318,7 @@ router.post('/users/:userId/tenants/:tenantId/assign', (req, res) => {
     }
 
     // Verify tenant exists
-    const tenant = db.prepare(`
+    const tenant = await db.prepare(`
       SELECT id FROM tenants WHERE id = ?
     `).get(tenantId);
 
@@ -1327,7 +1327,7 @@ router.post('/users/:userId/tenants/:tenantId/assign', (req, res) => {
     }
 
     // Check if user already in tenant
-    const existing = db.prepare(`
+    const existing = await db.prepare(`
       SELECT user_id FROM user_tenants WHERE user_id = ? AND tenant_id = ?
     `).get(userId, tenantId);
 
@@ -1336,12 +1336,12 @@ router.post('/users/:userId/tenants/:tenantId/assign', (req, res) => {
     }
 
     // Add user to tenant
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO user_tenants (user_id, tenant_id, role, active)
       VALUES (?, ?, ?, 1)
     `).run(userId, tenantId, role);
 
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'platform_user',
       tenantId: null,
@@ -1373,7 +1373,7 @@ router.post('/users/:userId/tenants/:tenantId/assign', (req, res) => {
  * Body:
  *   - role: Tenant role (owner, admin, member, viewer)
  */
-router.patch('/users/:userId/tenants/:tenantId', (req, res) => {
+router.patch('/users/:userId/tenants/:tenantId', async (req, res) => {
   try {
     const { userId, tenantId } = req.params;
     const { role } = req.body;
@@ -1386,7 +1386,7 @@ router.patch('/users/:userId/tenants/:tenantId', (req, res) => {
     }
 
     // Verify membership exists
-    const membership = db.prepare(`
+    const membership = await db.prepare(`
       SELECT ut.role, ut.active, u.email as user_email, t.name as tenant_name
       FROM user_tenants ut
       INNER JOIN users u ON ut.user_id = u.id
@@ -1400,7 +1400,7 @@ router.patch('/users/:userId/tenants/:tenantId', (req, res) => {
 
     // Prevent leaving a tenant without an owner
     if (membership.role === 'owner' && role !== 'owner') {
-      const ownerCount = db.prepare(`
+      const ownerCount = await db.prepare(`
         SELECT COUNT(*) as count
         FROM user_tenants
         WHERE tenant_id = ? AND role = 'owner' AND active
@@ -1411,13 +1411,13 @@ router.patch('/users/:userId/tenants/:tenantId', (req, res) => {
       }
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE user_tenants
       SET role = ?, updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ? AND tenant_id = ?
     `).run(role, userId, tenantId);
 
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'platform_user',
       tenantId: null,
@@ -1445,11 +1445,11 @@ router.patch('/users/:userId/tenants/:tenantId', (req, res) => {
  * DELETE /api/admin/users/:userId/tenants/:tenantId
  * Remove a user's membership from a tenant
  */
-router.delete('/users/:userId/tenants/:tenantId', (req, res) => {
+router.delete('/users/:userId/tenants/:tenantId', async (req, res) => {
   try {
     const { userId, tenantId } = req.params;
 
-    const membership = db.prepare(`
+    const membership = await db.prepare(`
       SELECT ut.role, u.email as user_email, t.name as tenant_name
       FROM user_tenants ut
       INNER JOIN users u ON ut.user_id = u.id
@@ -1465,12 +1465,12 @@ router.delete('/users/:userId/tenants/:tenantId', (req, res) => {
       return res.status(400).json({ error: 'Tenant owners cannot be removed from a tenant' });
     }
 
-    db.prepare(`
+    await db.prepare(`
       DELETE FROM user_tenants
       WHERE user_id = ? AND tenant_id = ?
     `).run(userId, tenantId);
 
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'platform_user',
       tenantId: null,
@@ -1507,7 +1507,7 @@ router.delete('/users/:userId/tenants/:tenantId', (req, res) => {
  *   - limit: Number of results (default 100, max 500)
  *   - offset: Pagination offset (default 0)
  */
-router.get('/audit-logs', (req, res) => {
+router.get('/audit-logs', async (req, res) => {
   try {
     const {
       tenantId,
@@ -1575,7 +1575,7 @@ router.get('/audit-logs', (req, res) => {
     `;
     params.push(limitNum, offsetNum);
 
-    const logs = db.prepare(query).all(...params);
+    const logs = await db.prepare(query).all(...params);
 
     // Parse metadata JSON for each log
     const parsedLogs = logs.map(log => ({
@@ -1608,7 +1608,7 @@ router.get('/audit-logs', (req, res) => {
       countParams.push(endDate);
     }
 
-    const { total } = db.prepare(countQuery).get(...countParams);
+    const { total } = await db.prepare(countQuery).get(...countParams);
 
     res.json({
       logs: parsedLogs,
@@ -1630,10 +1630,10 @@ router.get('/audit-logs', (req, res) => {
  * Get audit log statistics
  * Returns: action counts, date range, actor counts
  */
-router.get('/audit-logs/stats', (req, res) => {
+router.get('/audit-logs/stats', async (req, res) => {
   try {
     // Get action counts
-    const actionStats = db.prepare(`
+    const actionStats = await db.prepare(`
       SELECT action, COUNT(*) as count
       FROM audit_logs
       GROUP BY action
@@ -1641,7 +1641,7 @@ router.get('/audit-logs/stats', (req, res) => {
     `).all();
 
     // Get date range
-    const dateRange = db.prepare(`
+    const dateRange = await db.prepare(`
       SELECT
         MIN(created_at) as earliest,
         MAX(created_at) as latest
@@ -1649,7 +1649,7 @@ router.get('/audit-logs/stats', (req, res) => {
     `).get();
 
     // Get most active actors
-    const actorStats = db.prepare(`
+    const actorStats = await db.prepare(`
       SELECT
         actor_user_id,
         u.email,
@@ -1663,7 +1663,7 @@ router.get('/audit-logs/stats', (req, res) => {
     `).all();
 
     // Get total stats
-    const { total_logs, platform_actions, tenant_actions } = db.prepare(`
+    const { total_logs, platform_actions, tenant_actions } = await db.prepare(`
       SELECT
         COUNT(*) as total_logs,
         SUM(CASE WHEN tenant_id IS NULL THEN 1 ELSE 0 END) as platform_actions,
@@ -1693,9 +1693,9 @@ router.get('/audit-logs/stats', (req, res) => {
  * GET /api/admin/config
  * Get platform configuration settings
  */
-router.get('/config', (req, res) => {
+router.get('/config', async (req, res) => {
   try {
-    const config = db.prepare(`
+    const config = await db.prepare(`
       SELECT key, value, updated_at, updated_by FROM platform_config
       ORDER BY key
     `).all();
@@ -1722,7 +1722,7 @@ router.get('/config', (req, res) => {
  * Body:
  *   - value: New configuration value
  */
-router.patch('/config/:key', (req, res) => {
+router.patch('/config/:key', async (req, res) => {
   try {
     const { key } = req.params;
     const { value } = req.body;
@@ -1732,13 +1732,13 @@ router.patch('/config/:key', (req, res) => {
     }
 
     // Upsert configuration
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO platform_config (key, value, updated_by, updated_at)
       VALUES (?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(key) DO UPDATE SET value=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
     `).run(key, JSON.stringify(value), req.session.userId, JSON.stringify(value), req.session.userId);
 
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'platform_user',
       tenantId: null,
@@ -1766,19 +1766,19 @@ router.patch('/config/:key', (req, res) => {
  * GET /api/admin/stats
  * Get platform-wide statistics
  */
-router.get('/stats', (req, res) => {
+router.get('/stats', async (req, res) => {
   try {
     const stats = {
-      tenants: db.prepare('SELECT COUNT(*) as count FROM tenants').get().count,
-      active_tenants: db.prepare(`SELECT COUNT(*) as count FROM tenants WHERE status = 'active'`).get().count,
-      users: db.prepare('SELECT COUNT(*) as count FROM users').get().count,
-      active_users: db.prepare('SELECT COUNT(*) as count FROM users WHERE active').get().count,
-      platform_admins: db.prepare('SELECT COUNT(*) as count FROM users WHERE role_global = ?').get('platform_admin').count,
-      campaigns: db.prepare('SELECT COUNT(*) as count FROM campaigns').get().count,
-      contacts: db.prepare('SELECT COUNT(*) as count FROM contacts').get().count,
-      audit_logs: db.prepare('SELECT COUNT(*) as count FROM audit_logs').get().count,
-      whatsapp_messages_sent: db.prepare('SELECT COALESCE(SUM(whatsapp_messages_sent), 0) as total FROM usage_counters').get().total || 0,
-      email_messages_sent: db.prepare('SELECT COALESCE(SUM(email_messages_sent), 0) as total FROM usage_counters').get().total || 0
+      tenants: (await db.prepare('SELECT COUNT(*) as count FROM tenants').get()).count,
+      active_tenants: (await db.prepare(`SELECT COUNT(*) as count FROM tenants WHERE status = 'active'`).get()).count,
+      users: (await db.prepare('SELECT COUNT(*) as count FROM users').get()).count,
+      active_users: (await db.prepare('SELECT COUNT(*) as count FROM users WHERE active').get()).count,
+      platform_admins: (await db.prepare('SELECT COUNT(*) as count FROM users WHERE role_global = ?').get('platform_admin')).count,
+      campaigns: (await db.prepare('SELECT COUNT(*) as count FROM campaigns').get()).count,
+      contacts: (await db.prepare('SELECT COUNT(*) as count FROM contacts').get()).count,
+      audit_logs: (await db.prepare('SELECT COUNT(*) as count FROM audit_logs').get()).count,
+      whatsapp_messages_sent: (await db.prepare('SELECT COALESCE(SUM(whatsapp_messages_sent), 0) as total FROM usage_counters').get()).total || 0,
+      email_messages_sent: (await db.prepare('SELECT COALESCE(SUM(email_messages_sent), 0) as total FROM usage_counters').get()).total || 0
     };
 
     res.json(stats);
