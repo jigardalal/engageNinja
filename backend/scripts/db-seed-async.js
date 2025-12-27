@@ -11,7 +11,6 @@
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
-const Database = require('better-sqlite3');
 const { Pool } = require('pg');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
@@ -20,7 +19,6 @@ const USE_POSTGRES = !!process.env.DATABASE_URL;
 
 async function seed() {
   let pool = null;
-  let sqliteDb = null;
 
   try {
     console.log('🌱 EngageNinja Database Seeding');
@@ -28,89 +26,44 @@ async function seed() {
 
     let query;
 
-    if (USE_POSTGRES) {
-      // PostgreSQL connection
-      pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false }
-      });
+    // PostgreSQL connection only (SQLite no longer supported)
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL
+    });
 
-      query = async (sql, params = []) => {
-        // Convert SQLite ? placeholders to PostgreSQL $1, $2, etc.
-        let pgSql = sql;
-        let paramIndex = 1;
-        pgSql = pgSql.replace(/\?/g, () => `$${paramIndex++}`);
-        const result = await pool.query(pgSql, params);
-        return result;
-      };
+    query = async (sql, params = []) => {
+      // Convert SQLite ? placeholders to PostgreSQL $1, $2, etc.
+      let pgSql = sql;
+      let paramIndex = 1;
+      pgSql = pgSql.replace(/\?/g, () => `$${paramIndex++}`);
+      const result = await pool.query(pgSql, params);
+      return result;
+    };
 
-      // Clear existing data in reverse dependency order
-      console.log('🧹 Clearing existing data...');
-      const tablesToClear = [
-        'contacts',
-        'messages',
-        'campaigns',
-        'tags',
-        'template_variables',
-        'email_templates',
-        'whatsapp_templates',
-        'user_tenants',
-        'tenants',
-        'users',
-        'plans'
-      ];
+    // Clear existing data in reverse dependency order
+    console.log('🧹 Clearing existing data...');
+    const tablesToClear = [
+      'contacts',
+      'messages',
+      'campaigns',
+      'tags',
+      'template_variables',
+      'email_templates',
+      'whatsapp_templates',
+      'user_tenants',
+      'tenants',
+      'users',
+      'plans'
+    ];
 
-      for (const table of tablesToClear) {
-        try {
-          await pool.query(`DELETE FROM ${table}`);
-        } catch (err) {
-          // Table might not exist yet, that's ok
-        }
+    for (const table of tablesToClear) {
+      try {
+        await pool.query(`DELETE FROM ${table}`);
+      } catch (err) {
+        // Table might not exist yet, that's ok
       }
-      console.log('✓ Data cleared\n');
-    } else {
-      // SQLite connection
-      const envDbPath = process.env.DATABASE_PATH;
-      const DATABASE_PATH = envDbPath
-        ? path.resolve(path.join(__dirname, '..', envDbPath))
-        : path.join(__dirname, '../database.sqlite');
-
-      sqliteDb = new Database(DATABASE_PATH);
-
-      query = async (sql, params = []) => {
-        // For SQLite, just wrap in async
-        const stmt = sqliteDb.prepare(sql);
-        if (params && params.length > 0) {
-          return stmt.run(...params);
-        }
-        return stmt.all();
-      };
-
-      // Clear existing data in reverse dependency order for SQLite
-      console.log('🧹 Clearing existing data...');
-      const tablesToClear = [
-        'contacts',
-        'messages',
-        'campaigns',
-        'tags',
-        'template_variables',
-        'email_templates',
-        'whatsapp_templates',
-        'user_tenants',
-        'tenants',
-        'users',
-        'plans'
-      ];
-
-      for (const table of tablesToClear) {
-        try {
-          sqliteDb.exec(`DELETE FROM ${table}`);
-        } catch (err) {
-          // Table might not exist yet, that's ok
-        }
-      }
-      console.log('✓ Data cleared\n');
     }
+    console.log('✓ Data cleared\n');
 
     // 1. Seed Plans
     console.log('📋 Seeding plans...');
@@ -233,9 +186,6 @@ async function seed() {
     // Clean up database connections
     if (pool) {
       await pool.end();
-    }
-    if (sqliteDb) {
-      sqliteDb.close();
     }
   }
 }
