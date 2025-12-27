@@ -19,7 +19,7 @@ EngageNinja is an AI-first, WhatsApp-first customer engagement platform for What
 
 - Node.js v18+
 - npm or pnpm
-- SQLite3 (for development)
+- PostgreSQL 12+ (for development and production)
 
 ### Setup
 
@@ -37,7 +37,7 @@ EngageNinja is an AI-first, WhatsApp-first customer engagement platform for What
    This will:
    - Install all dependencies (frontend + backend)
    - Create `.env` files from examples
-   - Initialize the SQLite database with schema and seed data
+   - Initialize the PostgreSQL database with schema and seed data
    - Display setup information and test credentials
 
 3. **Start development servers**
@@ -105,7 +105,7 @@ engageninja/
 
 ### Backend
 - **Runtime**: Node.js with Express.js
-- **Database**: SQLite (MVP) / PostgreSQL (Production)
+- **Database**: PostgreSQL with async/await (connection pooling, migrations)
 - **Authentication**: Email + Password with bcrypt
 - **Session Management**: HTTP-only cookies
 - **Streaming**: Server-Sent Events (SSE)
@@ -172,13 +172,13 @@ node scripts/ui/admin-tenant-banner.js
 UI automation can create tenants/tags/contacts, which clutters your local dev database. Use the isolated test stack to keep your main dev DB clean.
 
 ```bash
-# reset + seed the test database (creates backend/database.test.sqlite)
+# reset + seed the test database
 npm run db:reset:test
 
 # start isolated servers
 # - frontend: http://localhost:3174
 # - backend:  http://localhost:5174
-# - db:       backend/database.test.sqlite
+# - db:       Test PostgreSQL database (configured via DATABASE_URL in test .env)
 npm run dev:test
 
 # run UI tests against the isolated stack
@@ -191,7 +191,7 @@ Create `.env` files in both frontend and backend directories:
 
 **backend/.env** (from .env.example):
 ```
-DATABASE_PATH=./database.sqlite
+DATABASE_URL=postgresql://user:password@localhost:5432/engageninja
 PORT=5173
 NODE_ENV=development
 ```

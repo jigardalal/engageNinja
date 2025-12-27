@@ -187,8 +187,8 @@ Example:
 ```javascript
 const { validateTenantAccess, requireTenantRole } = require('../middleware/rbac');
 
-router.get('/', validateTenantAccess, requireTenantRole('member'), (req, res) => {
-  const data = db.prepare('SELECT * FROM table WHERE tenant_id = ?').all(req.tenantId);
+router.get('/', validateTenantAccess, requireTenantRole('member'), async (req, res) => {
+  const data = await db.prepare('SELECT * FROM table WHERE tenant_id = ?').all(req.tenantId);
   res.json(data);
 });
 ```
@@ -360,6 +360,11 @@ Override with: `BASE_URL=http://localhost:3174 npm run ui:test:smoke`
 
 (Based on recent commits)
 
+- **PostgreSQL Migration Complete**: Full migration from SQLite to PostgreSQL async/await (9 phases, 160+ files)
+  - All backend routes converted to async/await (90+ routes)
+  - All database scripts refactored (db-init, db-reset, db-seed, seed-twilio-sms)
+  - All test files migrated to PostgreSQL patterns
+  - SQLite artifacts removed, PostgreSQL-only architecture implemented
 - **Stripe Billing Integration**: Full subscription lifecycle, webhook handling, invoice generation (Session 26-28)
 - **Configurable Invoice Modes**: HTML-based PDF generation with template support (Session 28)
 - **Consolidated Billing Docs**: BILLING.md for comprehensive billing system overview (Session 26)
