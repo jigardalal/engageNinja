@@ -25,7 +25,7 @@ const requireAuth = (req, res, next) => {
 };
 
 // Validate tenant access (ensure user has access to tenant)
-const validateTenantAccess = (req, res, next) => {
+const validateTenantAccess = async (req, res, next) => {
   const tenantId = req.session.activeTenantId || req.body.tenant_id || req.query.tenant_id;
 
   if (!tenantId) {
@@ -37,7 +37,7 @@ const validateTenantAccess = (req, res, next) => {
   }
 
   // Check if user has access to this tenant
-  const userTenant = db.prepare(`
+  const userTenant = await db.prepare(`
     SELECT ut.tenant_id FROM user_tenants ut
     WHERE ut.user_id = ? AND ut.tenant_id = ?
   `).get(req.session.userId, tenantId);
@@ -60,7 +60,7 @@ const validateTenantAccess = (req, res, next) => {
  * GET /contacts
  * List all contacts for current tenant with optional search and filtering
  */
-router.get('/', requireAuth, validateTenantAccess, (req, res) => {
+router.get('/', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const { search, tag, limit = 50, offset = 0 } = req.query;
     const parsedLimit = Math.min(parseInt(limit) || 50, 500); // Max 500 per request
@@ -86,7 +86,7 @@ router.get('/', requireAuth, validateTenantAccess, (req, res) => {
 
     // Search by name or phone
     if (search && search.trim()) {
-      query += ` AND (c.name LIKE ? OR c.phone LIKE ?)`;
+      query += ` AND (c.name ILIKE ? OR c.phone ILIKE ?)`;
       const searchTerm = `%${search.trim()}%`;
       params.push(searchTerm, searchTerm);
     }
@@ -100,14 +100,14 @@ router.get('/', requireAuth, validateTenantAccess, (req, res) => {
     query += ` GROUP BY c.id ORDER BY c.created_at DESC LIMIT ? OFFSET ?`;
     params.push(parsedLimit, parsedOffset);
 
-    const contacts = db.prepare(query).all(...params);
+    const contacts = await db.prepare(query).all(...params);
 
     // Get total count
     let countQuery = `SELECT COUNT(DISTINCT c.id) as count FROM contacts c`;
     let countParams = [req.tenantId];
 
     if (search && search.trim()) {
-      countQuery += ` WHERE c.tenant_id = ? AND (c.name LIKE ? OR c.phone LIKE ?)`;
+      countQuery += ` WHERE c.tenant_id = ? AND (c.name ILIKE ? OR c.phone ILIKE ?)`;
       const searchTerm = `%${search.trim()}%`;
       countParams = [req.tenantId, searchTerm, searchTerm];
     } else if (tag && tag.trim()) {
@@ -122,7 +122,7 @@ router.get('/', requireAuth, validateTenantAccess, (req, res) => {
       countParams = [req.tenantId];
     }
 
-    const { count } = db.prepare(countQuery).get(...countParams);
+    const { count } = await db.prepare(countQuery).get(...countParams);
 
     // Parse tags into arrays
     const formattedContacts = contacts.map(c => ({
@@ -161,7 +161,7 @@ router.get('/', requireAuth, validateTenantAccess, (req, res) => {
  * POST /contacts/bulk/tags
  * Add tags to multiple contacts
  */
-router.post('/bulk/tags', requireAuth, validateTenantAccess, (req, res) => {
+router.post('/bulk/tags', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const { contact_ids = [], tag_ids = [] } = req.body || {};
 
@@ -190,7 +190,7 @@ router.post('/bulk/tags', requireAuth, validateTenantAccess, (req, res) => {
     }
 
     const tagPlaceholders = tag_ids.map(() => '?').join(',');
-    const validTags = db.prepare(
+    const validTags = await db.prepare(
       `SELECT id FROM tags WHERE tenant_id = ? AND status = 'active' AND id IN (${tagPlaceholders})`
     ).all(req.tenantId, ...tag_ids);
 
@@ -203,7 +203,7 @@ router.post('/bulk/tags', requireAuth, validateTenantAccess, (req, res) => {
     }
 
     const contactPlaceholders = contact_ids.map(() => '?').join(',');
-    const validContacts = db.prepare(
+    const validContacts = await db.prepare(
       `SELECT id FROM contacts WHERE tenant_id = ? AND id IN (${contactPlaceholders})`
     ).all(req.tenantId, ...contact_ids);
 
@@ -215,16 +215,14 @@ router.post('/bulk/tags', requireAuth, validateTenantAccess, (req, res) => {
       });
     }
 
-    const insertContactTag = db.prepare('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?) ON CONFLICT (contact_id, tag_id) DO NOTHING');
-    const addTagsTransaction = db.transaction((contactIds, tags) => {
-      for (const contact of contactIds) {
-        for (const tag of tags) {
-          insertContactTag.run(contact.id, tag.id);
+    // Use async transaction
+    await db.transaction(async (txDb) => {
+      for (const contact of validContacts) {
+        for (const tag of validTags) {
+          await txDb.prepare('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?) ON CONFLICT (contact_id, tag_id) DO NOTHING').run(contact.id, tag.id);
         }
       }
     });
-
-    addTagsTransaction(validContacts, validTags);
 
     return res.json({
       status: 'success',
@@ -244,7 +242,7 @@ router.post('/bulk/tags', requireAuth, validateTenantAccess, (req, res) => {
  * POST /contacts/bulk/delete
  * Delete multiple contacts
  */
-router.post('/bulk/delete', requireAuth, validateTenantAccess, requireMember, (req, res) => {
+router.post('/bulk/delete', requireAuth, validateTenantAccess, requireMember, async (req, res) => {
   try {
     const { contact_ids = [] } = req.body || {};
 
@@ -265,7 +263,7 @@ router.post('/bulk/delete', requireAuth, validateTenantAccess, requireMember, (r
     }
 
     const contactPlaceholders = contact_ids.map(() => '?').join(',');
-    const validContacts = db.prepare(
+    const validContacts = await db.prepare(
       `SELECT id FROM contacts WHERE tenant_id = ? AND id IN (${contactPlaceholders})`
     ).all(req.tenantId, ...contact_ids);
 
@@ -277,156 +275,14 @@ router.post('/bulk/delete', requireAuth, validateTenantAccess, requireMember, (r
       });
     }
 
-    const deleteTransaction = db.transaction((ids) => {
+    // Use async transaction
+    await db.transaction(async (txDb) => {
+      const ids = validContacts.map(c => c.id);
       const placeholders = ids.map(() => '?').join(',');
-      db.prepare(`DELETE FROM contact_tags WHERE contact_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM messages WHERE contact_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM contacts WHERE id IN (${placeholders}) AND tenant_id = ?`).run(...ids, req.tenantId);
+      await txDb.prepare(`DELETE FROM contact_tags WHERE contact_id IN (${placeholders})`).run(...ids);
+      await txDb.prepare(`DELETE FROM messages WHERE contact_id IN (${placeholders})`).run(...ids);
+      await txDb.prepare(`DELETE FROM contacts WHERE id IN (${placeholders}) AND tenant_id = ?`).run(...ids, req.tenantId);
     });
-
-    deleteTransaction(validContacts.map(c => c.id));
-
-    return res.json({
-      status: 'success',
-      message: `Deleted ${validContacts.length} contact(s)`
-    });
-  } catch (error) {
-    console.error('Bulk delete contacts error:', error);
-    return res.status(500).json({
-      error: 'Failed to delete contacts',
-      message: error.message,
-      status: 'error'
-    });
-  }
-});
-/**
- * POST /contacts/bulk/tags
- * Add tags to multiple contacts
- */
-router.post('/bulk/tags', requireAuth, validateTenantAccess, (req, res) => {
-  try {
-    const { contact_ids = [], tag_ids = [] } = req.body || {};
-
-    if (!Array.isArray(contact_ids) || contact_ids.length === 0) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'contact_ids is required and must be a non-empty array',
-        status: 'error'
-      });
-    }
-
-    if (!Array.isArray(tag_ids) || tag_ids.length === 0) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'tag_ids is required and must be a non-empty array',
-        status: 'error'
-      });
-    }
-
-    if (contact_ids.length > 500) {
-      return res.status(400).json({
-        error: 'Too Many Contacts',
-        message: 'Limit bulk operations to 500 contacts at a time',
-        status: 'error'
-      });
-    }
-
-    const tagPlaceholders = tag_ids.map(() => '?').join(',');
-    const validTags = db.prepare(
-      `SELECT id FROM tags WHERE tenant_id = ? AND status = 'active' AND id IN (${tagPlaceholders})`
-    ).all(req.tenantId, ...tag_ids);
-
-    if (validTags.length === 0) {
-      return res.status(400).json({
-        error: 'Invalid Tags',
-        message: 'No valid tags found for this tenant',
-        status: 'error'
-      });
-    }
-
-    const contactPlaceholders = contact_ids.map(() => '?').join(',');
-    const validContacts = db.prepare(
-      `SELECT id FROM contacts WHERE tenant_id = ? AND id IN (${contactPlaceholders})`
-    ).all(req.tenantId, ...contact_ids);
-
-    if (validContacts.length === 0) {
-      return res.status(400).json({
-        error: 'Invalid Contacts',
-        message: 'No valid contacts found for this tenant',
-        status: 'error'
-      });
-    }
-
-    const insertContactTag = db.prepare('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?) ON CONFLICT (contact_id, tag_id) DO NOTHING');
-    const addTagsTransaction = db.transaction((contactIds, tags) => {
-      for (const contact of contactIds) {
-        for (const tag of tags) {
-          insertContactTag.run(contact.id, tag.id);
-        }
-      }
-    });
-
-    addTagsTransaction(validContacts, validTags);
-
-    return res.json({
-      status: 'success',
-      message: `Added ${validTags.length} tag(s) to ${validContacts.length} contact(s)`
-    });
-  } catch (error) {
-    console.error('Bulk add tags error:', error);
-    return res.status(500).json({
-      error: 'Failed to add tags to contacts',
-      message: error.message,
-      status: 'error'
-    });
-  }
-});
-
-/**
- * POST /contacts/bulk/delete
- * Delete multiple contacts
- */
-router.post('/bulk/delete', requireAuth, validateTenantAccess, requireMember, (req, res) => {
-  try {
-    const { contact_ids = [] } = req.body || {};
-
-    if (!Array.isArray(contact_ids) || contact_ids.length === 0) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'contact_ids is required and must be a non-empty array',
-        status: 'error'
-      });
-    }
-
-    if (contact_ids.length > 500) {
-      return res.status(400).json({
-        error: 'Too Many Contacts',
-        message: 'Limit bulk delete to 500 contacts at a time',
-        status: 'error'
-      });
-    }
-
-    const contactPlaceholders = contact_ids.map(() => '?').join(',');
-    const validContacts = db.prepare(
-      `SELECT id FROM contacts WHERE tenant_id = ? AND id IN (${contactPlaceholders})`
-    ).all(req.tenantId, ...contact_ids);
-
-    if (validContacts.length === 0) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'No matching contacts found',
-        status: 'error'
-      });
-    }
-
-    const deleteTransaction = db.transaction((ids) => {
-      const placeholders = ids.map(() => '?').join(',');
-      db.prepare(`DELETE FROM contact_tags WHERE contact_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM messages WHERE contact_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM contacts WHERE id IN (${placeholders}) AND tenant_id = ?`).run(...ids, req.tenantId);
-    });
-
-    deleteTransaction(validContacts.map(c => c.id));
 
     return res.json({
       status: 'success',
@@ -446,7 +302,7 @@ router.post('/bulk/delete', requireAuth, validateTenantAccess, requireMember, (r
  * POST /contacts
  * Create a new contact
  */
-router.post('/', requireAuth, validateTenantAccess, requireMember, (req, res) => {
+router.post('/', requireAuth, validateTenantAccess, requireMember, async (req, res) => {
   try {
     const { name, phone, email, consent_whatsapp = false, consent_email = false, tags = [] } = req.body;
 
@@ -460,7 +316,7 @@ router.post('/', requireAuth, validateTenantAccess, requireMember, (req, res) =>
     }
 
     // Check if phone already exists for this tenant
-    const existing = db.prepare(
+    const existing = await db.prepare(
       'SELECT id FROM contacts WHERE tenant_id = ? AND phone = ?'
     ).get(req.tenantId, phone);
 
@@ -476,7 +332,7 @@ router.post('/', requireAuth, validateTenantAccess, requireMember, (req, res) =>
     const contactId = uuidv4();
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO contacts
       (id, tenant_id, name, phone, email, consent_whatsapp, consent_email, consent_source, consent_updated_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', ?, ?, ?)
@@ -494,13 +350,12 @@ router.post('/', requireAuth, validateTenantAccess, requireMember, (req, res) =>
     );
 
     // Add tags
-    const insertContactTag = db.prepare('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?)');
     if (Array.isArray(tags) && tags.length > 0) {
       for (const tagId of tags) {
         // Verify tag belongs to this tenant
-        const tag = db.prepare('SELECT id FROM tags WHERE id = ? AND tenant_id = ? AND status = \'active\'').get(tagId, req.tenantId);
+        const tag = await db.prepare('SELECT id FROM tags WHERE id = ? AND tenant_id = ? AND status = \'active\'').get(tagId, req.tenantId);
         if (tag) {
-          insertContactTag.run(contactId, tagId);
+          await db.prepare('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?)').run(contactId, tagId);
         }
       }
     }
@@ -525,157 +380,14 @@ router.post('/', requireAuth, validateTenantAccess, requireMember, (req, res) =>
 });
 
 /**
- * POST /contacts/bulk/tags
- * Add tags to multiple contacts
- */
-router.post('/bulk/tags', requireAuth, validateTenantAccess, (req, res) => {
-  try {
-    const { contact_ids = [], tag_ids = [] } = req.body || {};
-
-    if (!Array.isArray(contact_ids) || contact_ids.length === 0) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'contact_ids is required and must be a non-empty array',
-        status: 'error'
-      });
-    }
-
-    if (!Array.isArray(tag_ids) || tag_ids.length === 0) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'tag_ids is required and must be a non-empty array',
-        status: 'error'
-      });
-    }
-
-    if (contact_ids.length > 500) {
-      return res.status(400).json({
-        error: 'Too Many Contacts',
-        message: 'Limit bulk operations to 500 contacts at a time',
-        status: 'error'
-      });
-    }
-
-    const tagPlaceholders = tag_ids.map(() => '?').join(',');
-    const validTags = db.prepare(
-      `SELECT id FROM tags WHERE tenant_id = ? AND status = 'active' AND id IN (${tagPlaceholders})`
-    ).all(req.tenantId, ...tag_ids);
-
-    if (validTags.length === 0) {
-      return res.status(400).json({
-        error: 'Invalid Tags',
-        message: 'No valid tags found for this tenant',
-        status: 'error'
-      });
-    }
-
-    const contactPlaceholders = contact_ids.map(() => '?').join(',');
-    const validContacts = db.prepare(
-      `SELECT id FROM contacts WHERE tenant_id = ? AND id IN (${contactPlaceholders})`
-    ).all(req.tenantId, ...contact_ids);
-
-    if (validContacts.length === 0) {
-      return res.status(400).json({
-        error: 'Invalid Contacts',
-        message: 'No valid contacts found for this tenant',
-        status: 'error'
-      });
-    }
-
-    const insertContactTag = db.prepare('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?) ON CONFLICT (contact_id, tag_id) DO NOTHING');
-    const addTagsTransaction = db.transaction((contactIds, tags) => {
-      for (const contact of contactIds) {
-        for (const tag of tags) {
-          insertContactTag.run(contact.id, tag.id);
-        }
-      }
-    });
-
-    addTagsTransaction(validContacts, validTags);
-
-    return res.json({
-      status: 'success',
-      message: `Added ${validTags.length} tag(s) to ${validContacts.length} contact(s)`
-    });
-  } catch (error) {
-    console.error('Bulk add tags error:', error);
-    return res.status(500).json({
-      error: 'Failed to add tags to contacts',
-      message: error.message,
-      status: 'error'
-    });
-  }
-});
-
-/**
- * POST /contacts/bulk/delete
- * Delete multiple contacts
- */
-router.post('/bulk/delete', requireAuth, validateTenantAccess, requireMember, (req, res) => {
-  try {
-    const { contact_ids = [] } = req.body || {};
-
-    if (!Array.isArray(contact_ids) || contact_ids.length === 0) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'contact_ids is required and must be a non-empty array',
-        status: 'error'
-      });
-    }
-
-    if (contact_ids.length > 500) {
-      return res.status(400).json({
-        error: 'Too Many Contacts',
-        message: 'Limit bulk delete to 500 contacts at a time',
-        status: 'error'
-      });
-    }
-
-    const contactPlaceholders = contact_ids.map(() => '?').join(',');
-    const validContacts = db.prepare(
-      `SELECT id FROM contacts WHERE tenant_id = ? AND id IN (${contactPlaceholders})`
-    ).all(req.tenantId, ...contact_ids);
-
-    if (validContacts.length === 0) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'No matching contacts found',
-        status: 'error'
-      });
-    }
-
-    const deleteTransaction = db.transaction((ids) => {
-      const placeholders = ids.map(() => '?').join(',');
-      db.prepare(`DELETE FROM contact_tags WHERE contact_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM messages WHERE contact_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM contacts WHERE id IN (${placeholders}) AND tenant_id = ?`).run(...ids, req.tenantId);
-    });
-
-    deleteTransaction(validContacts.map(c => c.id));
-
-    return res.json({
-      status: 'success',
-      message: `Deleted ${validContacts.length} contact(s)`
-    });
-  } catch (error) {
-    console.error('Bulk delete contacts error:', error);
-    return res.status(500).json({
-      error: 'Failed to delete contacts',
-      message: error.message,
-      status: 'error'
-    });
-  }
-});
-
-/**
  * GET /contacts/:id
  * Get a single contact by ID
  */
-router.get('/:id', requireAuth, validateTenantAccess, (req, res) => {
+router.get('/:id', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const contact = db.prepare(`
+    const contact = await db.prepare(`
       SELECT
         c.id,
         c.phone,
@@ -700,7 +412,7 @@ router.get('/:id', requireAuth, validateTenantAccess, (req, res) => {
     }
 
     // Get tags
-    const tags = db.prepare(`
+    const tags = await db.prepare(`
       SELECT t.id, t.name FROM tags t
       JOIN contact_tags ct ON t.id = ct.tag_id
       WHERE ct.contact_id = ?
@@ -730,13 +442,13 @@ router.get('/:id', requireAuth, validateTenantAccess, (req, res) => {
  * PUT /contacts/:id
  * Update a contact
  */
-router.put('/:id', requireAuth, validateTenantAccess, requireMember, (req, res) => {
+router.put('/:id', requireAuth, validateTenantAccess, requireMember, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, phone, email, consent_whatsapp, consent_email, tags } = req.body;
 
     // Check if contact exists and belongs to tenant
-    const contact = db.prepare('SELECT id FROM contacts WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
+    const contact = await db.prepare('SELECT id FROM contacts WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
     if (!contact) {
       return res.status(404).json({
         error: 'Not found',
@@ -747,7 +459,7 @@ router.put('/:id', requireAuth, validateTenantAccess, requireMember, (req, res) 
 
     // Check for duplicate phone if changing
     if (phone) {
-      const existing = db.prepare(
+      const existing = await db.prepare(
         'SELECT id FROM contacts WHERE tenant_id = ? AND phone = ? AND id != ?'
       ).get(req.tenantId, phone, id);
 
@@ -792,7 +504,7 @@ router.put('/:id', requireAuth, validateTenantAccess, requireMember, (req, res) 
       params.push(id);
       params.push(req.tenantId);
 
-      db.prepare(`
+      await db.prepare(`
         UPDATE contacts
         SET ${updates.join(', ')}
         WHERE id = ? AND tenant_id = ?
@@ -802,14 +514,13 @@ router.put('/:id', requireAuth, validateTenantAccess, requireMember, (req, res) 
     // Update tags if provided
     if (Array.isArray(tags)) {
       // Remove existing tags
-      db.prepare('DELETE FROM contact_tags WHERE contact_id = ?').run(id);
+      await db.prepare('DELETE FROM contact_tags WHERE contact_id = ?').run(id);
 
       // Add new tags
-      const insertContactTag = db.prepare('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?)');
       for (const tagId of tags) {
-        const tag = db.prepare('SELECT id FROM tags WHERE id = ? AND tenant_id = ? AND status = \'active\'').get(tagId, req.tenantId);
+        const tag = await db.prepare('SELECT id FROM tags WHERE id = ? AND tenant_id = ? AND status = \'active\'').get(tagId, req.tenantId);
         if (tag) {
-          insertContactTag.run(id, tagId);
+          await db.prepare('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?)').run(id, tagId);
         }
       }
     }
@@ -834,12 +545,12 @@ router.put('/:id', requireAuth, validateTenantAccess, requireMember, (req, res) 
  * DELETE /contacts/:id
  * Delete a contact
  */
-router.delete('/:id', requireAuth, validateTenantAccess, requireMember, (req, res) => {
+router.delete('/:id', requireAuth, validateTenantAccess, requireMember, async (req, res) => {
   try {
     const { id } = req.params;
 
     // Check if contact exists
-    const contact = db.prepare('SELECT id FROM contacts WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
+    const contact = await db.prepare('SELECT id FROM contacts WHERE id = ? AND tenant_id = ?').get(id, req.tenantId);
     if (!contact) {
       return res.status(404).json({
         error: 'Not found',
@@ -849,13 +560,13 @@ router.delete('/:id', requireAuth, validateTenantAccess, requireMember, (req, re
     }
 
     // Delete contact tags first (foreign key constraint)
-    db.prepare('DELETE FROM contact_tags WHERE contact_id = ?').run(id);
+    await db.prepare('DELETE FROM contact_tags WHERE contact_id = ?').run(id);
 
     // Delete messages referencing this contact
-    db.prepare('DELETE FROM messages WHERE contact_id = ?').run(id);
+    await db.prepare('DELETE FROM messages WHERE contact_id = ?').run(id);
 
     // Delete contact
-    db.prepare('DELETE FROM contacts WHERE id = ? AND tenant_id = ?').run(id, req.tenantId);
+    await db.prepare('DELETE FROM contacts WHERE id = ? AND tenant_id = ?').run(id, req.tenantId);
 
     res.status(200).json({
       message: 'Contact deleted successfully',
@@ -876,10 +587,10 @@ router.delete('/:id', requireAuth, validateTenantAccess, requireMember, (req, re
  * GET /contacts/tags/list
  * Get all tags for current tenant
  */
-router.get('/tags/list', requireAuth, validateTenantAccess, (req, res) => {
+router.get('/tags/list', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     const includeArchived = req.query.include_archived === 'true' || req.query.include_archived === '1';
-    const tags = db.prepare(`
+    const tags = await db.prepare(`
       SELECT id, name, status, is_default FROM tags
       WHERE tenant_id = ? ${includeArchived ? '' : `AND status = 'active'`}
       ORDER BY name ASC
@@ -908,7 +619,7 @@ router.get('/tags/list', requireAuth, validateTenantAccess, (req, res) => {
  * POST /contacts/tags
  * Create a new tenant tag (admin/owner only)
  */
-router.post('/tags', requireAuth, validateTenantAccess, requireAdmin, (req, res) => {
+router.post('/tags', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
     const name = (req.body?.name || '').trim();
     if (!name) {
@@ -918,17 +629,17 @@ router.post('/tags', requireAuth, validateTenantAccess, requireAdmin, (req, res)
       });
     }
 
-    const existing = db.prepare(`
+    const existing = await db.prepare(`
       SELECT id, status FROM tags WHERE tenant_id = ? AND name = ?
     `).get(req.tenantId, name);
 
     if (existing) {
       if (existing.status === 'archived') {
-        db.prepare(`
+        await db.prepare(`
           UPDATE tags SET status = 'active', updated_at = CURRENT_TIMESTAMP WHERE id = ?
         `).run(existing.id);
 
-        logAudit({
+        await logAudit({
           actorUserId: req.session.userId,
           actorType: 'tenant_user',
           tenantId: req.tenantId,
@@ -957,12 +668,12 @@ router.post('/tags', requireAuth, validateTenantAccess, requireAdmin, (req, res)
 
     const id = uuidv4();
     const now = new Date().toISOString();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO tags (id, tenant_id, name, created_at, updated_at, status, scope, is_default)
       VALUES (?, ?, ?, ?, ?, 'active', 'tenant', 0)
     `).run(id, req.tenantId, name, now, now);
 
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'tenant_user',
       tenantId: req.tenantId,
@@ -991,11 +702,11 @@ router.post('/tags', requireAuth, validateTenantAccess, requireAdmin, (req, res)
  * PATCH /contacts/tags/:tagId
  * Rename or archive/unarchive a tag (admin/owner only)
  */
-router.patch('/tags/:tagId', requireAuth, validateTenantAccess, requireAdmin, (req, res) => {
+router.patch('/tags/:tagId', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
     const { tagId } = req.params;
     const { name, status } = req.body || {};
-    const tag = db.prepare(`
+    const tag = await db.prepare(`
       SELECT id, name, status FROM tags WHERE id = ? AND tenant_id = ?
     `).get(tagId, req.tenantId);
 
@@ -1014,7 +725,7 @@ router.patch('/tags/:tagId', requireAuth, validateTenantAccess, requireAdmin, (r
         return res.status(400).json({ error: 'Tag name cannot be empty' });
       }
 
-      const duplicate = db.prepare(`
+      const duplicate = await db.prepare(`
         SELECT id FROM tags WHERE tenant_id = ? AND name = ? AND id != ?
       `).get(req.tenantId, trimmed, tagId);
 
@@ -1045,11 +756,11 @@ router.patch('/tags/:tagId', requireAuth, validateTenantAccess, requireAdmin, (r
     params.push(new Date().toISOString());
     params.push(tagId, req.tenantId);
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE tags SET ${updates.join(', ')} WHERE id = ? AND tenant_id = ?
     `).run(...params);
 
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'tenant_user',
       tenantId: req.tenantId,
@@ -1082,7 +793,7 @@ router.patch('/tags/:tagId', requireAuth, validateTenantAccess, requireAdmin, (r
  * Import contacts from CSV file
  * Body: { data: array of contact objects parsed from CSV }
  */
-router.post('/import', requireAuth, validateTenantAccess, requireMember, (req, res) => {
+router.post('/import', requireAuth, validateTenantAccess, requireMember, async (req, res) => {
   try {
     const { data: contactsData } = req.body;
 
@@ -1101,23 +812,8 @@ router.post('/import', requireAuth, validateTenantAccess, requireMember, (req, r
       errors: []
     };
 
-    // Validate and insert in transaction
-    const insertContact = db.prepare(`
-      INSERT INTO contacts
-      (id, tenant_id, name, phone, email, consent_whatsapp, consent_email, consent_source, consent_updated_at, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'csv_import', ?, ?, ?)
-    `);
-
-    const insertContactTag = db.prepare('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?)');
-    const getTagByName = db.prepare('SELECT id, status FROM tags WHERE tenant_id = ? AND name = ?');
-    const activateTag = db.prepare(`UPDATE tags SET status = 'active', updated_at = ? WHERE id = ?`);
-    const createTag = db.prepare(`
-      INSERT INTO tags (id, tenant_id, name, created_at, updated_at, status, scope, is_default)
-      VALUES (?, ?, ?, ?, ?, 'active', 'tenant', 0)
-    `);
-
-    // Start transaction
-    const transaction = db.transaction(() => {
+    // Execute transaction with async/await
+    await db.transaction(async (txDb) => {
       for (let i = 0; i < contactsData.length; i++) {
         const row = contactsData[i];
         const rowNum = i + 1;
@@ -1172,7 +868,7 @@ router.post('/import', requireAuth, validateTenantAccess, requireMember, (req, r
           }
 
           // Check for duplicate phone
-          const existing = db.prepare(
+          const existing = await txDb.prepare(
             'SELECT id FROM contacts WHERE tenant_id = ? AND phone = ?'
           ).get(req.tenantId, phone);
 
@@ -1190,7 +886,11 @@ router.post('/import', requireAuth, validateTenantAccess, requireMember, (req, r
           const contactId = uuidv4();
           const now = new Date().toISOString();
 
-          insertContact.run(
+          await txDb.prepare(`
+            INSERT INTO contacts
+            (id, tenant_id, name, phone, email, consent_whatsapp, consent_email, consent_source, consent_updated_at, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'csv_import', ?, ?, ?)
+          `).run(
             contactId,
             req.tenantId,
             name,
@@ -1207,19 +907,22 @@ router.post('/import', requireAuth, validateTenantAccess, requireMember, (req, r
           if (tagsStr) {
             const tagNames = tagsStr.split(',').map(t => t.trim()).filter(t => t);
             for (const tagName of tagNames) {
-              let tag = getTagByName.get(req.tenantId, tagName);
+              let tag = await txDb.prepare('SELECT id, status FROM tags WHERE tenant_id = ? AND name = ?').get(req.tenantId, tagName);
               if (tag) {
                 if (tag.status === 'archived') {
-                  activateTag.run(now, tag.id);
+                  await txDb.prepare(`UPDATE tags SET status = 'active', updated_at = ? WHERE id = ?`).run(now, tag.id);
                   tag.status = 'active';
                 }
               } else {
                 const tagId = uuidv4();
-                createTag.run(tagId, req.tenantId, tagName, now, now);
+                await txDb.prepare(`
+                  INSERT INTO tags (id, tenant_id, name, created_at, updated_at, status, scope, is_default)
+                  VALUES (?, ?, ?, ?, ?, 'active', 'tenant', 0)
+                `).run(tagId, req.tenantId, tagName, now, now);
                 tag = { id: tagId, status: 'active' };
               }
               if (tag.status === 'active') {
-                insertContactTag.run(contactId, tag.id);
+                await txDb.prepare('INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?)').run(contactId, tag.id);
               }
             }
           }
@@ -1235,11 +938,8 @@ router.post('/import', requireAuth, validateTenantAccess, requireMember, (req, r
       }
     });
 
-    // Execute transaction
-    transaction();
-
     // Log audit event
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'tenant_user',
       tenantId: req.tenantId,
@@ -1274,10 +974,10 @@ router.post('/import', requireAuth, validateTenantAccess, requireMember, (req, r
  * GET /contacts/export
  * Export contacts as CSV
  */
-router.get('/export', requireAuth, validateTenantAccess, (req, res) => {
+router.get('/export', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     // Get all contacts with tags for this tenant
-    const contacts = db.prepare(`
+    const contacts = await db.prepare(`
       SELECT
         c.id,
         c.name,
