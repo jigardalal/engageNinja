@@ -256,10 +256,10 @@ router.get('/tenants/:tenantId', (req, res) => {
  * GET /api/admin/tenants/:tenantId/billing
  * Returns billing summary (plan, usage, limits, invoices) for a tenant
  */
-router.get('/tenants/:tenantId/billing', (req, res) => {
+router.get('/tenants/:tenantId/billing', async (req, res) => {
   try {
     const { tenantId } = req.params;
-    const summary = getBillingSummary(db, tenantId);
+    const summary = await getBillingSummary(tenantId);
     res.json(summary);
   } catch (error) {
     if (error instanceof BillingSummaryError) {

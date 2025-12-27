@@ -80,10 +80,10 @@ function createBillingRoutes(db, billingService) {
    * GET /billing/summary
    * Returns current plan, usage, and remaining quota for this tenant
    */
-  router.get('/summary', requireAuth, validateTenantAccess, (req, res) => {
+  router.get('/summary', requireAuth, validateTenantAccess, async (req, res) => {
     try {
       const tenantId = req.tenantId;
-      const summary = getBillingSummary(db, tenantId);
+      const summary = await getBillingSummary(tenantId);
       res.json(summary);
     } catch (error) {
       if (error instanceof BillingSummaryError) {
@@ -223,7 +223,7 @@ function createBillingRoutes(db, billingService) {
       console.log(`   Status: ${stripeSubscription.status}, Cancel at period end: ${stripeSubscription.cancel_at_period_end}`);
 
       // Return updated billing summary
-      const summary = getBillingSummary(db, tenantId);
+      const summary = await getBillingSummary(tenantId);
       res.json(summary);
     } catch (error) {
       console.error('POST /billing/sync-subscription error:', error);

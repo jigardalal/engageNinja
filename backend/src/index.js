@@ -124,9 +124,8 @@ if (process.env.STRIPE_SECRET_KEY) {
   try {
     const Stripe = require('stripe');
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const db = require('./db');
     const StripeProvider = require('./services/stripe');
-    billingService = new StripeProvider(db, stripe);
+    billingService = new StripeProvider(stripe);
     console.log('✓ Stripe billing service initialized');
   } catch (error) {
     console.warn('⚠ Failed to initialize Stripe billing service:', error.message);

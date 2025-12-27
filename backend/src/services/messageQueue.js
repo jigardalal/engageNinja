@@ -65,9 +65,9 @@ function recordApiCall(channel = 'whatsapp') {
  * Mark campaign as complete (sent) when no queued messages remain
  * Only flips campaigns currently in "sending" status
  */
-function markCampaignIfComplete(campaignId, tenantId) {
+async function markCampaignIfComplete(campaignId, tenantId) {
   try {
-    const pending = db.prepare(`
+    const pending = await db.prepare(`
       SELECT COUNT(*) as queued_count
       FROM messages
       WHERE campaign_id = ? AND tenant_id = ? AND status = 'queued'
@@ -75,7 +75,7 @@ function markCampaignIfComplete(campaignId, tenantId) {
 
     if (pending?.queued_count === 0) {
       const now = new Date().toISOString();
-      db.prepare(`
+      await db.prepare(`
         UPDATE campaigns
         SET status = 'sent', completed_at = ?, updated_at = ?
         WHERE id = ? AND tenant_id = ? AND status = 'sending'
@@ -97,21 +97,21 @@ function markCampaignIfComplete(campaignId, tenantId) {
 async function processMessage(message) {
   try {
     // Get contact details
-    const contact = db.prepare('SELECT phone, email, name FROM contacts WHERE id = ?').get(message.contact_id);
+    const contact = await db.prepare('SELECT phone, email, name FROM contacts WHERE id = ?').get(message.contact_id);
     if (!contact) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE messages SET status = 'failed', status_reason = 'Contact not found'
         WHERE id = ?
       `).run(message.id);
       return false;
     }
 
-    const campaign = db.prepare(`
+    const campaign = await db.prepare(`
       SELECT template_id, message_content, channel, description, from_number, from_email FROM campaigns WHERE id = ?
     `).get(message.campaign_id);
 
     if (!campaign) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE messages SET status = 'failed', status_reason = 'Campaign not found'
         WHERE id = ?
       `).run(message.id);
@@ -132,7 +132,7 @@ async function processMessage(message) {
 
   } catch (error) {
     console.error(`Error processing message ${message.id}:`, error.message);
-    handleMessageError(message, error);
+    await handleMessageError(message, error);
     return false;
   }
 }
@@ -173,14 +173,14 @@ async function processWhatsAppMessage(message, contact, campaign) {
 
     // Update message with provider ID and mark as sent (webhook will update to delivered/read)
     const now = new Date().toISOString();
-    db.prepare(`
+    await db.prepare(`
       UPDATE messages
       SET status = 'sent', provider_message_id = ?, sent_at = ?, updated_at = ?
       WHERE id = ?
     `).run(result.provider_message_id, now, now, message.id);
 
     console.log(`✓ Message ${message.id} sent via WhatsApp (provider ID: ${result.provider_message_id})`);
-    markCampaignIfComplete(message.campaign_id, message.tenant_id);
+    await markCampaignIfComplete(message.campaign_id, message.tenant_id);
     return true;
   } catch (error) {
     throw error;
@@ -238,7 +238,7 @@ async function processEmailMessage(message, contact, campaign) {
 
     // Update message with provider ID and mark as sent
     const now = new Date().toISOString();
-    db.prepare(`
+    await db.prepare(`
       UPDATE messages
       SET status = 'sent',
           provider_message_id = ?,
@@ -248,7 +248,7 @@ async function processEmailMessage(message, contact, campaign) {
     `).run(result.provider_message_id, now, now, message.id);
 
     console.log(`✓ Message ${message.id} sent via Email (provider ID: ${result.provider_message_id})`);
-    markCampaignIfComplete(message.campaign_id, message.tenant_id);
+    await markCampaignIfComplete(message.campaign_id, message.tenant_id);
     return true;
   } catch (error) {
     throw error;
@@ -291,14 +291,14 @@ async function processSmsMessage(message, contact, campaign) {
 
     // Update message with provider ID and mark as sent (webhook will update to delivered/read)
     const now = new Date().toISOString();
-    db.prepare(`
+    await db.prepare(`
       UPDATE messages
       SET status = 'sent', provider_message_id = ?, sent_at = ?, updated_at = ?
       WHERE id = ?
     `).run(result.provider_message_id, now, now, message.id);
 
     console.log(`✓ Message ${message.id} sent via SMS (provider ID: ${result.provider_message_id})`);
-    markCampaignIfComplete(message.campaign_id, message.tenant_id);
+    await markCampaignIfComplete(message.campaign_id, message.tenant_id);
     return true;
   } catch (error) {
     throw error;
@@ -308,7 +308,7 @@ async function processSmsMessage(message, contact, campaign) {
 /**
  * Handle message errors and retry logic
  */
-function handleMessageError(message, error, options = {}) {
+async function handleMessageError(message, error, options = {}) {
   const newRetries = (message.attempts || 0) + 1;
   const now = new Date().toISOString();
   const reason = error?.message || 'Unknown error';
@@ -316,16 +316,16 @@ function handleMessageError(message, error, options = {}) {
 
   if (forceFail || newRetries >= MAX_RETRIES) {
     // Max retries reached, mark as failed
-    db.prepare(`
+    await db.prepare(`
       UPDATE messages
       SET status = 'failed', attempts = ?, updated_at = ?, status_reason = ?
       WHERE id = ?
     `).run(newRetries, now, reason, message.id);
     console.log(`✗ Message ${message.id} failed${forceFail ? ' (non-retriable)' : ''} after ${newRetries} retries: ${reason}`);
-    markCampaignIfComplete(message.campaign_id, message.tenant_id);
+    await markCampaignIfComplete(message.campaign_id, message.tenant_id);
   } else {
     // Will retry later
-    db.prepare(`
+    await db.prepare(`
       UPDATE messages
       SET attempts = ?, updated_at = ?, status_reason = ?
       WHERE id = ?
@@ -342,7 +342,7 @@ function handleMessageError(message, error, options = {}) {
 async function processQueuedMessages() {
   try {
     // Get queued messages (limit to prevent overwhelming the system)
-    const queuedMessages = db.prepare(`
+    const queuedMessages = await db.prepare(`
       SELECT m.*, c.name as campaign_name, c.channel
       FROM messages m
       JOIN campaigns c ON m.campaign_id = c.id
@@ -361,7 +361,7 @@ async function processQueuedMessages() {
     for (const message of queuedMessages) {
       // Attempt to lock this message to avoid double-processing
       const now = new Date().toISOString();
-      const lockResult = db.prepare(`
+      const lockResult = await db.prepare(`
         UPDATE messages
         SET status = 'processing', updated_at = ?
         WHERE id = ? AND status = 'queued'

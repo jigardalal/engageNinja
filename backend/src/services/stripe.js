@@ -11,11 +11,11 @@
 const BillingProvider = require('./billingProvider');
 const crypto = require('crypto');
 const InvoiceGenerator = require('./invoiceGenerator');
+const db = require('../db');
 
 class StripeProvider extends BillingProvider {
-  constructor(db, stripeClient, logger = console) {
+  constructor(stripeClient, logger = console) {
     super();
-    this.db = db;
     this.stripe = stripeClient;
     this.logger = logger;
 
@@ -39,7 +39,7 @@ class StripeProvider extends BillingProvider {
   async createCustomer(tenant) {
     try {
       // Check if customer already exists in database
-      const existing = this.db
+      const existing = await db
         .prepare(
           `SELECT provider_customer_id FROM billing_customers
            WHERE tenant_id = ? AND provider = 'stripe'`
@@ -61,7 +61,7 @@ class StripeProvider extends BillingProvider {
       });
 
       // Store in database
-      this.db
+      await db
         .prepare(
           `INSERT INTO billing_customers (tenant_id, provider, provider_customer_id, created_at)
            VALUES (?, 'stripe', ?, CURRENT_TIMESTAMP)
@@ -94,7 +94,7 @@ class StripeProvider extends BillingProvider {
       }
 
       // Get the new plan's default price
-      const newPlan = this.db
+      const newPlan = await db
         .prepare('SELECT * FROM plans WHERE id = ?')
         .get(planKey);
 
@@ -115,7 +115,7 @@ class StripeProvider extends BillingProvider {
       // Ensure customer exists
       await this.createCustomer(tenant);
 
-      const customer = this.db
+      const customer = await db
         .prepare(
           `SELECT provider_customer_id FROM billing_customers
            WHERE tenant_id = ? AND provider = 'stripe'`
@@ -168,7 +168,7 @@ class StripeProvider extends BillingProvider {
    */
   async createBillingPortalSession(tenant) {
     try {
-      const customer = this.db
+      const customer = await db
         .prepare(
           `SELECT provider_customer_id FROM billing_customers
            WHERE tenant_id = ? AND provider = 'stripe'`
@@ -199,7 +199,7 @@ class StripeProvider extends BillingProvider {
   async getSubscriptionStatus(tenant) {
     try {
       // Get subscription from database
-      const subscription = this.db
+      const subscription = await db
         .prepare(
           `SELECT * FROM subscriptions
            WHERE tenant_id = ? AND provider = 'stripe'`
@@ -339,7 +339,7 @@ class StripeProvider extends BillingProvider {
    */
   async _handleSubscriptionCreated(stripeSubscription) {
     try {
-      const tenant = this._getTenantFromMetadata(stripeSubscription);
+      const tenant = await this._getTenantFromMetadata(stripeSubscription);
       if (!tenant) return { handled: false };
 
       // Fetch full subscription details with product expanded to get product name
@@ -429,7 +429,7 @@ class StripeProvider extends BillingProvider {
         dbStatus = 'active';
       }
 
-      this.db
+      await db
         .prepare(
           `INSERT INTO subscriptions (
              id, tenant_id, provider, provider_subscription_id, plan_key, status,
@@ -455,7 +455,7 @@ class StripeProvider extends BillingProvider {
         );
 
       // Update tenant: plan_id, price (to new plan's default), and subscription status
-      this.db
+      await db
         .prepare(
           `UPDATE tenants
            SET plan_id = ?, price = ?, subscription_status = 'active',
@@ -466,7 +466,7 @@ class StripeProvider extends BillingProvider {
         .run(planKey, plan?.default_price || 0, tenant.id);
 
       // Log subscription event
-      this.db
+      await db
         .prepare(
           `INSERT INTO subscription_events
            (id, tenant_id, event_type, stripe_event_id, stripe_event_type, status, created_at)
@@ -492,7 +492,7 @@ class StripeProvider extends BillingProvider {
    */
   async _handleSubscriptionUpdated(stripeSubscription) {
     try {
-      const tenant = this._getTenantFromMetadata(stripeSubscription);
+      const tenant = await this._getTenantFromMetadata(stripeSubscription);
       if (!tenant) return { handled: false };
 
       // Fetch full subscription details with product expanded to get product name
@@ -539,7 +539,7 @@ class StripeProvider extends BillingProvider {
       console.log(`📦 Plan detection result: ${planKey} (product: ${fullSub.items?.data?.[0]?.price?.product?.name}`);
 
       // Get the plan to extract its default price
-      const plan = this.db
+      const plan = await db
         .prepare('SELECT * FROM plans WHERE id = ?')
         .get(planKey);
 
@@ -576,7 +576,7 @@ class StripeProvider extends BillingProvider {
         dbStatus = 'active';
       }
 
-      this.db
+      await db
         .prepare(
           `UPDATE subscriptions SET
              plan_key = ?, status = ?, current_period_start = ?, current_period_end = ?,
@@ -593,7 +593,7 @@ class StripeProvider extends BillingProvider {
         );
 
       // Update tenant's plan and price
-      this.db
+      await db
         .prepare(
           `UPDATE tenants SET
              plan_id = ?, price = ?, subscription_status = 'active'
@@ -616,15 +616,15 @@ class StripeProvider extends BillingProvider {
   /**
    * Handle subscription.deleted event
    */
-  _handleSubscriptionDeleted(stripeSubscription) {
+  async _handleSubscriptionDeleted(stripeSubscription) {
     try {
-      const tenant = this._getTenantFromMetadata(stripeSubscription);
+      const tenant = await this._getTenantFromMetadata(stripeSubscription);
       if (!tenant) return { handled: false };
 
       const canceledAt = new Date(stripeSubscription.canceled_at * 1000).toISOString();
       const cancelReason = stripeSubscription.metadata?.cancellation_reason || 'No reason provided';
 
-      this.db
+      await db
         .prepare(
           `UPDATE subscriptions SET status = ?, canceled_at = ?, updated_at = CURRENT_TIMESTAMP
            WHERE provider_subscription_id = ?`
@@ -632,7 +632,7 @@ class StripeProvider extends BillingProvider {
         .run('canceled', canceledAt, stripeSubscription.id);
 
       // Reset tenant to free plan and mark as cancelled
-      this.db
+      await db
         .prepare(
           `UPDATE tenants
            SET plan_id = 'free',
@@ -644,7 +644,7 @@ class StripeProvider extends BillingProvider {
         .run(canceledAt, cancelReason, tenant.id);
 
       // Log cancellation event
-      this.db
+      await db
         .prepare(
           `INSERT INTO subscription_events
            (id, tenant_id, event_type, stripe_event_id, stripe_event_type, status, created_at)
@@ -684,7 +684,7 @@ class StripeProvider extends BillingProvider {
         currency: stripeInvoice.currency
       });
 
-      const tenant = this._getTenantFromMetadata(stripeInvoice);
+      const tenant = await this._getTenantFromMetadata(stripeInvoice);
       if (!tenant) {
         this.logger.warn('❌ Could not extract tenant from invoice metadata:', {
           invoiceId: stripeInvoice.id,
@@ -699,7 +699,7 @@ class StripeProvider extends BillingProvider {
       // Insert or update invoice record
       const invoiceId = crypto.randomUUID();
       const invoiceDate = new Date(stripeInvoice.created * 1000).toISOString();
-      this.db
+      await db
         .prepare(
           `INSERT INTO invoices (
              id, tenant_id, provider, provider_invoice_id, amount_total, currency,
@@ -729,7 +729,7 @@ class StripeProvider extends BillingProvider {
       });
 
       // Update tenant subscription status to active and clear any failures
-      this.db
+      await db
         .prepare(
           `UPDATE tenants
            SET subscription_status = 'active', last_payment_failed_at = NULL,
@@ -741,7 +741,7 @@ class StripeProvider extends BillingProvider {
       this.logger.info('🟢 Tenant status updated to active');
 
       // Update subscription status
-      this.db
+      await db
         .prepare(`UPDATE subscriptions SET status = 'active' WHERE tenant_id = ?`)
         .run(tenant.id);
 
@@ -751,8 +751,8 @@ class StripeProvider extends BillingProvider {
         const invoiceNumber = InvoiceGenerator.generateInvoiceNumber(invoiceId);
 
         // Get full tenant details
-        const fullTenant = this.db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenant.id);
-        const plan = this.db.prepare('SELECT * FROM plans WHERE id = ?').get(fullTenant?.plan_id || 'free');
+        const fullTenant = await db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenant.id);
+        const plan = await db.prepare('SELECT * FROM plans WHERE id = ?').get(fullTenant?.plan_id || 'free');
 
         const invoiceData = {
           invoiceNumber,
@@ -808,9 +808,9 @@ class StripeProvider extends BillingProvider {
   /**
    * Handle invoice.payment_failed event
    */
-  _handleInvoicePaymentFailed(stripeInvoice) {
+  async _handleInvoicePaymentFailed(stripeInvoice) {
     try {
-      const tenant = this._getTenantFromMetadata(stripeInvoice);
+      const tenant = await this._getTenantFromMetadata(stripeInvoice);
       if (!tenant) return { handled: false };
 
       // Calculate grace period (48 hours from now)
@@ -829,7 +829,7 @@ class StripeProvider extends BillingProvider {
       }
 
       // Update tenant with failure info
-      this.db
+      await db
         .prepare(
           `UPDATE tenants
            SET subscription_status = 'failed',
@@ -841,12 +841,12 @@ class StripeProvider extends BillingProvider {
         .run(gracePeriodUntil.toISOString(), failureReason, tenant.id);
 
       // Update subscription status to past_due
-      this.db
+      await db
         .prepare(`UPDATE subscriptions SET status = ? WHERE tenant_id = ?`)
         .run('past_due', tenant.id);
 
       // Log subscription event
-      this.db
+      await db
         .prepare(
           `INSERT INTO subscription_events
            (id, tenant_id, event_type, stripe_event_id, stripe_event_type, status, error_code, error_message, created_at)
@@ -881,7 +881,7 @@ class StripeProvider extends BillingProvider {
   /**
    * Extract tenant from Stripe object metadata
    */
-  _getTenantFromMetadata(stripeObject) {
+  async _getTenantFromMetadata(stripeObject) {
     let tenantId = null;
     let source = null;
 
@@ -901,7 +901,7 @@ class StripeProvider extends BillingProvider {
         ? stripeObject.customer
         : stripeObject.customer.id;
 
-      const record = this.db
+      const record = await db
         .prepare(`SELECT tenant_id FROM billing_customers WHERE provider_customer_id = ?`)
         .get(customerId);
 

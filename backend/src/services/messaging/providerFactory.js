@@ -55,7 +55,7 @@ function decryptCredentials(encryptedData) {
  */
 async function getProvider(tenantId, channel) {
   // 1. Fetch tenant info
-  const tenant = db.prepare('SELECT id, is_demo FROM tenants WHERE id = ?').get(tenantId);
+  const tenant = await db.prepare('SELECT id, is_demo FROM tenants WHERE id = ?').get(tenantId);
 
   if (!tenant) {
     throw new Error(`Tenant not found: ${tenantId}`);
@@ -67,7 +67,7 @@ async function getProvider(tenantId, channel) {
   }
 
   // 3. Fetch channel credentials
-  const creds = db.prepare(`
+  const creds = await db.prepare(`
     SELECT provider, credentials_encrypted, provider_config_json, webhook_url, phone_number, messaging_service_sid
     FROM tenant_channel_settings
     WHERE tenant_id = ? AND channel = ?

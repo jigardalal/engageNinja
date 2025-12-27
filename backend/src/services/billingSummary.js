@@ -1,3 +1,5 @@
+const db = require('../db');
+
 const BillingSummaryError = class extends Error {
   constructor(message, status = 400) {
     super(message);
@@ -5,10 +7,10 @@ const BillingSummaryError = class extends Error {
   }
 };
 
-function getBillingSummary(db, tenantId) {
+async function getBillingSummary(tenantId) {
   console.log(`[billingSummary] Starting for tenant: ${tenantId}`);
 
-  const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
+  const tenant = await db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
   console.log(`[billingSummary] Got tenant`);
 
   if (!tenant) {
@@ -16,7 +18,7 @@ function getBillingSummary(db, tenantId) {
   }
 
   const planId = tenant.plan_id || 'free';
-  const plan = db.prepare('SELECT * FROM plans WHERE id = ?').get(planId);
+  const plan = await db.prepare('SELECT * FROM plans WHERE id = ?').get(planId);
   console.log(`[billingSummary] Got plan`);
 
   if (!plan) {
@@ -27,7 +29,7 @@ function getBillingSummary(db, tenantId) {
   const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   const usage =
-    db
+    await db
       .prepare(
         `SELECT whatsapp_messages_sent, email_messages_sent, sms_sent FROM usage_counters
          WHERE tenant_id = ? AND year_month = ?`
@@ -43,10 +45,10 @@ function getBillingSummary(db, tenantId) {
   const usedEmail = usage.email_messages_sent ?? 0;
   const usedSms = usage.sms_sent ?? 0;
 
-  const subscription = db.prepare('SELECT * FROM subscriptions WHERE tenant_id = ?').get(tenantId);
+  const subscription = await db.prepare('SELECT * FROM subscriptions WHERE tenant_id = ?').get(tenantId);
   console.log(`[billingSummary] Got subscription`);
 
-  const overrides = db.prepare('SELECT * FROM plan_overrides WHERE tenant_id = ?').get(tenantId);
+  const overrides = await db.prepare('SELECT * FROM plan_overrides WHERE tenant_id = ?').get(tenantId);
   console.log(`[billingSummary] Got overrides`);
 
   const waLimit = overrides?.wa_messages_override ?? plan.whatsapp_messages_per_month ?? 0;
@@ -54,14 +56,14 @@ function getBillingSummary(db, tenantId) {
   const smsLimit = overrides?.sms_override ?? plan.sms_messages_per_month ?? 0;
 
   const invoices =
-    db
+    (await db
       .prepare(
         `SELECT id, provider_invoice_id, amount_total, currency, status, hosted_invoice_url, created_at
          FROM invoices
          WHERE tenant_id = ?
          ORDER BY created_at DESC`
       )
-      .all(tenantId)
+      .all(tenantId))
       .map((invoice) => ({
         id: invoice.id,
         provider_id: invoice.provider_invoice_id,
@@ -83,8 +85,8 @@ function getBillingSummary(db, tenantId) {
     plan_limits: {
       max_users: plan.max_users,
       contacts_limit: plan.contacts_limit,
-      ai_features_enabled: plan.ai_features_enabled === 1,
-      api_enabled: plan.api_enabled === 1
+      ai_features_enabled: Boolean(plan.ai_features_enabled),
+      api_enabled: Boolean(plan.api_enabled)
     },
     billing: {
       price: tenant.price,
@@ -97,7 +99,7 @@ function getBillingSummary(db, tenantId) {
           status: subscription.status,
           current_period_start: subscription.current_period_start,
           current_period_end: subscription.current_period_end,
-          cancel_at_period_end: subscription.cancel_at_period_end === 1
+          cancel_at_period_end: Boolean(subscription.cancel_at_period_end)
         }
       : null,
     billing_status: {
