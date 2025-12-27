@@ -222,7 +222,7 @@ console.log('=============================\n');
 
     // Run seed script
     console.log('Seeding database with demo data...\n');
-    await import('./db-seed-async.js');
+    await import('./db-seed.js');
 
   } catch (error) {
     console.error('\n❌ Reset failed:');

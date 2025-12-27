@@ -156,7 +156,7 @@ const main = async () => {
 
     // Run seed script (works for both SQLite and PostgreSQL now)
     console.log('\n🌱 Running seed script to populate demo data...\n');
-    await import('./db-seed-async.js');
+    await import('./db-seed.js');
 
     process.exit(0);
   } catch (error) {
