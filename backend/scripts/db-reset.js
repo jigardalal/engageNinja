@@ -173,7 +173,7 @@ console.log('=============================\n');
       db.pragma('foreign_keys = ON');
 
       // Create migrations tracking table
-      db.exec(`
+      await db.exec(`
         CREATE TABLE IF NOT EXISTS schema_migrations (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT UNIQUE NOT NULL,
@@ -194,7 +194,7 @@ console.log('=============================\n');
         const migrationSql = fs.readFileSync(migrationPath, 'utf8');
 
         try {
-          const executed = db.prepare(
+          const executed = await db.prepare(
             'SELECT name FROM schema_migrations WHERE name = ?'
           ).get(file);
 
@@ -203,9 +203,9 @@ console.log('=============================\n');
             continue;
           }
 
-          db.exec(migrationSql);
+          await db.exec(migrationSql);
 
-          db.prepare(
+          await db.prepare(
             'INSERT INTO schema_migrations (name) VALUES (?)'
           ).run(file);
 
@@ -222,7 +222,7 @@ console.log('=============================\n');
 
     // Run seed script
     console.log('Seeding database with demo data...\n');
-    require('./db-seed-async.js');
+    await import('./db-seed-async.js');
 
   } catch (error) {
     console.error('\n❌ Reset failed:');

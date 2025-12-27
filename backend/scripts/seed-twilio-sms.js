@@ -57,61 +57,72 @@ const encryptCredentials = (data) => {
   return encrypted;
 };
 
-const tenants = db.prepare('SELECT id FROM tenants').all();
+const main = async () => {
+  try {
+    const tenants = await db.prepare('SELECT id FROM tenants').all();
 
-if (!tenants.length) {
-  console.warn('No tenants found - database might be empty.');
-  process.exit(0);
-}
+    if (!tenants.length) {
+      console.warn('No tenants found - database might be empty.');
+      process.exit(0);
+    }
 
-const encryptedCredentials = encryptCredentials({ accountSid: masterSid, authToken: masterToken });
+    const encryptedCredentials = encryptCredentials({ accountSid: masterSid, authToken: masterToken });
 
-const upsert = db.prepare(`
-  INSERT INTO tenant_channel_settings
-    (id, tenant_id, channel, provider, credentials_encrypted, provider_config_json,
-     is_connected, is_enabled, is_verified, webhook_url, phone_number, messaging_service_sid,
-     created_at, updated_at)
-  VALUES (?, ?, 'sms', 'twilio', ?, ?, 0, 1, 1, ?, ?, ?, ?, ?)
-  ON CONFLICT(tenant_id, channel) DO UPDATE SET
-    provider = excluded.provider,
-    credentials_encrypted = excluded.credentials_encrypted,
-    provider_config_json = excluded.provider_config_json,
-    is_connected = excluded.is_connected,
-    is_enabled = excluded.is_enabled,
-    is_verified = excluded.is_verified,
-    webhook_url = excluded.webhook_url,
-    phone_number = excluded.phone_number,
-    messaging_service_sid = excluded.messaging_service_sid,
-    updated_at = excluded.updated_at
-`);
+    const upsert = db.prepare(`
+      INSERT INTO tenant_channel_settings
+        (id, tenant_id, channel, provider, credentials_encrypted, provider_config_json,
+         is_connected, is_enabled, is_verified, webhook_url, phone_number, messaging_service_sid,
+         created_at, updated_at)
+      VALUES (?, ?, 'sms', 'twilio', ?, ?, 0, 1, 1, ?, ?, ?, ?, ?)
+      ON CONFLICT(tenant_id, channel) DO UPDATE SET
+        provider = excluded.provider,
+        credentials_encrypted = excluded.credentials_encrypted,
+        provider_config_json = excluded.provider_config_json,
+        is_connected = excluded.is_connected,
+        is_enabled = excluded.is_enabled,
+        is_verified = excluded.is_verified,
+        webhook_url = excluded.webhook_url,
+        phone_number = excluded.phone_number,
+        messaging_service_sid = excluded.messaging_service_sid,
+        updated_at = excluded.updated_at
+    `);
 
-const today = new Date().toISOString();
+    const today = new Date().toISOString();
 
-for (const tenant of tenants) {
-  const phoneNumber = phoneMap[tenant.id] || defaultPhone;
-  if (!phoneNumber) {
-    console.warn(`Skipping tenant ${tenant.id}: no Twilio phone number provided (use TWILIO_PHONE_NUMBER or TWILIO_PHONE_MAP)`);
-    continue;
+    for (const tenant of tenants) {
+      const phoneNumber = phoneMap[tenant.id] || defaultPhone;
+      if (!phoneNumber) {
+        console.warn(`Skipping tenant ${tenant.id}: no Twilio phone number provided (use TWILIO_PHONE_NUMBER or TWILIO_PHONE_MAP)`);
+        continue;
+      }
+
+      const config = {
+        phone_number: phoneNumber,
+        webhook_url: defaultWebhook,
+        messaging_service_sid: defaultMessagingServiceSid
+      };
+
+      await upsert.run(
+        uuidv4(),
+        tenant.id,
+        encryptedCredentials,
+        JSON.stringify(config),
+        defaultWebhook,
+        phoneNumber,
+        defaultMessagingServiceSid,
+        today,
+        today
+      );
+      console.log(`Seeded Twilio SMS config for tenant ${tenant.id} (${phoneNumber})`);
+    }
+
+    console.log('Twilio SMS seeding complete.');
+    process.exit(0);
+  } catch (error) {
+    console.error('Error seeding Twilio SMS:', error.message);
+    if (error.stack) console.error(error.stack);
+    process.exit(1);
   }
+};
 
-  const config = {
-    phone_number: phoneNumber,
-    webhook_url: defaultWebhook,
-    messaging_service_sid: defaultMessagingServiceSid
-  };
-
-  upsert.run(
-    uuidv4(),
-    tenant.id,
-    encryptedCredentials,
-    JSON.stringify(config),
-    defaultWebhook,
-    phoneNumber,
-    defaultMessagingServiceSid,
-    today,
-    today
-  );
-  console.log(`Seeded Twilio SMS config for tenant ${tenant.id} (${phoneNumber})`);
-}
-
-console.log('Twilio SMS seeding complete.');
+main();
