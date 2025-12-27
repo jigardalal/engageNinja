@@ -335,7 +335,7 @@ router.post('/login', async (req, res) => {
  * POST /auth/switch-tenant
  * Persist tenant switch in session (only if user has access)
  */
-router.post('/switch-tenant', requireAuth, (req, res) => {
+router.post('/switch-tenant', requireAuth, async (req, res) => {
   try {
     const { tenantId } = req.body || {};
     if (!tenantId) {
@@ -346,7 +346,7 @@ router.post('/switch-tenant', requireAuth, (req, res) => {
       });
     }
 
-    let tenant = db.prepare(`
+    let tenant = await db.prepare(`
       SELECT ut.tenant_id, ut.role, t.name, p.name as plan
       FROM user_tenants ut
       JOIN tenants t ON ut.tenant_id = t.id
@@ -356,9 +356,9 @@ router.post('/switch-tenant', requireAuth, (req, res) => {
 
     if (!tenant) {
       // Platform admins can enter any tenant; create membership on the fly
-      const user = db.prepare('SELECT role_global FROM users WHERE id = ?').get(req.session.userId);
+      const user = await db.prepare('SELECT role_global FROM users WHERE id = ?').get(req.session.userId);
       if (user && ['platform_admin', 'system_admin'].includes(user.role_global)) {
-        const targetTenant = db.prepare(`
+        const targetTenant = await db.prepare(`
           SELECT t.id, t.name, p.name as plan
           FROM tenants t
           JOIN plans p ON t.plan_id = p.id
@@ -373,7 +373,7 @@ router.post('/switch-tenant', requireAuth, (req, res) => {
           });
         }
 
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO user_tenants (user_id, tenant_id, role, active, created_at)
           VALUES (?, ?, 'admin', true, CURRENT_TIMESTAMP)
           ON CONFLICT (user_id, tenant_id) DO NOTHING
@@ -396,7 +396,7 @@ router.post('/switch-tenant', requireAuth, (req, res) => {
 
     req.session.activeTenantId = tenantId;
 
-    const allTenants = db.prepare(`
+    const allTenants = await db.prepare(`
       SELECT ut.tenant_id, ut.role, t.name, p.name as plan
       FROM user_tenants ut
       JOIN tenants t ON ut.tenant_id = t.id
