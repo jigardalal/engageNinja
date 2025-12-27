@@ -51,18 +51,10 @@ const validatePassword = (password) => {
 
 const ensureUserTableHasNameColumn = () => {
   // Database schema is managed by migrations
-  // This function is kept for backward compatibility but does nothing
-  // Try-catch blocks silently handle migration attempts on already-existing columns
-  const columns = [
-    'name', 'first_name', 'last_name', 'phone', 'timezone', 'locale'
-  ];
-  columns.forEach(col => {
-    try {
-      db.prepare(`ALTER TABLE users ADD COLUMN ${col} TEXT`).run();
-    } catch (e) {
-      // Column already exists - ignore
-    }
-  });
+  // All required columns (name, first_name, last_name, phone, timezone, locale) are now
+  // defined in the database migrations and already exist. This function is kept for
+  // backward compatibility but does nothing.
+  // No need to attempt ALTER TABLE statements - columns exist in migrations.
 };
 
 // ===== MIDDLEWARE =====

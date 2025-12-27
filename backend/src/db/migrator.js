@@ -110,6 +110,9 @@ async function runMigrations() {
 
     // Get already executed migrations
     const executed = await getExecutedMigrations();
+    if (executed.length > 0) {
+      console.log(`  Already executed: ${executed.join(', ')}`);
+    }
 
     // Get pending migrations
     const pending = getPendingMigrations(executed);

@@ -13,33 +13,47 @@ const { requireAdmin } = require('../middleware/rbac');
 const { logAudit, AUDIT_ACTIONS } = require('../utils/audit');
 
 // Ensure optional webhook columns exist (multi-tenant per channel)
-function ensureWhatsAppWebhookColumns() {
+// Note: These columns are now defined in migrations, so this is just a safety check
+async function ensureWhatsAppWebhookColumns() {
   const columns = ['webhook_verify_token', 'webhook_secret'];
-  columns.forEach(col => {
+  for (const col of columns) {
     try {
-      db.prepare(`ALTER TABLE tenant_channel_settings ADD COLUMN ${col} TEXT`).run();
+      await db.prepare(`ALTER TABLE tenant_channel_settings ADD COLUMN ${col} TEXT`).run();
     } catch (e) {
       // Column already exists - ignore
+      if (e.message && !e.message.includes('already exists')) {
+        console.warn(`Warning adding column ${col}:`, e.message);
+      }
     }
-  });
+  }
 }
-
-// Ensure webhook columns exist on module load (safe no-ops if already present)
-ensureWhatsAppWebhookColumns();
 
 // Ensure provider ID columns exist for WhatsApp (for easier lookups/status)
-function ensureWhatsAppProviderColumns() {
+// Note: These columns are now defined in migrations, so this is just a safety check
+async function ensureWhatsAppProviderColumns() {
   const columns = ['phone_number_id', 'business_account_id'];
-  columns.forEach(col => {
+  for (const col of columns) {
     try {
-      db.prepare(`ALTER TABLE tenant_channel_settings ADD COLUMN ${col} TEXT`).run();
+      await db.prepare(`ALTER TABLE tenant_channel_settings ADD COLUMN ${col} TEXT`).run();
     } catch (e) {
       // Column already exists - ignore
+      if (e.message && !e.message.includes('already exists')) {
+        console.warn(`Warning adding column ${col}:`, e.message);
+      }
     }
-  });
+  }
 }
 
-ensureWhatsAppProviderColumns();
+// Initialize columns asynchronously on module load
+(async () => {
+  try {
+    await ensureWhatsAppWebhookColumns();
+    await ensureWhatsAppProviderColumns();
+  } catch (e) {
+    console.error('Failed to ensure columns:', e.message);
+    // Don't fail startup for this
+  }
+})();
 
 // ===== MIDDLEWARE =====
 
