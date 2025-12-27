@@ -20,16 +20,16 @@ const { logAudit, AUDIT_ACTIONS } = require('../utils/audit');
  * GET /api/business-info
  * Get current business information for tenant
  */
-router.get('/', requireAuth, validateTenantAccess, requireMember, (req, res) => {
+router.get('/', requireAuth, validateTenantAccess, requireMember, async (req, res) => {
   try {
-    const businessInfo = db.prepare(`
+    const businessInfo = await db.prepare(`
       SELECT * FROM tenant_business_info
       WHERE tenant_id = ?
     `).get(req.tenantId);
 
     if (!businessInfo) {
       // Pre-populate from tenant data
-      const tenant = db.prepare('SELECT name FROM tenants WHERE id = ?').get(req.tenantId);
+      const tenant = await db.prepare('SELECT name FROM tenants WHERE id = ?').get(req.tenantId);
 
       return res.json({
         data: {
@@ -84,7 +84,7 @@ router.get('/', requireAuth, validateTenantAccess, requireMember, (req, res) => 
  * POST /api/business-info
  * Create or update business information
  */
-router.post('/', requireAuth, validateTenantAccess, requireAdmin, (req, res) => {
+router.post('/', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
     const {
       legal_business_name,
@@ -122,7 +122,7 @@ router.post('/', requireAuth, validateTenantAccess, requireAdmin, (req, res) => 
     }
 
     // Check if exists
-    const existing = db.prepare(
+    const existing = await db.prepare(
       'SELECT id FROM tenant_business_info WHERE tenant_id = ?'
     ).get(req.tenantId);
 
@@ -130,7 +130,7 @@ router.post('/', requireAuth, validateTenantAccess, requireAdmin, (req, res) => 
 
     if (existing) {
       // Update
-      db.prepare(`
+      await db.prepare(`
         UPDATE tenant_business_info
         SET legal_business_name = ?,
             dba_name = ?,
@@ -167,7 +167,7 @@ router.post('/', requireAuth, validateTenantAccess, requireAdmin, (req, res) => 
         now, req.tenantId
       );
 
-      logAudit({
+      await logAudit({
         actorUserId: req.session.userId,
         actorType: 'tenant_user',
         tenantId: req.tenantId,
@@ -188,7 +188,7 @@ router.post('/', requireAuth, validateTenantAccess, requireAdmin, (req, res) => 
       // Create
       const id = uuidv4();
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO tenant_business_info (
           id, tenant_id, legal_business_name, dba_name, business_website, business_type, industry_vertical,
           business_registration_number, country, business_address, business_city, business_state, business_zip,
@@ -208,7 +208,7 @@ router.post('/', requireAuth, validateTenantAccess, requireAdmin, (req, res) => 
         now, now
       );
 
-      logAudit({
+      await logAudit({
         actorUserId: req.session.userId,
         actorType: 'tenant_user',
         tenantId: req.tenantId,
@@ -243,7 +243,7 @@ router.post('/', requireAuth, validateTenantAccess, requireAdmin, (req, res) => 
 router.post('/submit-10dlc', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
     // 1. Get business info
-    const businessInfo = db.prepare(
+    const businessInfo = await db.prepare(
       'SELECT * FROM tenant_business_info WHERE tenant_id = ?'
     ).get(req.tenantId);
 
@@ -256,7 +256,7 @@ router.post('/submit-10dlc', requireAuth, validateTenantAccess, requireAdmin, as
     }
 
     // 2. Check if tenant is demo
-    const tenant = db.prepare('SELECT is_demo FROM tenants WHERE id = ?').get(req.tenantId);
+    const tenant = await db.prepare('SELECT is_demo FROM tenants WHERE id = ?').get(req.tenantId);
 
     if (tenant.is_demo) {
       // Demo mode: Create fake approved brand immediately
@@ -264,7 +264,7 @@ router.post('/submit-10dlc', requireAuth, validateTenantAccess, requireAdmin, as
       const now = new Date().toISOString();
       const demoPhoneId = `DEMO-${Date.now()}`;
 
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO tenant_10dlc_brands (
           id, tenant_id, legal_business_name, dba_name, business_website, business_type, industry_vertical,
           business_registration_number, country, business_address, business_city, business_state, business_zip,
@@ -282,7 +282,7 @@ router.post('/submit-10dlc', requireAuth, validateTenantAccess, requireAdmin, as
         now, 1, now, now
       );
 
-      logAudit({
+      await logAudit({
         actorUserId: req.session.userId,
         actorType: 'tenant_user',
         tenantId: req.tenantId,
@@ -309,7 +309,7 @@ router.post('/submit-10dlc', requireAuth, validateTenantAccess, requireAdmin, as
     const brandId = uuidv4();
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO tenant_10dlc_brands (
         id, tenant_id, legal_business_name, dba_name, business_website, business_type, industry_vertical,
         business_registration_number, country, business_address, business_city, business_state, business_zip,
@@ -327,7 +327,7 @@ router.post('/submit-10dlc', requireAuth, validateTenantAccess, requireAdmin, as
       1, now, now
     );
 
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'tenant_user',
       tenantId: req.tenantId,
@@ -361,9 +361,9 @@ router.post('/submit-10dlc', requireAuth, validateTenantAccess, requireAdmin, as
  * GET /api/business-info/10dlc-status
  * Get current 10DLC brand status
  */
-router.get('/10dlc-status', requireAuth, validateTenantAccess, requireMember, (req, res) => {
+router.get('/10dlc-status', requireAuth, validateTenantAccess, requireMember, async (req, res) => {
   try {
-    const brands = db.prepare(`
+    const brands = await db.prepare(`
       SELECT * FROM tenant_10dlc_brands
       WHERE tenant_id = ?
       ORDER BY created_at DESC

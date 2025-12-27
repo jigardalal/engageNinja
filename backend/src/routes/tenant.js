@@ -20,9 +20,9 @@ const validateTenantAccess = (req, res, next) => {
 };
 
 // GET current tenant profile
-router.get('/profile', requireAuth, validateTenantAccess, requireMember, (req, res) => {
+router.get('/profile', requireAuth, validateTenantAccess, requireMember, async (req, res) => {
   try {
-    const tenant = db.prepare(`
+    const tenant = await db.prepare(`
       SELECT id, name, plan_id, legal_name, address_line1, address_line2, city, state, postal_code, country, timezone, billing_email, support_email
       FROM tenants WHERE id = ?
     `).get(req.tenantId);
@@ -35,7 +35,7 @@ router.get('/profile', requireAuth, validateTenantAccess, requireMember, (req, r
 });
 
 // PATCH current tenant profile (admin/owner)
-router.patch('/profile', requireAuth, validateTenantAccess, requireAdmin, (req, res) => {
+router.patch('/profile', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
     const {
       name,
@@ -59,7 +59,7 @@ router.patch('/profile', requireAuth, validateTenantAccess, requireAdmin, (req, 
     const selectedPlan = plan_id || planId;
 
     if (selectedPlan) {
-      const planExists = db.prepare('SELECT 1 FROM plans WHERE id = ?').get(selectedPlan);
+      const planExists = await db.prepare('SELECT 1 FROM plans WHERE id = ?').get(selectedPlan);
       if (!planExists) {
         return res.status(400).json({ error: 'Invalid plan' });
       }
@@ -118,9 +118,9 @@ router.patch('/profile', requireAuth, validateTenantAccess, requireAdmin, (req, 
     updates.push('updated_at = CURRENT_TIMESTAMP');
     params.push(req.tenantId);
 
-    db.prepare(`UPDATE tenants SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    await db.prepare(`UPDATE tenants SET ${updates.join(', ')} WHERE id = ?`).run(...params);
 
-    const updated = db.prepare(`
+    const updated = await db.prepare(`
       SELECT id, name, plan_id, legal_name, address_line1, address_line2, city, state, postal_code, country, timezone, billing_email, support_email
       FROM tenants WHERE id = ?
     `).get(req.tenantId);

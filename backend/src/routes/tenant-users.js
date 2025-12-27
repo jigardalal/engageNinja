@@ -40,12 +40,12 @@ const requireAuthAndTenant = (req, res, next) => {
  * GET /api/tenant/users
  * List all users in the current tenant
  */
-router.get('/', requireAuthAndTenant, (req, res) => {
+router.get('/', requireAuthAndTenant, async (req, res) => {
   try {
     const tenantId = req.session.activeTenantId;
 
     // Get all users in tenant with their roles
-    const users = db.prepare(`
+    const users = await db.prepare(`
       SELECT
         u.id,
         u.email,

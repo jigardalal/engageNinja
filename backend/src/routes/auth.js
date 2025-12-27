@@ -153,7 +153,7 @@ router.post('/signup', async (req, res) => {
     const normalizedEmail = email.toLowerCase();
 
     // Check if email already exists
-    const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
+    const existingUser = await db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
     if (existingUser) {
       return res.status(400).json({
         error: 'Email already exists',
@@ -175,7 +175,7 @@ router.post('/signup', async (req, res) => {
     const now = new Date().toISOString();
     const userFullName = [trimmedFirstName, trimmedLastName].filter(Boolean).join(' ') || null;
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO users (id, email, name, first_name, last_name, phone, password_hash, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -191,7 +191,7 @@ router.post('/signup', async (req, res) => {
     );
 
     // Get free plan ID
-    const freePlan = db.prepare('SELECT id FROM plans WHERE name = ? LIMIT 1').get('Free Plan');
+    const freePlan = await db.prepare('SELECT id FROM plans WHERE name = ? LIMIT 1').get('Free Plan');
     if (!freePlan) {
       throw new Error('Free plan not found in database');
     }
@@ -200,16 +200,16 @@ router.post('/signup', async (req, res) => {
     const tenantId = uuidv4();
     const tenantName = trimmedCompanyName;
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO tenants (id, name, plan_id, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?)
     `).run(tenantId, tenantName, freePlan.id, now, now);
 
     // Copy active global tags into new tenant
-    copyActiveGlobalTagsToTenant(db, tenantId);
+    await copyActiveGlobalTagsToTenant(tenantId);
 
     // Link user to tenant
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO user_tenants (user_id, tenant_id, role, created_at)
       VALUES (?, ?, ?, ?)
     `).run(userId, tenantId, 'admin', now);
@@ -247,7 +247,7 @@ router.post('/signup', async (req, res) => {
  * POST /auth/login
  * Authenticate user with email and password
  */
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     ensureUserTableHasNameColumn();
     const { email, password } = req.body;
@@ -262,7 +262,7 @@ router.post('/login', (req, res) => {
     }
 
     // Find user
-    const user = db.prepare('SELECT id, email, name, first_name, last_name, phone, timezone, password_hash, role_global FROM users WHERE email = ?').get(email.toLowerCase());
+    const user = await db.prepare('SELECT id, email, name, first_name, last_name, phone, timezone, password_hash, role_global FROM users WHERE email = ?').get(email.toLowerCase());
 
     if (!user) {
       return res.status(401).json({
@@ -283,7 +283,7 @@ router.post('/login', (req, res) => {
     }
 
     // Get user's tenants
-    const userTenants = db.prepare(`
+    const userTenants = await db.prepare(`
       SELECT ut.tenant_id, ut.role, t.name, t.plan_id, p.name as plan
       FROM user_tenants ut
       JOIN tenants t ON ut.tenant_id = t.id
