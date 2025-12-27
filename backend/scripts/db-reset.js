@@ -10,7 +10,6 @@
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
-const Database = require('better-sqlite3');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const USE_POSTGRES = !!process.env.DATABASE_URL;
@@ -154,70 +153,9 @@ console.log('=============================\n');
         await pool.end();
       }
     } else {
-      // SQLite: Delete and recreate database
-      const envDbPath = process.env.DATABASE_PATH;
-      const DATABASE_PATH = envDbPath
-        ? path.resolve(path.join(__dirname, '..', envDbPath))
-        : path.join(__dirname, '../database.sqlite');
-
-      const dbPath = path.resolve(DATABASE_PATH);
-      if (fs.existsSync(dbPath)) {
-        fs.unlinkSync(dbPath);
-        console.log(`\n✓ Deleted existing database: ${dbPath}\n`);
-      }
-
-      // For SQLite, need to reinitialize with migrations
-      console.log('Running migrations to recreate schema...\n');
-
-      const db = new Database(DATABASE_PATH);
-      db.pragma('foreign_keys = ON');
-
-      // Create migrations tracking table
-      await db.exec(`
-        CREATE TABLE IF NOT EXISTS schema_migrations (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT UNIQUE NOT NULL,
-          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-
-      // Run migrations
-      const migrationsDir = path.join(__dirname, '../db/migrations');
-      const migrationFiles = fs.readdirSync(migrationsDir)
-        .filter(f => f.endsWith('.sql'))
-        .sort();
-
-      console.log(`📋 Running ${migrationFiles.length} migration(s):\n`);
-
-      for (const file of migrationFiles) {
-        const migrationPath = path.join(migrationsDir, file);
-        const migrationSql = fs.readFileSync(migrationPath, 'utf8');
-
-        try {
-          const executed = await db.prepare(
-            'SELECT name FROM schema_migrations WHERE name = ?'
-          ).get(file);
-
-          if (executed) {
-            console.log(`⏭️  ${file} (already executed)`);
-            continue;
-          }
-
-          await db.exec(migrationSql);
-
-          await db.prepare(
-            'INSERT INTO schema_migrations (name) VALUES (?)'
-          ).run(file);
-
-          console.log(`✓ ${file}`);
-        } catch (err) {
-          console.error(`\n❌ Error executing migration ${file}:`, err.message);
-          throw err;
-        }
-      }
-
-      console.log('\n✓ All migrations executed successfully\n');
-      db.close();
+      console.error('❌ DATABASE_URL not configured. PostgreSQL is required.');
+      console.error('Set DATABASE_URL in backend/.env (e.g., postgresql://user:pass@localhost:5432/engageninja)');
+      process.exit(1);
     }
 
     // Run seed script

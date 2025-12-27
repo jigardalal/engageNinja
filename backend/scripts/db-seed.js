@@ -116,9 +116,9 @@ async function seed() {
 
     for (const plan of plans) {
       await query(
-        `INSERT INTO plans (id, name, whatsapp_messages_per_month, email_messages_per_month, max_users, contacts_limit, sms_messages_per_month, api_calls_per_month, ai_features_enabled, api_enabled, default_price)
+        `INSERT INTO plans (id, name, whatsapp_messages_per_month, email_messages_per_month, max_users, contacts_limit, sms_messages_per_month, api_tokens_per_month, ai_features_enabled, api_enabled, default_price)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [plan.id, plan.name, plan.whatsapp, plan.email, plan.users, plan.contacts, plan.sms, plan.api, plan.ai ? 1 : 0, plan.api_enabled ? 1 : 0, 0]
+        [plan.id, plan.name, plan.whatsapp, plan.email, plan.users, plan.contacts, plan.sms, plan.api, plan.ai, plan.api_enabled, 0]
       );
     }
     console.log(`  ✓ ${plans.length} plans seeded\n`);
@@ -146,9 +146,9 @@ async function seed() {
 
     for (const user of hashedUsers) {
       await query(
-        `INSERT INTO users (id, email, password_hash, first_name, last_name, is_active, global_role, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-        [user.id, user.email, user.passwordHash, user.name.split(' ')[0], user.name.split(' ')[1] || '', 1, user.role || null]
+        `INSERT INTO users (id, email, password_hash, first_name, last_name, active, role_global)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [user.id, user.email, user.passwordHash, user.name.split(' ')[0], user.name.split(' ')[1] || '', true, user.role || 'none']
       );
     }
     console.log(`  ✓ ${hashedUsers.length} users seeded\n`);
@@ -158,15 +158,15 @@ async function seed() {
     const tenantDemo = uuidv4();
     const tenantBeta = uuidv4();
     const tenants = [
-      { id: tenantDemo, name: 'Demo Tenant', email: 'demo@example.com', plan: 'growth' },
-      { id: tenantBeta, name: 'Beta Tenant', email: 'beta@example.com', plan: 'starter' }
+      { id: tenantDemo, name: 'Demo Tenant', billing_email: 'demo@example.com', plan: 'growth' },
+      { id: tenantBeta, name: 'Beta Tenant', billing_email: 'beta@example.com', plan: 'starter' }
     ];
 
     for (const tenant of tenants) {
       await query(
-        `INSERT INTO tenants (id, name, email, plan_id, created_at)
-         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-        [tenant.id, tenant.name, tenant.email, tenant.plan]
+        `INSERT INTO tenants (id, name, plan_id, billing_email)
+         VALUES (?, ?, ?, ?)`,
+        [tenant.id, tenant.name, tenant.plan, tenant.billing_email]
       );
     }
     console.log(`  ✓ ${tenants.length} tenants seeded\n`);
@@ -186,8 +186,8 @@ async function seed() {
 
     for (const assoc of associations) {
       await query(
-        `INSERT INTO user_tenants (user_id, tenant_id, role, joined_at)
-         VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
+        `INSERT INTO user_tenants (user_id, tenant_id, role)
+         VALUES (?, ?, ?)`,
         [assoc.userId, assoc.tenantId, assoc.role]
       );
     }

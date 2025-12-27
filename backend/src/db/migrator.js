@@ -77,8 +77,9 @@ async function executeMigration(filename) {
       try {
         await db.exec(statement);
       } catch (error) {
-        if (error.message && error.message.includes('duplicate column name')) {
-          console.warn(`  ⚠️  Skipping duplicate column in ${filename}: ${error.message}`);
+        // Handle both SQLite ("duplicate column name") and PostgreSQL ("already exists") errors
+        if (error.message && (error.message.includes('duplicate column name') || error.message.includes('already exists'))) {
+          console.warn(`  ⚠️  Skipping duplicate/existing item in ${filename}: ${error.message}`);
           continue;
         }
         throw error;
