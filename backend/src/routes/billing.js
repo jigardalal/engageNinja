@@ -20,12 +20,12 @@ function createBillingRoutes(db, billingService) {
    * GET /billing/plans
    * Returns all available plans for the tenant to choose from
    */
-  router.get('/plans', requireAuth, validateTenantAccess, (req, res) => {
+  router.get('/plans', requireAuth, validateTenantAccess, async (req, res) => {
     try {
       const tenantId = req.tenantId;
-      const currentTenant = db.prepare('SELECT plan_id FROM tenants WHERE id = ?').get(tenantId);
+      const currentTenant = await db.prepare('SELECT plan_id FROM tenants WHERE id = ?').get(tenantId);
 
-      const plans = db
+      const plans = await db
         .prepare(`
           SELECT
             id, name,
@@ -107,7 +107,7 @@ function createBillingRoutes(db, billingService) {
       const tenantId = req.tenantId;
 
       // Validate plan_key
-      const plan = db
+      const plan = await db
         .prepare('SELECT * FROM plans WHERE id = ?')
         .get(plan_key);
 
@@ -116,7 +116,7 @@ function createBillingRoutes(db, billingService) {
       }
 
       // Get tenant
-      const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
+      const tenant = await db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
 
       // Call billing service to create checkout session
       const returnUrls = {
@@ -149,7 +149,7 @@ function createBillingRoutes(db, billingService) {
     }
     try {
       const tenantId = req.tenantId;
-      const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
+      const tenant = await db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
 
       const session = await billingService.createBillingPortalSession(tenant);
 
@@ -171,10 +171,10 @@ function createBillingRoutes(db, billingService) {
     }
     try {
       const tenantId = req.tenantId;
-      const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
+      const tenant = await db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
 
       // Get active subscription
-      const subscription = db
+      const subscription = await db
         .prepare('SELECT * FROM subscriptions WHERE tenant_id = ? AND status = ?')
         .get(tenantId, 'active');
 
@@ -201,7 +201,7 @@ function createBillingRoutes(db, billingService) {
       }
 
       // Update local subscription record with latest Stripe data
-      db.prepare(
+      await db.prepare(
         `UPDATE subscriptions SET
            status = ?,
            cancel_at_period_end = ?,
@@ -239,7 +239,7 @@ function createBillingRoutes(db, billingService) {
     try {
       const tenantId = req.tenantId;
 
-      const invoices = db
+      const invoices = await db
         .prepare(
           `SELECT id, provider_invoice_id, amount_total, currency, status, hosted_invoice_url, created_at
            FROM invoices
@@ -272,14 +272,14 @@ function createBillingRoutes(db, billingService) {
    * - 'stream-only': Generate on-demand, stream to user, no storage
    * - 'cloud-storage': Generate, upload to cloud, serve from cloud URL
    */
-  router.get('/invoices/:invoiceId/download', requireAuth, validateTenantAccess, (req, res) => {
+  router.get('/invoices/:invoiceId/download', requireAuth, validateTenantAccess, async (req, res) => {
     try {
       const tenantId = req.tenantId;
       const { invoiceId } = req.params;
       const generationMode = process.env.INVOICE_GENERATION_MODE || 'stream-only';
 
       // Get invoice from database
-      const invoice = db
+      const invoice = await db
         .prepare(`
           SELECT id, tenant_id, provider_invoice_id, amount_total, currency, status, created_at
           FROM invoices
@@ -292,8 +292,8 @@ function createBillingRoutes(db, billingService) {
       }
 
       // Get tenant details for invoice generation
-      const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
-      const plan = db.prepare('SELECT * FROM plans WHERE id = ?').get(tenant.plan_id);
+      const tenant = await db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
+      const plan = await db.prepare('SELECT * FROM plans WHERE id = ?').get(tenant.plan_id);
 
       // Generate invoice number
       const invoiceNumber = InvoiceGenerator.generateInvoiceNumber(invoice.id);
