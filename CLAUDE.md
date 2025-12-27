@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **EngageNinja** is an AI-first, WhatsApp-first customer engagement platform for SMBs and teams managing messaging at scale. It's a multi-tenant SaaS application with full RBAC (Role-Based Access Control), Stripe billing integration, and support for WhatsApp and Email channels.
 
-**Stack**: React 18 + Vite (frontend), Express.js + SQLite (backend), Stripe for billing, Claude API for AI features.
+**Stack**: React 18 + Vite (frontend), Express.js + PostgreSQL (backend), Stripe for billing, Claude API for AI features.
 
 ## Build, Lint, and Test Commands
 
@@ -68,13 +68,13 @@ engageninja/
 ├── backend/                     # Express.js backend
 │   ├── src/
 │   │   ├── index.js            # Express app setup with middleware, routes, error handling
-│   │   ├── db.js               # SQLite database connection (better-sqlite3)
+│   │   ├── db.js               # PostgreSQL database connection (async/await with pg)
 │   │   ├── middleware/         # Auth and RBAC enforcement
 │   │   ├── routes/             # API endpoints (auth, contacts, campaigns, templates, etc.)
 │   │   ├── services/           # Business logic (WhatsApp, Email, Stripe, messageQueue, etc.)
 │   │   └── utils/              # Audit logging, global tags sync, subscription checks
 │   ├── db/
-│   │   ├── migrations/         # Sequential SQL migrations (001_schema.sql through 013_*.sql)
+│   │   ├── migrations/         # Sequential SQL migrations (001_schema.sql, 002_features_consolidated.sql)
 │   │   └── seeds/              # Seed data for local development
 │   └── scripts/                # Admin scripts (db-init, db-seed, test servers)
 │
@@ -106,14 +106,15 @@ engageninja/
 **Key Files**:
 - `backend/src/middleware/rbac.js`: Role checking with hierarchy validation
 - `backend/src/middleware/auth.js`: Session-based authentication
-- `backend/db/migrations/003_rbac_system.sql`: RBAC schema including `user_tenants`, platform roles
+- `backend/db/migrations/001_schema.sql`: Complete schema including `user_tenants`, RBAC, billing, and all features
 
 #### Database Layer
 
-- **SQLite** (development) with **better-sqlite3** driver
-- **Synchronous API**: All queries are blocking for simplicity in MVP
+- **PostgreSQL** only (no SQLite support for development or production)
+- **Async/Await API**: All queries are non-blocking with `pg` library
+- **Connection Pooling**: Max 20 connections with AWS RDS optimizations
 - **Migration System**: Auto-runs on startup via `backend/src/db/migrator.js`
-- **Foreign Keys**: Enabled globally with `PRAGMA foreign_keys = ON`
+- **Foreign Keys**: Enforced at database level
 
 **Schema Highlights**:
 - `users`: Platform users with global role and active status
@@ -207,10 +208,12 @@ BASE_URL=http://localhost:3174 node scripts/ui/smoke.js
 
 ### Working with Database Migrations
 
-1. Add new migration file in `backend/db/migrations/` with incremental number (e.g., `014_new_feature.sql`)
-2. Write SQL using SQLite syntax; migrations auto-run on backend startup
+1. Add new migration file in `backend/db/migrations/` with incremental number (e.g., `003_new_feature.sql`)
+2. Write SQL using PostgreSQL syntax; migrations auto-run on backend startup
 3. To test locally, reset database: `npm run db:reset`
 4. For test environment: `npm run db:reset:test`
+
+**Note**: Only 2 migration files are used: `001_schema.sql` (core schema) and `002_features_consolidated.sql` (features)
 
 ### Handling Webhook Signatures
 
@@ -266,7 +269,7 @@ Override with: `BASE_URL=http://localhost:3174 npm run ui:test:smoke`
 ### Environment Variables
 
 **Backend** (`backend/.env`):
-- `DATABASE_PATH`: Relative path to SQLite DB (e.g., `./database.sqlite` or `database.test.sqlite`)
+- `DATABASE_URL`: PostgreSQL connection string (e.g., `postgresql://user:password@localhost:5432/engageninja`)
 - `PORT` or `BACKEND_PORT`: Server port (default 5173)
 - `NODE_ENV`: Environment (development/production)
 - `CORS_ORIGIN`: Frontend URL for CORS (default `http://localhost:3173`)
@@ -321,15 +324,15 @@ Override with: `BASE_URL=http://localhost:3174 npm run ui:test:smoke`
 
 ### Performance Considerations
 
-- **Synchronous DB**: SQLite with synchronous queries; fine for MVP, consider async DB layer for scale
+- **Async DB**: PostgreSQL with async/await queries and connection pooling (max 20 connections)
 - **Message Queue**: Batched processing; tune batch size and rate in `messageQueue.js`
 - **SSE Scaling**: Each connected client holds open connection; consider switching to WebSockets or pub/sub for high concurrency
-- **Indexes**: Critical queries have indexes; check migrations for composite indexes on frequently filtered columns
+- **Indexes**: Critical queries have indexes; check `backend/db/migrations/001_schema.sql` for composite indexes on frequently filtered columns
 
 ## Debugging Tips
 
 1. **Check backend logs**: Look for request method, path, status code, duration
-2. **Inspect database**: Use CLI `sqlite3 backend/database.sqlite` to query tables directly
+2. **Inspect database**: Use CLI `psql postgresql://engageninja:engageninja@localhost:5433/engageninja` to query tables directly
 3. **Enable webhook verification logs**: Set `ENABLE_WEBHOOK_VERIFICATION=true` and check console output
 4. **Test SSE connection**: Open browser DevTools → Network tab → filter for `/sse` endpoints
 5. **Verify tenant context**: Check `req.session.activeTenantId` in middleware
@@ -339,7 +342,7 @@ Override with: `BASE_URL=http://localhost:3174 npm run ui:test:smoke`
 
 **Backend**:
 - `express@4.18.2`: Web framework
-- `better-sqlite3@9.2.2`: Synchronous SQLite driver
+- `pg@8.x`: PostgreSQL driver with async/await support
 - `bcrypt@5.1.1`: Password hashing
 - `express-session@1.17.3`: Session management
 - `stripe@14.25.0`: Stripe SDK for billing
