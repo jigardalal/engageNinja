@@ -24,24 +24,24 @@ const webhookEventLog = [];
 const MAX_LOG_ENTRIES = 1000;
 
 // Ensure message_status_events has status_reason column
-const ensureStatusEventsColumns = () => {
+const ensureStatusEventsColumns = async () => {
   try {
-    db.prepare(`ALTER TABLE message_status_events ADD COLUMN status_reason TEXT`).run();
+    await db.prepare(`ALTER TABLE message_status_events ADD COLUMN status_reason TEXT`).run();
   } catch (e) {
     // Column already exists - ignore
   }
 };
 
 // Ensure optional webhook columns exist (per-tenant)
-const ensureWhatsAppWebhookColumns = () => {
+const ensureWhatsAppWebhookColumns = async () => {
   const columns = ['webhook_verify_token', 'webhook_secret'];
-  columns.forEach(col => {
+  for (const col of columns) {
     try {
-      db.prepare(`ALTER TABLE tenant_channel_settings ADD COLUMN ${col} TEXT`).run();
+      await db.prepare(`ALTER TABLE tenant_channel_settings ADD COLUMN ${col} TEXT`).run();
     } catch (e) {
       // Column already exists - ignore
     }
-  });
+  }
 };
 
 /**
@@ -171,12 +171,12 @@ const authenticateMetricsRequest = (req, res, next) => {
 /**
  * Update message status from webhook
  */
-const updateMessageStatus = (tenantId, providerMessageId, newStatus, eventTimestamp, statusReason = null) => {
+const updateMessageStatus = async (tenantId, providerMessageId, newStatus, eventTimestamp, statusReason = null) => {
   try {
-    ensureStatusEventsColumns();
+    await ensureStatusEventsColumns();
 
     // Find the message by provider_message_id
-    const message = db.prepare(`
+    const message = await db.prepare(`
       SELECT id, campaign_id, status as old_status FROM messages
       WHERE provider_message_id = ? AND tenant_id = ?
     `).get(providerMessageId, tenantId);
@@ -207,11 +207,11 @@ const updateMessageStatus = (tenantId, providerMessageId, newStatus, eventTimest
     updateQuery += ` WHERE id = ?`;
     params.push(message.id);
 
-    const result = db.prepare(updateQuery).run(...params);
+    const result = await db.prepare(updateQuery).run(...params);
 
     // Log the status event
     const eventId = uuidv4();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO message_status_events (
       id, message_id, provider_message_id, old_status, new_status,
         event_timestamp, webhook_received_at, created_at, status_reason
@@ -246,9 +246,9 @@ const updateMessageStatus = (tenantId, providerMessageId, newStatus, eventTimest
 /**
  * Update campaign metrics after status change
  */
-const updateCampaignMetrics = (campaignId, tenantId) => {
+const updateCampaignMetrics = async (campaignId, tenantId) => {
   try {
-    const metrics = db.prepare(`
+    const metrics = await db.prepare(`
       SELECT
         COUNT(*) as message_count,
         SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) as sent_count,
@@ -270,9 +270,9 @@ const updateCampaignMetrics = (campaignId, tenantId) => {
  * Handle duplicate webhook events (idempotency)
  * Returns true if this is a duplicate event that was already processed
  */
-const isDuplicateWebhookEvent = (providerMessageId, newStatus) => {
+const isDuplicateWebhookEvent = async (providerMessageId, newStatus) => {
   // Check if we already have this exact status update
-  const existing = db.prepare(`
+  const existing = await db.prepare(`
     SELECT id FROM message_status_events
     WHERE provider_message_id = ? AND new_status = ?
     ORDER BY created_at DESC LIMIT 1
@@ -307,7 +307,7 @@ const isDuplicateWebhookEvent = (providerMessageId, newStatus) => {
  *   }]
  * }
  */
-function handleTemplateStatusUpdate(entry) {
+async function handleTemplateStatusUpdate(entry) {
   try {
     if (!entry.changes || !Array.isArray(entry.changes)) return;
 
@@ -340,14 +340,14 @@ function handleTemplateStatusUpdate(entry) {
       // Find template by meta_template_id or name
       let template;
       if (message_template_id) {
-        template = db.prepare(`
+        template = await db.prepare(`
           SELECT id, tenant_id, status FROM whatsapp_templates
           WHERE meta_template_id = ?
         `).get(message_template_id);
       }
 
       if (!template && message_template_name) {
-        template = db.prepare(`
+        template = await db.prepare(`
           SELECT id, tenant_id, status FROM whatsapp_templates
           WHERE name = ? AND language = ?
           ORDER BY created_at DESC LIMIT 1
@@ -363,7 +363,7 @@ function handleTemplateStatusUpdate(entry) {
       const now = new Date().toISOString();
       const oldStatus = template.status;
 
-      db.prepare(`
+      await db.prepare(`
         UPDATE whatsapp_templates
         SET status = ?, updated_at = ?
         WHERE id = ?
@@ -423,9 +423,9 @@ function handleTemplateStatusUpdate(entry) {
  *   ]
  * }
  */
-router.post('/whatsapp', express.raw({ type: 'application/json' }), (req, res) => {
+router.post('/whatsapp', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
-    ensureWhatsAppWebhookColumns();
+    await ensureWhatsAppWebhookColumns();
     // Convert raw body to string for signature verification
     const bodyString = Buffer.isBuffer(req.body)
       ? req.body.toString('utf8')
@@ -445,7 +445,7 @@ router.post('/whatsapp', express.raw({ type: 'application/json' }), (req, res) =
       verificationEnabled: ENABLE_WEBHOOK_VERIFICATION
     });
     if (phoneNumberIdFromMeta) {
-      const channels = db.prepare(`SELECT tenant_id, credentials_encrypted, webhook_secret FROM tenant_channel_settings WHERE channel = 'whatsapp'`).all();
+      const channels = await db.prepare(`SELECT tenant_id, credentials_encrypted, webhook_secret FROM tenant_channel_settings WHERE channel = 'whatsapp'`).all();
       for (const ch of channels) {
         const creds = decryptCredentials(ch.credentials_encrypted) || {};
         if (creds.phone_number_id && creds.phone_number_id === phoneNumberIdFromMeta) {
@@ -457,7 +457,7 @@ router.post('/whatsapp', express.raw({ type: 'application/json' }), (req, res) =
     }
     // Fallback: if we didn't find a tenant by phone_number_id, use the first WhatsApp secret (helps Meta sample tests)
     if (!tenantSecret) {
-      const fallback = db.prepare(`SELECT tenant_id, webhook_secret FROM tenant_channel_settings WHERE channel = 'whatsapp' LIMIT 1`).get();
+      const fallback = await db.prepare(`SELECT tenant_id, webhook_secret FROM tenant_channel_settings WHERE channel = 'whatsapp' LIMIT 1`).get();
       if (fallback) {
         tenantSecret = fallback.webhook_secret;
         tenantIdForEvent = tenantIdForEvent || fallback.tenant_id;
@@ -494,7 +494,7 @@ router.post('/whatsapp', express.raw({ type: 'application/json' }), (req, res) =
 
         // Handle template status updates
         if (field === 'message_template_status_update') {
-          handleTemplateStatusUpdate(entry);
+          await handleTemplateStatusUpdate(entry);
           processedCount++;
           continue;
         }
@@ -520,13 +520,13 @@ router.post('/whatsapp', express.raw({ type: 'application/json' }), (req, res) =
           });
 
           // Check for duplicates
-          if (isDuplicateWebhookEvent(providerMessageId, newStatus)) {
+          if (await isDuplicateWebhookEvent(providerMessageId, newStatus)) {
             processedCount++;
             continue;
           }
 
           // Find the message and get tenant_id
-          const message = db.prepare(`
+          const message = await db.prepare(`
             SELECT tenant_id FROM messages WHERE provider_message_id = ?
           `).get(providerMessageId);
 
@@ -538,15 +538,15 @@ router.post('/whatsapp', express.raw({ type: 'application/json' }), (req, res) =
           const statusReason = Array.isArray(errors) && errors.length > 0 ? (errors[0].title || errors[0].message) : null;
 
           // Update message status
-          updateMessageStatus(message.tenant_id, providerMessageId, newStatus, eventTimestamp, statusReason);
+          await updateMessageStatus(message.tenant_id, providerMessageId, newStatus, eventTimestamp, statusReason);
 
           // Get campaign_id to update metrics
-          const msg = db.prepare(`
+          const msg = await db.prepare(`
             SELECT campaign_id FROM messages WHERE provider_message_id = ?
           `).get(providerMessageId);
 
           if (msg) {
-            updateCampaignMetrics(msg.campaign_id, message.tenant_id);
+            await updateCampaignMetrics(msg.campaign_id, message.tenant_id);
 
             // Broadcast metrics update to SSE clients
             metricsEmitter.emit(`campaign:${msg.campaign_id}:metrics`);
@@ -575,18 +575,18 @@ router.post('/whatsapp', express.raw({ type: 'application/json' }), (req, res) =
  * Webhook verification endpoint for Meta WhatsApp
  * Meta sends a verification challenge to confirm the webhook URL
  */
-router.get('/whatsapp', (req, res) => {
+router.get('/whatsapp', async (req, res) => {
   // Meta may send hub.challenge (dot) or hub_challenge (underscore)
   const challenge = req.query['hub.challenge'] || req.query.hub_challenge;
   const verifyToken = req.query['hub.verify_token'] || req.query.hub_verify_token;
   const mode = req.query['hub.mode'] || req.query.hub_mode;
 
-  ensureWhatsAppWebhookColumns();
+  await ensureWhatsAppWebhookColumns();
 
   // Look up verify token per tenant; fallback to env if not found
   let tokenMatch = false;
   if (verifyToken) {
-    const rows = db.prepare(`SELECT webhook_verify_token FROM tenant_channel_settings WHERE channel = 'whatsapp'`).all();
+    const rows = await db.prepare(`SELECT webhook_verify_token FROM tenant_channel_settings WHERE channel = 'whatsapp'`).all();
     tokenMatch = rows.some(r => r.webhook_verify_token === verifyToken);
   }
 
@@ -685,7 +685,7 @@ router.post('/email', async (req, res) => {
     });
 
     // Find the message and get tenant_id
-    const message = db.prepare(`
+    const message = await db.prepare(`
       SELECT tenant_id, campaign_id, status FROM messages WHERE provider_message_id = ?
     `).get(messageId);
 
@@ -700,7 +700,7 @@ router.post('/email', async (req, res) => {
     }
 
     // Check for duplicates
-    if (isDuplicateWebhookEvent(messageId, eventType)) {
+    if (await isDuplicateWebhookEvent(messageId, eventType)) {
       console.log(`[Webhook] SES: Duplicate event for message ${messageId}, ignoring`);
       return res.status(200).json({
         success: true,
@@ -769,8 +769,8 @@ router.post('/email', async (req, res) => {
 
     if (statusUpdate) {
       // Update message status
-      updateMessageStatus(message.tenant_id, messageId, statusUpdate.newStatus, statusUpdate.eventTimestamp);
-      updateCampaignMetrics(message.campaign_id, message.tenant_id);
+      await updateMessageStatus(message.tenant_id, messageId, statusUpdate.newStatus, statusUpdate.eventTimestamp);
+      await updateCampaignMetrics(message.campaign_id, message.tenant_id);
 
       // Broadcast metrics update to SSE clients
       metricsEmitter.emit(`campaign:${message.campaign_id}:metrics`);
@@ -801,7 +801,7 @@ const handleTwilioWebhook = async (req, res) => {
       return res.status(400).send('Missing MessageSid or MessageStatus');
     }
 
-    const message = db.prepare(`
+    const message = await db.prepare(`
       SELECT m.id, m.tenant_id, m.campaign_id, m.status, m.channel
       FROM messages m
       WHERE m.provider_message_id = ?
@@ -851,7 +851,7 @@ const handleTwilioWebhook = async (req, res) => {
     const now = new Date().toISOString();
     const statusReason = req.body.ErrorCode ? `Error ${req.body.ErrorCode}: ${req.body.ErrorMessage}` : null;
 
-    const isDuplicate = db.prepare(`
+    const isDuplicate = await db.prepare(`
       SELECT id FROM message_status_events
       WHERE message_id = ? AND new_status = ? AND created_at > datetime('now', '-60 seconds')
     `).get(message.id, parsed.status);
@@ -862,7 +862,7 @@ const handleTwilioWebhook = async (req, res) => {
     }
 
     // Update messages table
-    db.prepare(`
+    await db.prepare(`
       UPDATE messages
       SET status = ?, updated_at = ?
       WHERE id = ?
@@ -870,7 +870,7 @@ const handleTwilioWebhook = async (req, res) => {
 
     // Log event
     const eventId = uuidv4();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO message_status_events (id, message_id, provider_message_id, old_status, new_status, event_timestamp, webhook_received_at, status_reason)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(eventId, message.id, MessageSid, message.status, parsed.status, parsed.timestamp.toISOString(), now, statusReason);
@@ -884,14 +884,14 @@ const handleTwilioWebhook = async (req, res) => {
 
     if (Object.keys(updates).length > 0) {
       const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ');
-      db.prepare(`UPDATE messages SET ${setClauses} WHERE id = ?`).run(...Object.values(updates), message.id);
+      await db.prepare(`UPDATE messages SET ${setClauses} WHERE id = ?`).run(...Object.values(updates), message.id);
     }
 
     // 8. Broadcast metrics update via SSE
     if (message.campaign_id) {
       try {
         // Get campaign metrics
-        const campaignMetrics = db.prepare(`
+        const campaignMetrics = await db.prepare(`
           SELECT
             COUNT(*) as total,
             SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) as sent,
@@ -997,7 +997,7 @@ router.post('/billing/stripe', express.raw({ type: 'application/json' }), async 
     logWebhookEvent('stripe', type, { event_id: id });
 
     // Check for duplicate webhook processing
-    const existing = db
+    const existing = await db
       .prepare(`SELECT id FROM webhook_processing_log WHERE provider = 'stripe' AND provider_event_id = ?`)
       .get(id);
 
@@ -1010,7 +1010,7 @@ router.post('/billing/stripe', express.raw({ type: 'application/json' }), async 
     const result = await billingService.handleWebhook(event);
 
     // Log successful processing
-    db.prepare(
+    await db.prepare(
       `INSERT INTO webhook_processing_log (provider, provider_event_id, event_type, result, created_at)
        VALUES ('stripe', ?, ?, ?, CURRENT_TIMESTAMP)`
     ).run(id, type, JSON.stringify(result));
@@ -1021,7 +1021,7 @@ router.post('/billing/stripe', express.raw({ type: 'application/json' }), async 
     if (result && result.tenantId) {
       try {
         const emailService = new EmailService();
-        const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(result.tenantId);
+        const tenant = await db.prepare('SELECT * FROM tenants WHERE id = ?').get(result.tenantId);
 
         if (tenant && result.notification) {
           const notif = result.notification;
@@ -1094,12 +1094,12 @@ router.post('/test/stripe-event', async (req, res) => {
     console.log(`\n🧪 TEST WEBHOOK: Creating ${event_type} event for tenant ${tenant_id}`);
 
     // Get tenant and their Stripe customer
-    const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenant_id);
+    const tenant = await db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenant_id);
     if (!tenant) {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    const billingCustomer = db
+    const billingCustomer = await db
       .prepare(`SELECT provider_customer_id FROM billing_customers WHERE tenant_id = ? AND provider = 'stripe'`)
       .get(tenant_id);
 
@@ -1190,7 +1190,7 @@ router.post('/test/stripe-event', async (req, res) => {
     const result = await billingService.handleWebhook(event);
 
     // Log the test event
-    db.prepare(
+    await db.prepare(
       `INSERT INTO webhook_processing_log (provider, provider_event_id, event_type, result, created_at)
        VALUES ('stripe', ?, ?, ?, CURRENT_TIMESTAMP)
        ON CONFLICT (provider, provider_event_id) DO NOTHING`
@@ -1202,7 +1202,7 @@ router.post('/test/stripe-event', async (req, res) => {
     if (result && result.tenantId) {
       try {
         const emailService = new EmailService();
-        const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(result.tenantId);
+        const tenant = await db.prepare('SELECT * FROM tenants WHERE id = ?').get(result.tenantId);
 
         if (tenant && result.notification) {
           const notif = result.notification;
@@ -1242,9 +1242,9 @@ router.post('/test/stripe-event', async (req, res) => {
  * Create webhook_processing_log table if it doesn't exist
  * This prevents duplicate webhook processing
  */
-const ensureWebhookLogTable = () => {
+const ensureWebhookLogTable = async () => {
   try {
-    db.prepare(`
+    await db.prepare(`
       CREATE TABLE IF NOT EXISTS webhook_processing_log (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
         provider TEXT NOT NULL,
@@ -1260,18 +1260,18 @@ const ensureWebhookLogTable = () => {
   }
 };
 
-router.post('/internal/metrics', express.json(), authenticateMetricsRequest, (req, res) => {
+router.post('/internal/metrics', express.json(), authenticateMetricsRequest, async (req, res) => {
   const { campaign_id } = req.body;
   if (!campaign_id) {
     return res.status(400).json({ error: 'campaign_id is required' });
   }
 
-  const campaign = db.prepare('SELECT tenant_id FROM campaigns WHERE id = ?').get(campaign_id);
+  const campaign = await db.prepare('SELECT tenant_id FROM campaigns WHERE id = ?').get(campaign_id);
   if (!campaign) {
     return res.status(404).json({ error: 'Campaign not found' });
   }
 
-  const campaignMetrics = db.prepare(`
+  const campaignMetrics = await db.prepare(`
     SELECT
       COUNT(*) as total,
       SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) as queued_count,
@@ -1298,6 +1298,8 @@ router.post('/internal/metrics', express.json(), authenticateMetricsRequest, (re
 });
 
 // Initialize on module load
-ensureWebhookLogTable();
+(async () => {
+  await ensureWebhookLogTable();
+})();
 
 module.exports = router;
