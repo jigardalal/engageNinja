@@ -84,7 +84,7 @@ const getSmsConfig = async (tenantId) => {
     WHERE tenant_id = ? AND channel = ?
   `).get(tenantId, 'sms');
 
-  if (!row || row.is_enabled !== 1) return null;
+  if (!row || !row.is_enabled) return null;
 
   let config = {};
   if (row.provider_config_json) {
