@@ -245,7 +245,7 @@ router.post('/channels/whatsapp/test', requireAuth, requireAdmin, async (req, re
  * GET /api/settings/channels
  * Get all channel settings for current tenant
  */
-router.get('/channels', requireAuth, (req, res) => {
+router.get('/channels', requireAuth, async (req, res) => {
   try {
     const tenantId = getTenantId(req);
 
@@ -258,13 +258,13 @@ router.get('/channels', requireAuth, (req, res) => {
     }
 
     // Get WhatsApp channel settings
-    const whatsappChannel = db.prepare(
+    const whatsappChannel = await db.prepare(
       `SELECT id, channel, provider, is_connected, connected_at, credentials_encrypted, webhook_verify_token, webhook_secret, phone_number_id, business_account_id
        FROM tenant_channel_settings WHERE tenant_id = ? AND channel = ?`
     ).get(tenantId, 'whatsapp');
 
     // Get Email channel settings
-    const emailChannel = db.prepare(
+    const emailChannel = await db.prepare(
       'SELECT id, channel, provider, is_connected, connected_at, verified_sender_email, credentials_encrypted FROM tenant_channel_settings WHERE tenant_id = ? AND channel = ?'
     ).get(tenantId, 'email');
 
@@ -284,7 +284,7 @@ router.get('/channels', requireAuth, (req, res) => {
       whatsappBusinessAccountId = whatsappChannel?.business_account_id || null;
     }
 
-    const smsChannel = db.prepare(`
+    const smsChannel = await db.prepare(`
       SELECT id, provider, is_connected, connected_at, is_enabled, is_verified,
         verified_at, provider_config_json, webhook_url, phone_number, messaging_service_sid,
         updated_at
@@ -494,7 +494,7 @@ router.post('/channels/whatsapp', requireAuth, requireAdmin, async (req, res) =>
     }
 
     // Log audit event
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'tenant_user',
       tenantId,
@@ -636,7 +636,7 @@ router.post('/channels/email', requireAuth, requireAdmin, async (req, res) => {
     }
 
     // Log audit event
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'tenant_user',
       tenantId,
@@ -672,7 +672,7 @@ router.post('/channels/email', requireAuth, requireAdmin, async (req, res) => {
  * POST /api/settings/channels/sms
  * Update per-tenant Twilio phone number + webhook URL
  */
-router.post('/channels/sms', requireAuth, requireAdmin, (req, res) => {
+router.post('/channels/sms', requireAuth, requireAdmin, async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const { phoneNumber, webhookUrl } = req.body;
@@ -693,7 +693,7 @@ router.post('/channels/sms', requireAuth, requireAdmin, (req, res) => {
       });
     }
 
-    const channelRow = db.prepare(
+    const channelRow = await db.prepare(
       'SELECT id, provider_config_json, webhook_url, phone_number, messaging_service_sid FROM tenant_channel_settings WHERE tenant_id = ? AND channel = ?'
     ).get(tenantId, 'sms');
 
@@ -724,7 +724,7 @@ router.post('/channels/sms', requireAuth, requireAdmin, (req, res) => {
     }
 
     const now = new Date().toISOString();
-    db.prepare(
+    await db.prepare(
       `UPDATE tenant_channel_settings
        SET provider_config_json = ?, is_enabled = true,
            webhook_url = ?,
@@ -761,7 +761,7 @@ router.post('/channels/sms', requireAuth, requireAdmin, (req, res) => {
  * DELETE /api/settings/channels/:channel
  * Disconnect a channel
  */
-router.delete('/channels/:channel', requireAuth, requireAdmin, (req, res) => {
+router.delete('/channels/:channel', requireAuth, requireAdmin, async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const { channel } = req.params;
@@ -784,7 +784,7 @@ router.delete('/channels/:channel', requireAuth, requireAdmin, (req, res) => {
     }
 
     // Soft-disconnect: preserve credentials but mark inactive
-    const result = db.prepare(
+    const result = await db.prepare(
       `UPDATE tenant_channel_settings
        SET is_connected = false, connected_at = NULL, updated_at = ?
        WHERE tenant_id = ? AND channel = ?`
@@ -799,7 +799,7 @@ router.delete('/channels/:channel', requireAuth, requireAdmin, (req, res) => {
     }
 
     // Log audit event
-    logAudit({
+    await logAudit({
       actorUserId: req.session.userId,
       actorType: 'tenant_user',
       tenantId,
@@ -830,7 +830,7 @@ router.delete('/channels/:channel', requireAuth, requireAdmin, (req, res) => {
  * GET /api/settings/channels/email/health
  * Basic health check for email channel (credential presence + verified sender)
  */
-router.get('/channels/email/health', requireAuth, (req, res) => {
+router.get('/channels/email/health', requireAuth, async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     if (!tenantId) {
@@ -841,7 +841,7 @@ router.get('/channels/email/health', requireAuth, (req, res) => {
       });
     }
 
-    const channel = db.prepare(
+    const channel = await db.prepare(
       'SELECT provider, is_connected, verified_sender_email, credentials_encrypted FROM tenant_channel_settings WHERE tenant_id = ? AND channel = ?'
     ).get(tenantId, 'email');
 

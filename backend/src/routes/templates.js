@@ -289,7 +289,7 @@ router.post('/sync', requireAuth, validateTenantAccess, requireAdmin, async (req
 
     // Store templates in database with new columns
     const now = new Date().toISOString();
-    const insertStmt = db.prepare(`
+    const insertStmt = await db.prepare(`
       INSERT INTO whatsapp_templates (
         id, tenant_id, waba_id, meta_template_id, name, status, language, category,
         variable_count, body_template, header_type, header_text, footer_text, buttons_json,
@@ -317,7 +317,7 @@ router.post('/sync', requireAuth, validateTenantAccess, requireAdmin, async (req
     `);
 
     for (const template of templates) {
-      insertStmt.run(
+      await insertStmt.run(
         template.id,
         req.tenantId,
         credentials.business_account_id, // waba_id
@@ -341,6 +341,20 @@ router.post('/sync', requireAuth, validateTenantAccess, requireAdmin, async (req
       );
     }
 
+    // Log audit event
+    await logAudit({
+      actorUserId: req.session.userId,
+      actorType: 'tenant_user',
+      tenantId: req.tenantId,
+      action: AUDIT_ACTIONS.TEMPLATE_SYNC,
+      targetType: 'templates',
+      targetId: `batch-${Date.now()}`,
+      metadata: {
+        count: templates.length
+      },
+      ipAddress: req.ip
+    });
+
     return res.json({
       synced_count: templates.length,
       templates: templates.map(t => ({
@@ -354,21 +368,6 @@ router.post('/sync', requireAuth, validateTenantAccess, requireAdmin, async (req
       status: 'success',
       message: `Synced ${templates.length} templates from Meta`
     });
-
-    // Log audit event
-    logAudit({
-      actorUserId: req.session.userId,
-      actorType: 'tenant_user',
-      tenantId: req.tenantId,
-      action: AUDIT_ACTIONS.TEMPLATE_SYNC,
-      targetType: 'templates',
-      targetId: `batch-${Date.now()}`,
-      metadata: {
-        count: templates.length
-      },
-      ipAddress: req.ip
-    });
-
   } catch (error) {
     console.error('Error syncing templates:', error);
     return res.status(500).json({
@@ -383,7 +382,7 @@ router.post('/sync', requireAuth, validateTenantAccess, requireAdmin, async (req
  * GET /templates
  * List all cached templates with filtering
  */
-router.get('/', requireAuth, validateTenantAccess, (req, res) => {
+router.get('/', requireAuth, validateTenantAccess, async (req, res) => {
   try {
     ensureTemplateColumns();
 
@@ -418,7 +417,7 @@ router.get('/', requireAuth, validateTenantAccess, (req, res) => {
 
     query += ` ORDER BY created_at DESC`;
 
-    const templates = db.prepare(query).all(...params);
+    const templates = await db.prepare(query).all(...params);
     const mappedTemplates = templates.map(buildTemplateResponse);
 
     return res.json({
@@ -446,9 +445,9 @@ router.get('/', requireAuth, validateTenantAccess, (req, res) => {
  * GET /templates/:id
  * Get a specific template by ID
  */
-router.get('/:id', requireAuth, validateTenantAccess, (req, res) => {
+router.get('/:id', requireAuth, validateTenantAccess, async (req, res) => {
   try {
-    const template = db.prepare(`
+    const template = await db.prepare(`
       SELECT * FROM whatsapp_templates
       WHERE id = ? AND tenant_id = ?
     `).get(req.params.id, req.tenantId);
@@ -503,7 +502,7 @@ router.post('/', requireAuth, validateTenantAccess, requireAdmin, async (req, re
     }
 
     // Check for duplicate template name in this tenant
-    const existingTemplate = db.prepare(`
+    const existingTemplate = await db.prepare(`
       SELECT id FROM whatsapp_templates
       WHERE tenant_id = ? AND name = ?
     `).get(req.tenantId, name);
@@ -517,7 +516,7 @@ router.post('/', requireAuth, validateTenantAccess, requireAdmin, async (req, re
     }
 
     // Get WhatsApp channel settings
-    const settings = db.prepare(`
+    const settings = await db.prepare(`
       SELECT * FROM tenant_channel_settings
       WHERE tenant_id = ? AND channel = 'whatsapp' AND is_connected = 1
     `).get(req.tenantId);
@@ -579,7 +578,7 @@ router.post('/', requireAuth, validateTenantAccess, requireAdmin, async (req, re
     const bodyVars = extractVariablesFromTemplate(bodyTemplate);
     const headerVars = headerText ? extractVariablesFromTemplate(headerText) : [];
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO whatsapp_templates (
         id, tenant_id, waba_id, meta_template_id, name, status,
         language, category, variable_count, body_template,
@@ -640,7 +639,7 @@ router.delete('/:id', requireAuth, validateTenantAccess, requireAdmin, async (re
     const { id } = req.params;
 
     // Get template
-    const template = db.prepare(`
+    const template = await db.prepare(`
       SELECT * FROM whatsapp_templates
       WHERE id = ? AND tenant_id = ?
     `).get(id, req.tenantId);
@@ -654,7 +653,7 @@ router.delete('/:id', requireAuth, validateTenantAccess, requireAdmin, async (re
     }
 
     // Get WhatsApp channel settings
-    const settings = db.prepare(`
+    const settings = await db.prepare(`
       SELECT * FROM tenant_channel_settings
       WHERE tenant_id = ? AND channel = 'whatsapp' AND is_connected = 1
     `).get(req.tenantId);
@@ -689,7 +688,7 @@ router.delete('/:id', requireAuth, validateTenantAccess, requireAdmin, async (re
     }
 
     // Delete from local database
-    db.prepare(`DELETE FROM whatsapp_templates WHERE id = ?`).run(id);
+    await db.prepare(`DELETE FROM whatsapp_templates WHERE id = ?`).run(id);
 
     return res.json({
       message: 'Template deleted successfully',
@@ -710,13 +709,13 @@ router.delete('/:id', requireAuth, validateTenantAccess, requireAdmin, async (re
  * POST /templates/:id/duplicate
  * Create a new version of an approved template (versioning)
  */
-router.post('/:id/duplicate', requireAuth, validateTenantAccess, requireAdmin, (req, res) => {
+router.post('/:id/duplicate', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     let { newName } = req.body;
 
     // Get original template
-    const template = db.prepare(`
+    const template = await db.prepare(`
       SELECT * FROM whatsapp_templates
       WHERE id = ? AND tenant_id = ?
     `).get(id, req.tenantId);
@@ -753,7 +752,7 @@ router.post('/:id/duplicate', requireAuth, validateTenantAccess, requireAdmin, (
     }
 
     // Check for duplicate
-    const existing = db.prepare(`
+    const existing = await db.prepare(`
       SELECT id FROM whatsapp_templates
       WHERE tenant_id = ? AND name = ?
     `).get(req.tenantId, newName);
@@ -770,7 +769,7 @@ router.post('/:id/duplicate', requireAuth, validateTenantAccess, requireAdmin, (
     const now = new Date().toISOString();
     const newTemplateId = crypto.randomUUID();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO whatsapp_templates (
         id, tenant_id, waba_id, name, status, language, category,
         variable_count, body_template, header_type, header_text,
