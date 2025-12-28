@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 import {
   Button,
-  Alert,
   Input,
   Label,
   Card,
@@ -14,21 +13,16 @@ import {
   CardDescription,
   Badge,
   Dialog,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   EmptyState,
   LoadingState,
   ErrorState,
   DataTable,
+  Alert,
   toast
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
 import PageHeader from '../components/layout/PageHeader'
-import { Sparkles, Archive, Megaphone, Activity, BarChart3, Eye, Clock, Users } from 'lucide-react'
+import { Sparkles, Archive, Megaphone, Activity, BarChart3, Eye, Clock, Users, ArrowUpDown } from 'lucide-react'
 
 export default function CampaignsPage() {
   useAuth()
@@ -211,6 +205,106 @@ export default function CampaignsPage() {
     { key: 'archived', label: 'Archived', variant: 'warning' }
   ]
 
+  const sortHeader = (label) => ({ column }) => (
+    <Button
+      variant="ghost"
+      onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--text-muted)] hover:bg-transparent px-0"
+    >
+      {label}
+      <ArrowUpDown className="ml-1 h-4 w-4 text-[var(--text-muted)]" />
+    </Button>
+  )
+
+  const columns = useMemo(() => [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <input
+          type="checkbox"
+          aria-label="Select all"
+          checked={selectAll && campaigns.length > 0}
+          onChange={toggleSelectAll}
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          aria-label={`Select ${row.original.name}`}
+          checked={selectedIds.includes(row.original.id)}
+          onChange={() => toggleSelect(row.original.id)}
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false
+    },
+    {
+      accessorKey: 'name',
+      header: sortHeader('Name'),
+      cell: ({ row }) => (
+        <span className="font-medium text-[var(--text)]">{row.original.name}</span>
+      )
+    },
+    {
+      accessorKey: 'channel',
+      header: sortHeader('Channel'),
+      cell: ({ row }) => (
+        <span className="text-[var(--text-muted)]">{getChannelLabel(row.original.channel)}</span>
+      )
+    },
+    {
+      accessorKey: 'status',
+      header: sortHeader('Status'),
+      cell: ({ row }) => (
+        <Badge variant={
+          row.original.status === 'sent'
+            ? 'success'
+            : row.original.status === 'sending'
+              ? 'primary'
+              : row.original.status === 'archived'
+                ? 'warning'
+                : 'neutral'
+        }>
+          {row.original.status}
+        </Badge>
+      )
+    },
+    {
+      accessorKey: 'audience_count',
+      header: sortHeader('Audience'),
+      cell: ({ row }) => (
+        <span className="text-[var(--text-muted)]">{row.original.audience_count || 0} contacts</span>
+      )
+    },
+    {
+      id: 'metrics',
+      header: 'Metrics',
+      cell: ({ row }) => (
+        <span className="text-[var(--text-muted)]">
+          {row.original.delivered_count || 0} delivered, {row.original.read_count || 0} read
+        </span>
+      ),
+      enableSorting: false
+    },
+    {
+      accessorKey: 'sent_at',
+      header: sortHeader('Last Sent'),
+      cell: ({ row }) => (
+        <span className="text-[var(--text-muted)]">{formatDate(row.original.sent_at)}</span>
+      )
+    }
+  ], [selectedIds, selectAll, campaigns.length])
+
+  const rowActions = useMemo(() => [
+    {
+      label: 'View campaign',
+      icon: <Eye className="h-4 w-4" />,
+      onClick: (campaign) => {
+        handleViewCampaign(campaign.id)
+      }
+    }
+  ], [navigate])
+
   return (
     <AppShell hideTitleBlock title="Campaigns" subtitle="Create and manage WhatsApp, Email, and SMS campaigns">
       <div className="space-y-6">
@@ -318,96 +412,38 @@ export default function CampaignsPage() {
                     className="mt-3"
                   />
                 ) : (
-                  <div className="space-y-4">
-                    <div className="overflow-hidden rounded-2xl border border-white/20 bg-white/80 shadow-inner dark:bg-slate-900/70">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>
-                              <input
-                                type="checkbox"
-                                aria-label="Select all"
-                                checked={selectAll && campaigns.length > 0}
-                                onChange={toggleSelectAll}
-                              />
-                            </TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Channel</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Audience</TableHead>
-                            <TableHead>Metrics</TableHead>
-                            <TableHead>Last Sent</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {campaigns.map((campaign) => (
-                            <TableRow key={campaign.id}>
-                              <TableCell>
-                                <input
-                                  type="checkbox"
-                                  aria-label={`Select ${campaign.name}`}
-                                  checked={selectedIds.includes(campaign.id)}
-                                  onChange={() => toggleSelect(campaign.id)}
-                                />
-                              </TableCell>
-                              <TableCell className="font-medium text-[var(--text)]">{campaign.name}</TableCell>
-                              <TableCell className="text-[var(--text-muted)]">{getChannelLabel(campaign.channel)}</TableCell>
-                              <TableCell>
-                                <Badge variant={
-                                  campaign.status === 'sent'
-                                    ? 'success'
-                                    : campaign.status === 'sending'
-                                      ? 'primary'
-                                      : campaign.status === 'archived'
-                                        ? 'warning'
-                                        : 'neutral'
-                                }>
-                                  {campaign.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-[var(--text-muted)]">
-                                {campaign.audience_count || 0} contacts
-                              </TableCell>
-                              <TableCell className="text-[var(--text-muted)]">
-                                {campaign.delivered_count || 0} delivered, {campaign.read_count || 0} read
-                              </TableCell>
-                              <TableCell className="text-[var(--text-muted)]">
-                                {formatDate(campaign.sent_at)}
-                              </TableCell>
-                              <TableCell className="text-primary-600 font-semibold">
-                                <button
-                                  onClick={() => handleViewCampaign(campaign.id)}
-                                  className="hover:underline"
-                                >
-                                  View
-                                </button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                      <div className="flex items-center justify-between px-6 py-4 text-sm text-[var(--text-muted)] border-t border-[var(--border)] bg-[var(--card)]">
-                        <div>
-                          {workspaceRangeLabel}
-                        </div>
-                        <div className="flex gap-2">
-                          <SecondaryAction
-                            onClick={handlePrevPage}
-                            disabled={pagination.offset === 0}
-                          >
-                            Previous
-                          </SecondaryAction>
-                          <SecondaryAction
-                            onClick={handleNextPage}
-                            disabled={pagination.offset + pagination.limit >= pagination.total}
-                          >
-                            Next
-                          </SecondaryAction>
-                        </div>
+                  <>
+                    <DataTable
+                      columns={columns}
+                      data={campaigns}
+                      rowActions={rowActions}
+                      enableSearch={false}
+                      enableSelection={false}
+                      hidePagination={true}
+                      title="Campaigns"
+                      description="Manage your campaigns with pagination controls below."
+                      emptyIcon={Sparkles}
+                      emptyTitle="No campaigns"
+                      emptyDescription="Create a campaign to get started."
+                    />
+                    <div className="flex items-center justify-between px-6 py-4 text-sm text-[var(--text-muted)] border-t border-[var(--border)] bg-[var(--card)] rounded-b-2xl">
+                      <div>{workspaceRangeLabel}</div>
+                      <div className="flex gap-2">
+                        <SecondaryAction
+                          onClick={handlePrevPage}
+                          disabled={pagination.offset === 0}
+                        >
+                          Previous
+                        </SecondaryAction>
+                        <SecondaryAction
+                          onClick={handleNextPage}
+                          disabled={pagination.offset + pagination.limit >= pagination.total}
+                        >
+                          Next
+                        </SecondaryAction>
                       </div>
                     </div>
-                  </div>
+                  </>
                 )}
               </CardContent>
             </Card>
