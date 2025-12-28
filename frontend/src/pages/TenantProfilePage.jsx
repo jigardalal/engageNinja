@@ -703,9 +703,9 @@ export default function TenantProfilePage({ embedded = false } = {}) {
     );
 
     return (
-      <div className="mt-8 space-y-6 rounded-lg border border-[var(--border)] bg-black/5 p-6">
-        <div>
-          <h2 className="text-xl font-semibold text-[var(--text)]">10DLC Registration</h2>
+      <div className="space-y-6">
+        <div className="mb-6">
+          <h3 className="text-base font-semibold text-[var(--text)] mb-1">10DLC Registration</h3>
           <p className="text-sm text-[var(--text-muted)]">
             Register your business for 10DLC (10 Digit Long Code) SMS messaging
           </p>
@@ -800,10 +800,10 @@ export default function TenantProfilePage({ embedded = false } = {}) {
           const currentPlanMissing = form.plan_id && !planOptions.some((p) => p.value === form.plan_id);
         return (
           <>
-          <form onSubmit={handleSave} className="space-y-8">
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold text-[var(--text)]">Basics</h2>
+          <form onSubmit={handleSave} className="space-y-12">
+          <div>
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-[var(--text)] mb-1">Basics</h2>
               <p className="text-sm text-[var(--text-muted)]">Name and contact emails shown to your team and customers.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -871,9 +871,9 @@ export default function TenantProfilePage({ embedded = false } = {}) {
             </div>
           </div>
 
-          <div className="space-y-4 border-t border-[var(--border)] pt-8">
-            <div>
-              <h2 className="text-lg font-semibold text-[var(--text)]">Address</h2>
+          <div className="border-t border-[var(--border)] pt-12">
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-[var(--text)] mb-1">Address</h2>
               <p className="text-sm text-[var(--text-muted)]">Used for receipts and location-aware features.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -934,7 +934,10 @@ export default function TenantProfilePage({ embedded = false } = {}) {
             </div>
           </div>
 
-          <div className="space-y-4 border-t border-[var(--border)] pt-8">
+          <div className="border-t border-[var(--border)] pt-12">
+            <div className="mb-6">
+              <h3 className="text-base font-semibold text-[var(--text)] mb-1">Timezone</h3>
+            </div>
             <TenantFormField
               id="tenant-timezone"
               label="Timezone"
@@ -951,7 +954,7 @@ export default function TenantProfilePage({ embedded = false } = {}) {
             </TenantFormField>
           </div>
 
-          <div className="flex justify-end pt-8 border-t border-[var(--border)]">
+          <div className="flex justify-end pt-12 border-t border-[var(--border)]">
             <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
           </div>
           </form>
@@ -960,21 +963,23 @@ export default function TenantProfilePage({ embedded = false } = {}) {
         <details
           open={businessInfoExpanded}
           onToggle={(e) => setBusinessInfoExpanded(e.currentTarget.open)}
-          className="group border-t border-[var(--border)] pt-8"
+          className="group border-t border-[var(--border)] pt-12"
         >
-          <summary className="cursor-pointer flex items-center gap-3 py-2 hover:opacity-80 transition-opacity">
-            <ChevronDown className="w-5 h-5 text-[var(--text-muted)] group-open:rotate-180 transition-transform" />
+          <summary className="cursor-pointer flex items-center gap-3 pb-6 hover:opacity-80 transition-opacity">
+            <ChevronDown className="w-5 h-5 text-[var(--text-muted)] group-open:rotate-180 transition-transform flex-shrink-0" />
             <div>
-              <h2 className="text-lg font-semibold text-[var(--text)]">Advanced Setup</h2>
+              <h2 className="text-lg font-semibold text-[var(--text)] mb-1">Advanced Setup</h2>
               <p className="text-sm text-[var(--text-muted)]">Business information and 10DLC registration</p>
             </div>
           </summary>
 
           <div className="pt-6 space-y-8">
             {/* Business Information */}
-            <div className="space-y-4">
-              <h3 className="text-base font-semibold text-[var(--text)]">Business Information</h3>
-              <p className="text-sm text-[var(--text-muted)]">Complete for 10DLC registration</p>
+            <div>
+              <div className="mb-6">
+                <h3 className="text-base font-semibold text-[var(--text)] mb-1">Business Information</h3>
+                <p className="text-sm text-[var(--text-muted)]">Complete for 10DLC registration</p>
+              </div>
 
               {loadingBusinessInfo ? (
                 <div className="text-center py-8">
