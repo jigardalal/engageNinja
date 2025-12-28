@@ -908,9 +908,19 @@ export default function TenantProfilePage({ embedded = false } = {}) {
           <div className="pt-6 space-y-8">
             {/* Business Information */}
             <div>
-              <div className="mb-6">
-                <h3 className="text-base font-semibold text-[var(--text)] mb-1">Business Information</h3>
-                <p className="text-sm text-[var(--text-muted)]">Complete for 10DLC registration</p>
+              <div className="mb-6 flex items-start justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-[var(--text)] mb-1">Business Information</h3>
+                  <p className="text-sm text-[var(--text-muted)]">Complete for 10DLC registration</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShow10DLCModal(true)}
+                >
+                  Manage 10DLC
+                </Button>
               </div>
 
               {loadingBusinessInfo ? (
@@ -973,22 +983,6 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                       </Button>
                     )}
                   </div>
-
-                  {/* 10DLC Setup Button - appears after business info is saved */}
-                  {businessInfoStep === businessInfoSteps.length - 1 && businessInfo.legal_business_name && (
-                    <div className="pt-6 border-t border-[var(--border)]">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setShow10DLCModal(true)}
-                      >
-                        Set up 10DLC Registration
-                      </Button>
-                      <p className="text-xs text-[var(--text-muted)] mt-2">
-                        Register for SMS carrier compliance after saving business information
-                      </p>
-                    </div>
-                  )}
                 </>
               )}
             </div>
