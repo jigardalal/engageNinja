@@ -49,7 +49,7 @@ const validatePassword = (password) => {
   return password && password.length > 8;
 };
 
-const ensureUserTableHasNameColumn = () => {
+const ensureUserTableHasNameColumn = async () => {
   // Database schema is managed by migrations
   // All required columns (name, first_name, last_name, phone, timezone, locale) are now
   // defined in the database migrations and already exist. This function is kept for
@@ -79,7 +79,7 @@ const requireAuth = (req, res, next) => {
  */
 router.post('/signup', async (req, res) => {
   try {
-    ensureUserTableHasNameColumn();
+    await ensureUserTableHasNameColumn();
     const { email, password, firstName, lastName, phone, companyName, recaptchaToken } = req.body;
 
     // Basic required fields
@@ -241,7 +241,7 @@ router.post('/signup', async (req, res) => {
  */
 router.post('/login', async (req, res) => {
   try {
-    ensureUserTableHasNameColumn();
+    await ensureUserTableHasNameColumn();
     const { email, password } = req.body;
 
     // Validate input
@@ -300,6 +300,18 @@ router.post('/login', async (req, res) => {
     req.session.userId = user.id;
     req.session.email = user.email;
     req.session.activeTenantId = activeTenantId;
+
+    // Explicitly save session to ensure persistence before responding
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
 
     res.status(200).json({
       user_id: user.id,
@@ -405,6 +417,18 @@ router.post('/switch-tenant', requireAuth, async (req, res) => {
       ORDER BY ut.created_at
     `).all(req.session.userId);
 
+    // Explicitly save session to ensure activeTenantId persists before responding
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+
     res.status(200).json({
       status: 'success',
       active_tenant_id: tenantId,
@@ -466,10 +490,10 @@ router.post('/logout', (req, res) => {
  * GET /auth/me
  * Get current user info including roles
  */
-router.get('/me', requireAuth, (req, res) => {
+router.get('/me', requireAuth, async (req, res) => {
   try {
-    ensureUserTableHasNameColumn();
-    const user = db.prepare('SELECT id, email, name, first_name, last_name, phone, timezone, role_global, active FROM users WHERE id = ?').get(req.session.userId);
+    await ensureUserTableHasNameColumn();
+    const user = await db.prepare('SELECT id, email, name, first_name, last_name, phone, timezone, role_global, active FROM users WHERE id = ?').get(req.session.userId);
 
     if (!user) {
       return res.status(401).json({
@@ -479,7 +503,7 @@ router.get('/me', requireAuth, (req, res) => {
       });
     }
 
-    const userTenants = db.prepare(`
+    const userTenants = await db.prepare(`
       SELECT ut.tenant_id, ut.role, ut.active, t.name, t.plan_id, p.name as plan
       FROM user_tenants ut
       JOIN tenants t ON ut.tenant_id = t.id
@@ -537,9 +561,9 @@ router.get('/me', requireAuth, (req, res) => {
  * PUT /auth/profile
  * Update basic user profile (name)
  */
-router.put('/profile', requireAuth, (req, res) => {
+router.put('/profile', requireAuth, async (req, res) => {
   try {
-    ensureUserTableHasNameColumn();
+    await ensureUserTableHasNameColumn();
     const { name, first_name, last_name, phone, timezone } = req.body;
     const trimmed = (name || '').trim();
     if (trimmed.length === 0 && !first_name && !last_name) {
