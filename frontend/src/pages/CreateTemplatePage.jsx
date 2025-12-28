@@ -14,7 +14,8 @@ import {
   Input,
   Label,
   Alert,
-  LoadingState
+  LoadingState,
+  toast
 } from '../components/ui'
 import { SecondaryAction } from '../components/ui/ActionButtons'
 import { Sparkles, MessageSquare, Globe } from 'lucide-react'
@@ -53,17 +54,35 @@ export const CreateTemplatePage = () => {
 
   const validateTemplate = () => {
     if (!templateData.name.trim()) {
-      setError('Template name is required')
+      const errorMsg = 'Template name is required'
+      setError(errorMsg)
+      toast({
+        title: 'Validation error',
+        description: errorMsg,
+        variant: 'error'
+      })
       return false
     }
 
     if (!/^[a-z0-9_]+$/.test(templateData.name)) {
-      setError('Template name must be lowercase alphanumeric with underscores only')
+      const errorMsg = 'Template name must be lowercase alphanumeric with underscores only'
+      setError(errorMsg)
+      toast({
+        title: 'Invalid template name',
+        description: errorMsg,
+        variant: 'error'
+      })
       return false
     }
 
     if (!templateData.components.BODY?.text?.trim()) {
-      setError('Template body is required')
+      const errorMsg = 'Template body is required'
+      setError(errorMsg)
+      toast({
+        title: 'Validation error',
+        description: errorMsg,
+        variant: 'error'
+      })
       return false
     }
 
@@ -119,12 +138,23 @@ export const CreateTemplatePage = () => {
 
       const result = await response.json()
       setSuccess('Template created successfully! Redirecting...')
+      toast({
+        title: 'Template created',
+        description: 'Your template has been created and submitted to Meta for approval',
+        variant: 'success'
+      })
       setTimeout(() => {
         navigate('/templates')
       }, 2000)
     } catch (err) {
       console.error('Create error:', err)
-      setError(err.message || 'Failed to create template. Please try again.')
+      const errorMsg = err.message || 'Failed to create template. Please try again.'
+      setError(errorMsg)
+      toast({
+        title: 'Failed to create template',
+        description: errorMsg,
+        variant: 'error'
+      })
     } finally {
       setLoading(false)
     }

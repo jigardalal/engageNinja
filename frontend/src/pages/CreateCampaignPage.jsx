@@ -14,7 +14,8 @@ import {
   Label,
   Badge,
   LoadingState,
-  ErrorState
+  ErrorState,
+  toast
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
 import PageHeader from '../components/layout/PageHeader'
@@ -504,14 +505,32 @@ export default function CreateCampaignPage() {
       const data = await response.json()
 
       if (data.status === 'success') {
-        setSuccess(isEditing ? 'Campaign updated successfully!' : 'Campaign created successfully!')
+        const successMsg = isEditing ? 'Campaign updated successfully!' : 'Campaign created successfully!'
+        setSuccess(successMsg)
+        toast({
+          title: isEditing ? 'Campaign updated' : 'Campaign created',
+          description: 'Your campaign has been saved as a draft',
+          variant: 'success'
+        })
         setTimeout(() => navigate('/campaigns'), 1000)
       } else {
-        setError(data.message || 'Failed to save campaign')
+        const errorMsg = data.message || 'Failed to save campaign'
+        setError(errorMsg)
+        toast({
+          title: 'Failed to save campaign',
+          description: errorMsg,
+          variant: 'error'
+        })
       }
     } catch (err) {
       console.error('Error saving campaign:', err)
-      setError(err.message || 'Failed to save campaign')
+      const errorMsg = err.message || 'Failed to save campaign'
+      setError(errorMsg)
+      toast({
+        title: 'Failed to save campaign',
+        description: errorMsg,
+        variant: 'error'
+      })
     } finally {
       setLoading(false)
     }
