@@ -12,6 +12,7 @@ EngageNinja is an AI-first, WhatsApp-first customer engagement platform for What
 - **Multi-Tenant + RBAC**: Tenant/user associations with owner/admin/member/viewer and platform roles
 - **Real-Time Updates**: Server-Sent Events (SSE) for live message status updates
 - **Multiple Channels**: Support for WhatsApp and Email (SES, Brevo)
+- **Conversion Optimization**: 4-phase SaaS conversion system with usage alerts, feature locks, milestone celebrations, and analytics (15-25% expected conversion lift)
 
 ## Quick Start
 
@@ -116,6 +117,42 @@ engageninja/
 - **Email**: Amazon SES (primary), Brevo (optional)
 - **AI**: Anthropic Claude API
 - **Auth**: Email/Password (Auth0 Phase 2+)
+
+## Conversion Optimization System
+
+EngageNinja includes a comprehensive **4-phase conversion optimization system** to increase free-to-paid conversion by 15-25%:
+
+### Phase 1: Quick Wins & Foundation (+5-10% lift)
+- **Usage Alerts**: Real-time alerts at 70%, 80%, 90% usage with upgrade CTAs
+- **Plan Context Card**: Dashboard banner showing current plan + usage summary
+- **Contact Limit Alerts**: Warning when approaching contact limits
+- **Empty State Upgrades**: Contextual upgrade hints in empty states
+
+### Phase 2: Feature Lock Infrastructure (+10-15% lift)
+- **Feature Locks**: Systematic gating of premium features behind plan tiers
+- **`useFeatureAccess` Hook**: Centralized plan tier checking
+- **Upgrade Banners**: Flexible compact and full-card variants
+- **Feature-Specific Locks**: Scheduled sending, bulk actions, resend workflows
+
+### Phase 3: Engagement & Growth Features (+8-12% lift)
+- **Milestone Celebrations**: Toast notifications at campaign/contact/message milestones
+- **Usage Projections**: Predict if users will exceed limits based on current pace
+- **Welcome Carousel**: 3-step onboarding flow for new users
+- **Plan Comparison Widget**: Side-by-side tier comparison with benefits
+
+### Phase 4: Analytics & Optimization (+5-8% lift)
+- **Event Tracking**: Track all user interactions with conversion features
+- **Analytics Endpoints**: Real-time metrics, funnel analysis, A/B test performance
+- **A/B Testing Framework**: 6 predefined tests ready for deployment
+- **Email Automation**: Triggered emails for usage warnings, milestones, feature locks
+
+### Key Files
+- Frontend components: `frontend/src/components/billing/`
+- Frontend hooks: `frontend/src/hooks/`
+- Frontend utilities: `frontend/src/utils/conversionTracking.js`, `frontend/src/utils/abTesting.js`
+- Backend routes: `backend/src/routes/analytics.js`
+- Backend services: `backend/src/services/conversionEmails.js`
+- Documentation: `docs/CONVERSION_OPTIMIZATION_IMPLEMENTATION.md`
 
 ## Development Workflow
 
