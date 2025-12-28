@@ -20,5 +20,6 @@ export {
 export { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './Dialog';
 export { NavPills } from './Navigation';
 export { LoadingState, ErrorState, EmptyState } from './States';
+export { Skeleton, SkeletonText, SkeletonCard, SkeletonTable, SkeletonAvatar, SkeletonButton } from './Skeleton';
 export { PrimaryAction, SecondaryAction, DestructiveAction, GhostAction } from './ActionButtons';
 export { DataTable } from '../DataTable';
