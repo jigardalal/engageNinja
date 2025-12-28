@@ -18,7 +18,7 @@ import {
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
 import PageHeader from '../components/layout/PageHeader'
-import { Sparkles, Archive, Megaphone, Activity, Eye, Clock, Users } from 'lucide-react'
+import { Sparkles, Archive, Megaphone, Activity, Eye, Clock, Users, ArrowUpDown } from 'lucide-react'
 
 export default function CampaignsPage() {
   const { activeTenant } = useAuth()
