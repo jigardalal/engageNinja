@@ -17,6 +17,8 @@ import {
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons';
 import PageHeader from '../components/layout/PageHeader';
 import PlanContextCard from '../components/billing/PlanContextCard';
+import WelcomeCarousel from '../components/onboarding/WelcomeCarousel';
+import { useMilestoneCelebrations } from '../hooks/useMilestoneCelebrations';
 import {
   Sparkles,
   ChartBar,
@@ -47,6 +49,11 @@ export const DashboardPage = () => {
 
   const activeTenantInfo = tenants.find(t => t.tenant_id === activeTenant);
   const [billingData, setBillingData] = useState(null);
+  const [showWelcome, setShowWelcome] = useState(() => {
+    const completed = localStorage.getItem(`welcome_completed_${activeTenant}`);
+    return !completed;
+  });
+  const { checkMilestone } = useMilestoneCelebrations();
 
   useEffect(() => {
     // Guard: Do not fetch data if no tenant is selected
@@ -128,6 +135,12 @@ export const DashboardPage = () => {
 
     fetchData();
   }, [activeTenant]);
+
+  // Check for milestone achievements
+  useEffect(() => {
+    checkMilestone('campaigns', stats.campaignsTotal);
+    checkMilestone('contacts', stats.contactsTotal);
+  }, [stats.campaignsTotal, stats.contactsTotal, checkMilestone]);
 
   return (
     <AppShell hideTitleBlock title="Dashboard" subtitle="Quick overview of your EngageNinja workspace">
@@ -312,6 +325,18 @@ export const DashboardPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Welcome Carousel - Shown to first-time users */}
+      <WelcomeCarousel
+        open={showWelcome}
+        userName={activeTenantInfo?.name}
+        onComplete={() => {
+          setShowWelcome(false);
+          localStorage.setItem(`welcome_completed_${activeTenant}`, 'true');
+        }}
+        onStartTrial={() => navigate('/campaigns/new')}
+        onViewPlans={() => navigate('/settings?tab=billing')}
+      />
     </AppShell>
   )
 };

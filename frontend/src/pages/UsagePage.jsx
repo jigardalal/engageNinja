@@ -7,6 +7,8 @@ import { AlertDescription } from '../components/ui/Alert'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
 import UsageBar from '../components/billing/UsageBar'
 import UsageAlert from '../components/billing/UsageAlert'
+import UsageProjection from '../components/billing/UsageProjection'
+import PlanComparisonWidget from '../components/billing/PlanComparisonWidget'
 import { AlertCircle, TrendingUp, Zap, Mail, MessageSquare, RefreshCw, Users } from 'lucide-react'
 
 export default function UsagePage({ embedded = false }) {
@@ -30,14 +32,31 @@ export default function UsagePage({ embedded = false }) {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const summaryRes = await fetch('/api/billing/summary', { credentials: 'include' })
+      const [summaryRes, plansRes] = await Promise.all([
+        fetch('/api/billing/summary', { credentials: 'include' }),
+        fetch('/api/billing/plans', { credentials: 'include' })
+      ])
 
       if (!summaryRes.ok) {
         throw new Error('Failed to fetch usage data')
       }
 
       const summaryData = await summaryRes.json()
-      setBillingData(summaryData)
+      let nextTierPlan = null
+
+      // Find next tier plan if plans data is available
+      if (plansRes.ok) {
+        try {
+          const plansData = await plansRes.json()
+          const planOrder = ['free', 'starter', 'growth', 'pro', 'enterprise']
+          const currentIndex = planOrder.indexOf(summaryData.plan?.id)
+          nextTierPlan = plansData.plans?.find(p => p.id === planOrder[currentIndex + 1])
+        } catch (e) {
+          console.warn('Failed to fetch plans data', e)
+        }
+      }
+
+      setBillingData({ ...summaryData, nextTierPlan })
       setError(null)
     } catch (err) {
       console.error('Error fetching usage data:', err)
@@ -257,6 +276,22 @@ export default function UsagePage({ embedded = false }) {
               </div>
             </CardContent>
           </Card>
+
+          {/* Usage Projection - Predicts if user will exceed limits */}
+          <UsageProjection
+            usage={billingData.usage}
+            limits={billingData.limits}
+            plan={billingData.plan}
+          />
+
+          {/* Plan Comparison Widget - Side-by-side tier comparison */}
+          {billingData.plan && (
+            <PlanComparisonWidget
+              currentPlan={billingData.plan}
+              nextPlan={billingData.nextTierPlan}
+              onUpgrade={() => window.location.href = '/settings?tab=billing'}
+            />
+          )}
         </div>
       )}
     </Shell>
