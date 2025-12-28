@@ -138,7 +138,11 @@ async function processPayload(payload) {
     message.status = 'sent';
     message.provider_message_id = result.messageId;
 
-    await scheduleStatusEvents(message);
+    // Only schedule mock status events for demo tenants
+    // Real messages will get status from provider webhooks
+    if (tenant.is_demo) {
+      await scheduleStatusEvents(message);
+    }
 
     await notifyMetrics({
       message_id: message.id,
@@ -181,7 +185,7 @@ async function fetchChannelSettings(client, tenantId, channel) {
     `SELECT provider, credentials_encrypted, provider_config_json, from_email
      FROM tenant_channel_settings
      WHERE tenant_id = $1 AND channel = $2
-       AND (is_enabled = true OR is_enabled = 1)`,
+       AND is_enabled = true`,
     [tenantId, channel]
   );
 
