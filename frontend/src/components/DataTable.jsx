@@ -172,7 +172,14 @@ export const DataTable = ({
           if (!actionsForRow || actionsForRow.length === 0) {
             return null
           }
-          const menuPosition = menuPositions[row.id] || 'below'
+
+          // Check if this is one of the last 2 rows on the current page
+          const rowsOnPage = table.getRowModel().rows.length
+          const rowIndexOnPage = table.getRowModel().rows.findIndex((r) => r.id === row.id)
+          const isLastTwoRows = rowsOnPage - rowIndexOnPage <= 2
+
+          // Force 'above' positioning for last 2 rows, otherwise let it be calculated
+          const menuPosition = isLastTwoRows ? 'above' : (menuPositions[row.id] || 'below')
 
           return (
             <div className="relative" ref={menuRef}>
@@ -202,11 +209,6 @@ export const DataTable = ({
                     ref={(el) => {
                       if (el) {
                         rowMenuRefs.current[row.id] = el
-                        // Measure and update position when menu mounts
-                        requestAnimationFrame(() => {
-                          const pos = checkMenuPosition(el, actionsForRow.length)
-                          setMenuPosition(row.id, pos)
-                        })
                       }
                     }}
                     className={`absolute right-0 w-48 rounded-2xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-50 overflow-hidden ${
