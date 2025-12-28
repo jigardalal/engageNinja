@@ -949,7 +949,7 @@ export default function SettingsPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {(channels.whatsapp.is_connected || channels.whatsapp.phone_number_id || channels.whatsapp.webhook_verify_token || channels.whatsapp.webhook_secret_present) && (
-                      <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-3 space-y-2">
+                      <div className="space-y-2 py-4 border-t border-[var(--border)]">
                         {channels.whatsapp.is_connected && (
                           <p className="text-sm text-[var(--text-muted)]">
                             <span className="font-semibold text-[var(--text)]">Connected at:</span>{' '}
@@ -1093,7 +1093,7 @@ export default function SettingsPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {(channels.email.is_connected || channels.email.provider || channels.email.verified_sender_email) && (
-                      <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-3 space-y-2">
+                      <div className="space-y-2 py-4 border-t border-[var(--border)]">
                         {channels.email.provider && (
                           <p className="text-sm text-[var(--text-muted)]">
                             <span className="font-semibold text-[var(--text)]">Provider:</span> {channels.email.provider}
