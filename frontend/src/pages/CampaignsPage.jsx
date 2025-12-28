@@ -18,10 +18,10 @@ import {
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
 import PageHeader from '../components/layout/PageHeader'
-import { Sparkles, Archive, Megaphone, Activity, Eye, Clock, Users, ArrowUpDown } from 'lucide-react'
+import { Sparkles, Archive, Megaphone, Activity, Eye, Clock, Users, ArrowUpDown, TrendingUp, CheckCircle } from 'lucide-react'
 
 export default function CampaignsPage() {
-  const { activeTenant } = useAuth()
+  const { activeTenant, tenants } = useAuth()
   const navigate = useNavigate()
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
@@ -393,7 +393,55 @@ export default function CampaignsPage() {
                 title="No campaigns yet"
                 description="Create your first message to see insights and engagement."
                 action={
-                  <PrimaryAction onClick={handleCreateCampaign}>Create campaign</PrimaryAction>
+                  <div className="space-y-4">
+                    <PrimaryAction onClick={handleCreateCampaign}>Create Your First Campaign</PrimaryAction>
+
+                    {/* Show upgrade hint for free tier users */}
+                    {(() => {
+                      const plan = tenants.find(t => t.tenant_id === activeTenant)?.plan || '';
+                      const isFreePlan = plan.toLowerCase().includes('free');
+
+                      if (!isFreePlan) return null;
+
+                      return (
+                        <div className="mt-4 p-4 rounded-lg bg-primary-50 border border-primary-200">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 rounded-lg bg-primary-100">
+                              <TrendingUp className="h-5 w-5 text-primary-600" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-semibold text-sm text-[var(--text)]">
+                                Ready to scale?
+                              </p>
+                              <p className="text-sm text-[var(--text-muted)] mt-1">
+                                Starter plan ($49/mo) unlocks:
+                              </p>
+                              <ul className="mt-2 space-y-1 text-sm text-[var(--text-muted)]">
+                                <li className="flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                  Schedule future sends
+                                </li>
+                                <li className="flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                  Resend workflows
+                                </li>
+                                <li className="flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                  5x more message capacity
+                                </li>
+                              </ul>
+                              <SecondaryAction
+                                className="mt-3 w-full"
+                                onClick={() => navigate('/settings?tab=billing')}
+                              >
+                                See all plans
+                              </SecondaryAction>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 }
                 className="mt-3"
               />

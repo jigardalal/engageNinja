@@ -16,6 +16,7 @@ import {
 } from '../components/ui';
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons';
 import PageHeader from '../components/layout/PageHeader';
+import PlanContextCard from '../components/billing/PlanContextCard';
 import {
   Sparkles,
   ChartBar,
@@ -45,6 +46,7 @@ export const DashboardPage = () => {
   const [recentCampaigns, setRecentCampaigns] = useState([]);
 
   const activeTenantInfo = tenants.find(t => t.tenant_id === activeTenant);
+  const [billingData, setBillingData] = useState(null);
 
   useEffect(() => {
     // Guard: Do not fetch data if no tenant is selected
@@ -57,9 +59,11 @@ export const DashboardPage = () => {
         setLoading(true);
         setError('');
 
-        const [contactsRes, campaignsRes] = await Promise.all([
+        const [contactsRes, campaignsRes, summaryRes, plansRes] = await Promise.all([
           fetch('/api/contacts?limit=1&offset=0', { credentials: 'include' }),
-          fetch('/api/campaigns?limit=5&offset=0', { credentials: 'include' })
+          fetch('/api/campaigns?limit=5&offset=0', { credentials: 'include' }),
+          fetch('/api/billing/summary', { credentials: 'include' }),
+          fetch('/api/billing/plans', { credentials: 'include' })
         ]);
 
         if (!contactsRes.ok) throw new Error('Failed to load contacts');
@@ -68,6 +72,23 @@ export const DashboardPage = () => {
         const contactsData = await contactsRes.json();
         const campaignsData = await campaignsRes.json();
         let roiData = null;
+
+        // Fetch billing data (non-blocking - if it fails, continue without it)
+        try {
+          if (summaryRes.ok && plansRes.ok) {
+            const summary = await summaryRes.json();
+            const plans = await plansRes.json();
+
+            // Find next tier plan
+            const planOrder = ['free', 'starter', 'growth', 'pro', 'enterprise'];
+            const currentIndex = planOrder.indexOf(summary.plan?.id);
+            const nextPlan = plans.plans.find(p => p.id === planOrder[currentIndex + 1]);
+
+            setBillingData({ ...summary, nextTierPlan: nextPlan });
+          }
+        } catch (e) {
+          console.warn('Billing data fetch failed (non-blocking)', e);
+        }
 
         // Best-effort ROI snapshot fetch (do not block dashboard if it fails)
         try {
@@ -136,6 +157,17 @@ export const DashboardPage = () => {
             </div>
           }
         />
+
+        {/* Plan Context Card - Shows current plan with usage indicators */}
+        {billingData && (
+          <PlanContextCard
+            plan={billingData.plan}
+            usage={billingData.usage}
+            limits={billingData.limits}
+            nextTierPlan={billingData.nextTierPlan}
+            onUpgrade={() => navigate('/settings?tab=billing')}
+          />
+        )}
 
         {error && <Alert variant="error">{error}</Alert>}
 

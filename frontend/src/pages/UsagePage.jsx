@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, Alert, Badge
 import { AlertDescription } from '../components/ui/Alert'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
 import UsageBar from '../components/billing/UsageBar'
+import UsageAlert from '../components/billing/UsageAlert'
 import { AlertCircle, TrendingUp, Zap, Mail, MessageSquare, RefreshCw, Users } from 'lucide-react'
 
 export default function UsagePage({ embedded = false }) {
@@ -13,6 +14,11 @@ export default function UsagePage({ embedded = false }) {
   const [loading, setLoading] = useState(true)
   const [billingData, setBillingData] = useState(null)
   const [error, setError] = useState(null)
+  const [dismissedAlerts, setDismissedAlerts] = useState(() => {
+    // Load from localStorage
+    const stored = localStorage.getItem('dismissedUsageAlerts')
+    return stored ? JSON.parse(stored) : {}
+  })
 
   useEffect(() => {
     if (!activeTenant) {
@@ -60,6 +66,30 @@ export default function UsagePage({ embedded = false }) {
     return 'text-green-600'
   }
 
+  // Check if alert should be shown (not dismissed and usage > 70%)
+  const shouldShowAlert = (channel, percentage) => {
+    if (percentage < 70) return false
+    const threshold = Math.floor(percentage / 10) * 10
+    const dismissKey = `${channel}-${threshold}`
+    return !dismissedAlerts[dismissKey]
+  }
+
+  // Handle alert dismissal
+  const handleDismissAlert = (channel, percentage) => {
+    const threshold = Math.floor(percentage / 10) * 10
+    const dismissKey = `${channel}-${threshold}`
+    const updated = { ...dismissedAlerts, [dismissKey]: Date.now() }
+    setDismissedAlerts(updated)
+    localStorage.setItem('dismissedUsageAlerts', JSON.stringify(updated))
+  }
+
+  // Get next tier plan
+  const getNextTierPlan = (currentPlanId) => {
+    const planOrder = ['free', 'starter', 'growth', 'pro', 'enterprise']
+    const currentIndex = planOrder.indexOf(currentPlanId)
+    return planOrder[currentIndex + 1]
+  }
+
   if (loading) {
     return (
       <Shell>
@@ -97,6 +127,64 @@ export default function UsagePage({ embedded = false }) {
 
       {billingData && (
         <div className="space-y-6">
+          {/* Usage Alerts */}
+          <div className="space-y-3">
+            {(() => {
+              const alerts = [];
+              const channels = ['whatsapp_messages', 'emails', 'sms'];
+              const channelNames = { whatsapp_messages: 'whatsapp', emails: 'email', sms: 'sms' };
+              const nextTierPlanId = getNextTierPlan(billingData.plan?.id);
+
+              channels.forEach(channel => {
+                const percentage = getUsagePercentage(
+                  billingData.usage[channel],
+                  billingData.limits[channel]
+                );
+
+                if (shouldShowAlert(channelNames[channel], percentage)) {
+                  const channelLabel = channel === 'whatsapp_messages' ? 'whatsapp'
+                    : channel === 'emails' ? 'email'
+                    : 'sms';
+
+                  // Find next tier plan details
+                  let nextTierDetails = null;
+                  if (billingData.plan?.id === 'free') {
+                    nextTierDetails = { name: 'Starter', price: 49, limit: 250 };
+                    if (channelLabel === 'email') nextTierDetails.limit = 10000;
+                    if (channelLabel === 'sms') nextTierDetails.limit = 500;
+                  } else if (billingData.plan?.id === 'starter') {
+                    nextTierDetails = { name: 'Growth', price: 129, limit: 1000 };
+                    if (channelLabel === 'email') nextTierDetails.limit = 50000;
+                    if (channelLabel === 'sms') nextTierDetails.limit = 2000;
+                  } else if (billingData.plan?.id === 'growth') {
+                    nextTierDetails = { name: 'Pro', price: 299, limit: 5000 };
+                    if (channelLabel === 'email') nextTierDetails.limit = 200000;
+                    if (channelLabel === 'sms') nextTierDetails.limit = 10000;
+                  }
+
+                  if (nextTierDetails) {
+                    alerts.push(
+                      <UsageAlert
+                        key={channelLabel}
+                        channel={channelLabel}
+                        used={billingData.usage[channel]}
+                        limit={billingData.limits[channel]}
+                        currentPlan={billingData.plan?.name}
+                        targetPlan={nextTierDetails.name}
+                        targetPrice={nextTierDetails.price}
+                        targetLimit={nextTierDetails.limit}
+                        onUpgrade={() => window.location.href = '/settings?tab=billing'}
+                        onDismiss={() => handleDismissAlert(channelLabel, percentage)}
+                      />
+                    );
+                  }
+                }
+              });
+
+              return alerts.length > 0 ? alerts : null;
+            })()}
+          </div>
+
           <Card variant="glass" className="space-y-4">
             <CardHeader className="flex items-center justify-between">
               <div className="flex items-center gap-3">

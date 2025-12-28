@@ -19,6 +19,7 @@ import {
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
 import PageHeader from '../components/layout/PageHeader'
+import ContactLimitAlert from '../components/billing/ContactLimitAlert'
 import {
   Users,
   Tag,
@@ -39,7 +40,7 @@ import { StatRow, SectionDivider } from '../components/ui'
  */
 export const ContactsPage = () => {
   const navigate = useNavigate()
-  const { activeTenant } = useAuth()
+  const { activeTenant, tenants } = useAuth()
   const [contacts, setContacts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -48,6 +49,7 @@ export const ContactsPage = () => {
   const [availableTags, setAvailableTags] = useState([])
   const [allTags, setAllTags] = useState([])
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [billingData, setBillingData] = useState(null)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showBulkTagModal, setShowBulkTagModal] = useState(false)
   const [bulkTagSelection, setBulkTagSelection] = useState([])
@@ -64,6 +66,25 @@ export const ContactsPage = () => {
     fetchContacts()
     fetchTags()
   }, [activeTenant, searchTerm, selectedTag])
+
+  // Fetch billing data for contact limit alert
+  useEffect(() => {
+    if (!activeTenant) {
+      return
+    }
+    const fetchBillingData = async () => {
+      try {
+        const response = await fetch('/api/billing/summary', { credentials: 'include' })
+        if (response.ok) {
+          const data = await response.json()
+          setBillingData(data)
+        }
+      } catch (err) {
+        console.warn('Failed to fetch billing data for contact limit (non-blocking)', err)
+      }
+    }
+    fetchBillingData()
+  }, [activeTenant])
 
   const fetchContacts = async () => {
     try {
@@ -394,6 +415,16 @@ export const ContactsPage = () => {
 
         <div className="space-y-6">
           {error && <Alert variant="error">{error}</Alert>}
+
+          {/* Contact Limit Alert */}
+          {billingData && (
+            <ContactLimitAlert
+              currentCount={contacts.length}
+              limit={billingData.plan_limits?.contacts_limit || 50}
+              planName={billingData.plan?.id || 'free'}
+              onUpgrade={() => navigate('/settings?tab=billing')}
+            />
+          )}
 
           <DataTable
             columns={columns}
