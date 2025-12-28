@@ -18,6 +18,7 @@ import {
   ErrorState
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction, GhostAction } from '../components/ui/ActionButtons'
+import FeatureLock from '../components/billing/FeatureLock'
 import { Megaphone, BarChart3, MessageSquare, Users, Activity } from 'lucide-react'
 
 export default function CampaignDetailPage() {
@@ -291,9 +292,16 @@ export default function CampaignDetailPage() {
     <div className="flex flex-wrap gap-2">
       {campaign.status === 'draft' ? (
         <>
-          <PrimaryAction onClick={() => setShowConfirm(true)} disabled={sending}>
-            {sending ? 'Sending...' : 'Send campaign'}
-          </PrimaryAction>
+          <FeatureLock
+            feature="Send Campaign"
+            requiredPlan="starter"
+            benefits={['Send WhatsApp messages', 'Send email campaigns', 'Send SMS messages', '10x more message volume']}
+            onUpgrade={() => navigate('/settings?tab=billing')}
+          >
+            <PrimaryAction onClick={() => setShowConfirm(true)} disabled={sending}>
+              {sending ? 'Sending...' : 'Send campaign'}
+            </PrimaryAction>
+          </FeatureLock>
           <SecondaryAction onClick={() => navigate(`/campaigns/${id}/edit`)}>
             Edit
           </SecondaryAction>
@@ -301,9 +309,16 @@ export default function CampaignDetailPage() {
       ) : (
         <>
           {!campaign.resend_of_campaign_id && campaign.status !== 'archived' && (
-            <PrimaryAction onClick={() => setShowResendConfirm(true)} disabled={resending}>
-              {resending ? 'Starting resend...' : 'Resend to non-readers'}
-            </PrimaryAction>
+            <FeatureLock
+              feature="Resend to Non-Readers"
+              requiredPlan="starter"
+              benefits={['Target non-readers', 'Improve read rates', 'Resend workflows']}
+              onUpgrade={() => navigate('/settings?tab=billing')}
+            >
+              <PrimaryAction onClick={() => setShowResendConfirm(true)} disabled={resending}>
+                {resending ? 'Starting resend...' : 'Resend to non-readers'}
+              </PrimaryAction>
+            </FeatureLock>
           )}
           <SecondaryAction onClick={handleDuplicate} disabled={duplicating}>
             {duplicating ? 'Preparing draft...' : 'Edit as new draft'}

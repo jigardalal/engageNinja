@@ -18,6 +18,7 @@ import {
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
 import PageHeader from '../components/layout/PageHeader'
+import FeatureLock from '../components/billing/FeatureLock'
 import { Sparkles, Archive, Megaphone, Activity, Eye, Clock, Users, ArrowUpDown, TrendingUp, CheckCircle } from 'lucide-react'
 
 export default function CampaignsPage() {
@@ -322,10 +323,17 @@ export default function CampaignsPage() {
                 <Megaphone className="h-4 w-4" />
                 New campaign
               </PrimaryAction>
-              <SecondaryAction onClick={handleBulkArchive} disabled={selectedIds.length === 0}>
-                <Archive className="h-4 w-4" />
-                Archive selected
-              </SecondaryAction>
+              <FeatureLock
+                feature="Bulk Campaign Actions"
+                requiredPlan="growth"
+                benefits={['Archive campaigns in bulk', 'Manage multiple campaigns', 'Advanced campaign controls']}
+                onUpgrade={() => navigate('/settings?tab=billing')}
+              >
+                <SecondaryAction onClick={handleBulkArchive} disabled={selectedIds.length === 0}>
+                  <Archive className="h-4 w-4" />
+                  Archive selected
+                </SecondaryAction>
+              </FeatureLock>
             </div>
           }
         />
