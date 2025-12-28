@@ -74,7 +74,8 @@ export const DataTable = ({
   emptyDescription,
   emptyAction,
   rowActions,
-  bulkActions
+  bulkActions,
+  customFilterUI
 }) => {
   const [sorting, setSorting] = useState([])
   const [columnVisibility, setColumnVisibility] = useState({})
@@ -263,19 +264,22 @@ export const DataTable = ({
               </div>
             )}
 
-            {(enableSearch || enableColumnToggle) && (
+            {(enableSearch || enableColumnToggle || customFilterUI) && (
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                {enableSearch && (
-                  <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      value={globalFilter}
-                      onChange={(e) => setGlobalFilter(e.target.value)}
-                      placeholder={searchPlaceholder}
-                      className="pl-9 pr-4 bg-[var(--background)] border-[var(--border)] rounded-none"
-                    />
-                  </div>
-                )}
+                <div className="flex items-center gap-4 flex-wrap">
+                  {enableSearch && (
+                    <div className="relative flex-1 max-w-sm">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        value={globalFilter}
+                        onChange={(e) => setGlobalFilter(e.target.value)}
+                        placeholder={searchPlaceholder}
+                        className="pl-9 pr-4 bg-[var(--background)] border-[var(--border)] rounded-none"
+                      />
+                    </div>
+                  )}
+                  {customFilterUI && customFilterUI}
+                </div>
 
                 {enableColumnToggle && (
                   <div className="relative" data-columns-menu>

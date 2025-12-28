@@ -387,84 +387,41 @@ export default function CampaignsPage() {
                   {workspaceRangeLabel}
                 </p>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-[2fr,2fr,1fr] items-end">
-                  <div className="space-y-1">
-                    <Label htmlFor="search">Search</Label>
-                    <Input
-                      id="search"
-                      type="text"
-                      placeholder="Search campaigns..."
-                      value={search}
-                      onChange={(e) => {
-                        setSearch(e.target.value)
-                        setPagination(prev => ({ ...prev, offset: 0 }))
-                      }}
-                      className="h-11"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="status">Status</Label>
-                    <Select
-                      id="status"
-                      value={statusFilter}
-                      onChange={(e) => {
-                        const value = e.target.value
-                        setStatusFilter(value)
-                        if (value === 'archived') {
-                          setHideArchived(false)
-                        }
-                        setPagination(prev => ({ ...prev, offset: 0 }))
-                      }}
-                    >
-                      <option value="">All Status</option>
-                      <option value="draft">Draft</option>
-                      <option value="sending">Sending</option>
-                      <option value="sent">Sent</option>
-                      <option value="archived">Archived</option>
-                    </Select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      id="hide-archived"
-                      type="checkbox"
-                      checked={hideArchived}
-                      onChange={(e) => {
-                        setHideArchived(e.target.checked)
-                        setPagination(prev => ({ ...prev, offset: 0 }))
-                      }}
-                      className="h-4 w-4"
-                    />
-                    <Label htmlFor="hide-archived" className="text-sm">Hide archived</Label>
-                  </div>
-                </div>
-
+              <CardContent className="space-y-0 p-0">
                 {error ? (
-                  <ErrorState
-                    title="Unable to load campaigns"
-                    description={error}
-                    onRetry={fetchCampaigns}
-                    retryLabel="Retry"
-                  />
+                  <div className="p-6">
+                    <ErrorState
+                      title="Unable to load campaigns"
+                      description={error}
+                      onRetry={fetchCampaigns}
+                      retryLabel="Retry"
+                    />
+                  </div>
                 ) : loading ? (
-                  <SkeletonTable rows={5} columns={7} />
+                  <div className="p-6">
+                    <SkeletonTable rows={5} columns={7} />
+                  </div>
                 ) : campaigns.length === 0 ? (
-                  <EmptyState
-                    icon={Sparkles}
-                    title="No campaigns yet"
-                    description="Create your first message to see insights and engagement."
-                    action={
-                      <PrimaryAction onClick={handleCreateCampaign}>Create campaign</PrimaryAction>
-                    }
-                    className="mt-3"
-                  />
+                  <div className="p-6">
+                    <EmptyState
+                      icon={Sparkles}
+                      title="No campaigns yet"
+                      description="Create your first message to see insights and engagement."
+                      action={
+                        <PrimaryAction onClick={handleCreateCampaign}>Create campaign</PrimaryAction>
+                      }
+                      className="mt-3"
+                    />
+                  </div>
                 ) : (
                   <>
                     <DataTable
                       columns={columns}
                       data={campaigns}
                       rowActions={rowActions}
-                      enableSearch={false}
+                      enableSearch={true}
+                      searchPlaceholder="Search campaigns..."
+                      enableColumnToggle={true}
                       enableSelection={false}
                       hidePagination={true}
                       title="Campaigns"
@@ -472,6 +429,40 @@ export default function CampaignsPage() {
                       emptyIcon={Sparkles}
                       emptyTitle="No campaigns"
                       emptyDescription="Create a campaign to get started."
+                      customFilterUI={
+                        <div className="flex items-center gap-3">
+                          <Select
+                            value={statusFilter}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              setStatusFilter(value)
+                              if (value === 'archived') {
+                                setHideArchived(false)
+                              }
+                              setPagination(prev => ({ ...prev, offset: 0 }))
+                            }}
+                            className="text-sm"
+                          >
+                            <option value="">All Status</option>
+                            <option value="draft">Draft</option>
+                            <option value="sending">Sending</option>
+                            <option value="sent">Sent</option>
+                            <option value="archived">Archived</option>
+                          </Select>
+                          <label className="flex items-center gap-2 text-sm whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={hideArchived}
+                              onChange={(e) => {
+                                setHideArchived(e.target.checked)
+                                setPagination(prev => ({ ...prev, offset: 0 }))
+                              }}
+                              className="h-4 w-4"
+                            />
+                            <span>Hide archived</span>
+                          </label>
+                        </div>
+                      }
                     />
                     <div className="flex items-center justify-between px-6 py-4 text-sm text-[var(--text-muted)] border-t border-[var(--border)] bg-[var(--card)] rounded-b-2xl">
                       <div>{workspaceRangeLabel}</div>
