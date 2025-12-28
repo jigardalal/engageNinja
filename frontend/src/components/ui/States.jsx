@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from './Button';
 import { cn } from '../../lib/utils';
+import { FileQuestion } from 'lucide-react';
 
 export function LoadingState({ message = 'Loading...', className }) {
   return (
@@ -31,7 +32,7 @@ export function EmptyState({
   title = 'Nothing to show yet',
   description,
   action,
-  icon: Icon,
+  icon: Icon = FileQuestion,
   className
 }) {
   return (
