@@ -147,6 +147,20 @@ resource "aws_lambda_function" "twilio_webhook" {
   )
 }
 
+# Reserve concurrent executions for webhook processing to avoid throttling
+resource "aws_lambda_provisioned_concurrency_config" "twilio_webhook" {
+  function_name                     = aws_lambda_function.twilio_webhook.function_name
+  provisioned_concurrent_executions = 10
+  qualifier                         = aws_lambda_alias.live.name
+}
+
+resource "aws_lambda_alias" "live" {
+  name            = "live"
+  description     = "Live alias for webhook Lambda"
+  function_name   = aws_lambda_function.twilio_webhook.function_name
+  function_version = aws_lambda_function.twilio_webhook.version
+}
+
 resource "aws_lambda_event_source_mapping" "send_campaign_sqs" {
   event_source_arn = aws_sqs_queue.messages.arn
   function_name    = aws_lambda_function.send_campaign.function_name
@@ -230,6 +244,10 @@ resource "aws_apigatewayv2_stage" "default" {
 
   default_route_settings {
     detailed_metrics_enabled = true
+    throttle_settings {
+      rate_limit  = 1000  # requests per second
+      burst_limit = 2000  # burst capacity
+    }
   }
 }
 
