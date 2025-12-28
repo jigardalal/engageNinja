@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AppShell from '../components/layout/AppShell';
 import PageHeader from '../components/layout/PageHeader';
 import { Card, Input, Button, Alert, Badge, Select, toast } from '../components/ui';
-import { Building } from 'lucide-react';
+import { Building, User, MapPin, Clock, MessageSquare } from 'lucide-react';
 import TenantFormField from '../components/TenantFormField';
 import Tenant10DLCModal from '../components/modals/Tenant10DLCModal';
 import TenantRegistrationHistoryModal from '../components/modals/TenantRegistrationHistoryModal';
@@ -87,6 +87,9 @@ export default function TenantProfilePage({ embedded = false } = {}) {
   const [submitting10DLC, setSubmitting10DLC] = useState(false);
   const [show10DLCModal, setShow10DLCModal] = useState(false);
   const [showRegistrationHistory, setShowRegistrationHistory] = useState(false);
+
+  // Section Navigation State
+  const [activeSection, setActiveSection] = useState('basics');
 
   useEffect(() => {
     fetchProfile();
@@ -729,186 +732,516 @@ export default function TenantProfilePage({ embedded = false } = {}) {
       ) : (
         (() => {
           const currentPlanMissing = form.plan_id && !planOptions.some((p) => p.value === form.plan_id);
+          const sections = [
+            { id: 'basics', label: 'Basics', icon: User },
+            { id: 'address', label: 'Address', icon: MapPin },
+            { id: 'timezone', label: 'Timezone', icon: Clock },
+            { id: 'sms', label: 'SMS Setup', icon: MessageSquare }
+          ];
         return (
           <>
-          <form onSubmit={handleSave} className="space-y-12">
-          <div>
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold text-[var(--text)] mb-1">Basics</h2>
-              <p className="text-sm text-[var(--text-muted)]">Name and contact emails shown to your team and customers.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="tenant-name" className="text-sm font-medium text-[var(--text)]">Tenant name</label>
-                  <span className="required-badge">Required</span>
-                </div>
-                <p className="text-xs text-[var(--text-muted)]">Appears in navigation, emails, and billing docs.</p>
-                <Input
-                  id="tenant-name"
-                  value={form.name || ''}
-                  onChange={(e) => handleChange('name', e.target.value)}
-                  placeholder="Acme Corp"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="tenant-plan" className="text-sm font-medium text-[var(--text)]">Plan</label>
-                  <span className="required-badge">Required</span>
-                </div>
-                <p className="text-xs text-[var(--text-muted)]">Choose the plan for this tenant.</p>
-                <Select
-                  id="tenant-plan"
-                  value={form.plan_id || ''}
-                  onChange={(e) => handleChange('plan_id', e.target.value)}
-                  required
-                >
-                  <option value="" disabled>Select a plan</option>
-                  {currentPlanMissing && (
-                    <option value={form.plan_id}>{form.plan_id} (current)</option>
-                  )}
-                  {planOptions.map(option => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </Select>
-              </div>
-              <TenantFormField
-                id="tenant-legal-name"
-                label="Legal name"
-                value={form.legal_name}
-                onChange={(val) => handleChange('legal_name', val)}
-                placeholder="Acme Corporation LLC"
-                isPaidPlan={isPaidPlan}
-                helper="Used on invoices and compliance documents."
-              />
-              <TenantFormField
-                id="tenant-billing-email"
-                label="Billing email"
-                value={form.billing_email}
-                onChange={(val) => handleChange('billing_email', val)}
-                placeholder="billing@acme.com"
-                isPaidPlan={isPaidPlan}
-                helper="Where invoices and billing alerts are sent."
-              />
-              <TenantFormField
-                id="tenant-support-email"
-                label="Support email"
-                value={form.support_email}
-                onChange={(val) => handleChange('support_email', val)}
-                placeholder="support@acme.com"
-                isPaidPlan={isPaidPlan}
-                helper="Shown to customers when they need help."
-              />
-            </div>
-          </div>
-
-          <div className="border-t border-[var(--border)] pt-12">
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold text-[var(--text)] mb-1">Address</h2>
-              <p className="text-sm text-[var(--text-muted)]">Used for receipts and location-aware features.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <TenantFormField
-                  id="tenant-address1"
-                  label="Address line 1"
-                  value={form.address_line1}
-                  onChange={(val) => handleChange('address_line1', val)}
-                  placeholder="123 Main St."
-                  isPaidPlan={isPaidPlan}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="tenant-address2" className="text-sm font-medium text-[var(--text)]">Address line 2</label>
-                <Input
-                  id="tenant-address2"
-                  value={form.address_line2 || ''}
-                  onChange={(e) => handleChange('address_line2', e.target.value)}
-                  placeholder="Suite 400"
-                />
-              </div>
-              <TenantFormField
-                id="tenant-city"
-                label="City"
-                value={form.city}
-                onChange={(val) => handleChange('city', val)}
-                placeholder="San Francisco"
-                isPaidPlan={isPaidPlan}
-              />
-              <TenantFormField
-                id="tenant-state"
-                label="State/Province"
-                value={form.state}
-                onChange={(val) => handleChange('state', val)}
-                placeholder="CA"
-                isPaidPlan={isPaidPlan}
-              />
-              <TenantFormField
-                id="tenant-postal"
-                label="Postal code"
-                value={form.postal_code}
-                onChange={(val) => handleChange('postal_code', val)}
-                placeholder="94107"
-                isPaidPlan={isPaidPlan}
-              />
-              <TenantFormField
-                id="tenant-country"
-                label="Country"
-                type="select"
-                value={form.country}
-                onChange={(val) => handleChange('country', val)}
-                isPaidPlan={isPaidPlan}
-              >
-                <option value="" disabled>Select a country</option>
-                {countryOptions.map((country) => (
-                  <option key={country.value} value={country.value}>{country.label}</option>
+          {/* Desktop: 75/25 Sidebar Layout */}
+          <form onSubmit={handleSave} className="hidden lg:flex gap-8 min-h-[600px]">
+            {/* Sidebar (25%) */}
+            <div className="w-1/4 pr-8 border-r border-[var(--border)]">
+              <nav className="space-y-1 sticky top-4">
+                {sections.map(section => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => setActiveSection(section.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition ${
+                      activeSection === section.id
+                        ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400 font-medium'
+                        : 'text-[var(--text-muted)] hover:bg-black/5 dark:hover:bg-black/20 hover:text-[var(--text)]'
+                    }`}
+                  >
+                    <section.icon className="h-5 w-5 flex-shrink-0" />
+                    {section.label}
+                  </button>
                 ))}
-              </TenantFormField>
+              </nav>
             </div>
-          </div>
 
-          <div className="border-t border-[var(--border)] pt-12">
-            <div className="mb-6">
-              <h3 className="text-base font-semibold text-[var(--text)] mb-1">Timezone</h3>
+            {/* Content Area (75%) */}
+            <div className="w-3/4 pl-8 space-y-6 pb-8">
+              {/* Basics Section */}
+              {activeSection === 'basics' && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-[var(--text)] mb-1">Basics</h2>
+                    <p className="text-[var(--text-muted)]">Name and contact emails shown to your team and customers.</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label htmlFor="tenant-name" className="text-sm font-medium text-[var(--text)]">Tenant name</label>
+                        <span className="required-badge">Required</span>
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)]">Appears in navigation, emails, and billing docs.</p>
+                      <Input
+                        id="tenant-name"
+                        value={form.name || ''}
+                        onChange={(e) => handleChange('name', e.target.value)}
+                        placeholder="Acme Corp"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label htmlFor="tenant-plan" className="text-sm font-medium text-[var(--text)]">Plan</label>
+                        <span className="required-badge">Required</span>
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)]">Choose the plan for this tenant.</p>
+                      <Select
+                        id="tenant-plan"
+                        value={form.plan_id || ''}
+                        onChange={(e) => handleChange('plan_id', e.target.value)}
+                        required
+                      >
+                        <option value="" disabled>Select a plan</option>
+                        {currentPlanMissing && (
+                          <option value={form.plan_id}>{form.plan_id} (current)</option>
+                        )}
+                        {planOptions.map(option => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </Select>
+                    </div>
+                    <TenantFormField
+                      id="tenant-legal-name"
+                      label="Legal name"
+                      value={form.legal_name}
+                      onChange={(val) => handleChange('legal_name', val)}
+                      placeholder="Acme Corporation LLC"
+                      isPaidPlan={isPaidPlan}
+                      helper="Used on invoices and compliance documents."
+                    />
+                    <TenantFormField
+                      id="tenant-billing-email"
+                      label="Billing email"
+                      value={form.billing_email}
+                      onChange={(val) => handleChange('billing_email', val)}
+                      placeholder="billing@acme.com"
+                      isPaidPlan={isPaidPlan}
+                      helper="Where invoices and billing alerts are sent."
+                    />
+                    <TenantFormField
+                      id="tenant-support-email"
+                      label="Support email"
+                      value={form.support_email}
+                      onChange={(val) => handleChange('support_email', val)}
+                      placeholder="support@acme.com"
+                      isPaidPlan={isPaidPlan}
+                      helper="Shown to customers when they need help."
+                    />
+                  </div>
+                  <div className="pt-6">
+                    <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Address Section */}
+              {activeSection === 'address' && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-[var(--text)] mb-1">Address</h2>
+                    <p className="text-[var(--text-muted)]">Used for receipts and location-aware features.</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="md:col-span-2">
+                      <TenantFormField
+                        id="tenant-address1"
+                        label="Address line 1"
+                        value={form.address_line1}
+                        onChange={(val) => handleChange('address_line1', val)}
+                        placeholder="123 Main St."
+                        isPaidPlan={isPaidPlan}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="tenant-address2" className="text-sm font-medium text-[var(--text)]">Address line 2</label>
+                      <Input
+                        id="tenant-address2"
+                        value={form.address_line2 || ''}
+                        onChange={(e) => handleChange('address_line2', e.target.value)}
+                        placeholder="Suite 400"
+                      />
+                    </div>
+                    <TenantFormField
+                      id="tenant-city"
+                      label="City"
+                      value={form.city}
+                      onChange={(val) => handleChange('city', val)}
+                      placeholder="San Francisco"
+                      isPaidPlan={isPaidPlan}
+                    />
+                    <TenantFormField
+                      id="tenant-state"
+                      label="State/Province"
+                      value={form.state}
+                      onChange={(val) => handleChange('state', val)}
+                      placeholder="CA"
+                      isPaidPlan={isPaidPlan}
+                    />
+                    <TenantFormField
+                      id="tenant-postal"
+                      label="Postal code"
+                      value={form.postal_code}
+                      onChange={(val) => handleChange('postal_code', val)}
+                      placeholder="94107"
+                      isPaidPlan={isPaidPlan}
+                    />
+                    <TenantFormField
+                      id="tenant-country"
+                      label="Country"
+                      type="select"
+                      value={form.country}
+                      onChange={(val) => handleChange('country', val)}
+                      isPaidPlan={isPaidPlan}
+                    >
+                      <option value="" disabled>Select a country</option>
+                      {countryOptions.map((country) => (
+                        <option key={country.value} value={country.value}>{country.label}</option>
+                      ))}
+                    </TenantFormField>
+                  </div>
+                  <div className="pt-6">
+                    <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Timezone Section */}
+              {activeSection === 'timezone' && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-[var(--text)] mb-1">Timezone</h2>
+                    <p className="text-[var(--text-muted)]">Choose your timezone for scheduling.</p>
+                  </div>
+                  <div className="max-w-md">
+                    <TenantFormField
+                      id="tenant-timezone"
+                      label="Timezone"
+                      type="select"
+                      value={form.timezone}
+                      onChange={(val) => handleChange('timezone', val)}
+                      isPaidPlan={isPaidPlan}
+                      helper="Choose an IANA timezone for scheduling."
+                    >
+                      <option value="" disabled>Select a timezone</option>
+                      {timezoneOptions.map(tz => (
+                        <option key={tz} value={tz}>{tz}</option>
+                      ))}
+                    </TenantFormField>
+                  </div>
+                  <div className="pt-6">
+                    <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
+                  </div>
+                </div>
+              )}
+
+              {/* SMS Setup Section */}
+              {activeSection === 'sms' && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-[var(--text)] mb-1">SMS Setup</h2>
+                    <p className="text-[var(--text-muted)]">Register and manage 10DLC phone numbers for SMS messaging.</p>
+                  </div>
+
+                  {/* Registration Status Card */}
+                  <Card className="bg-gradient-to-r from-primary-50 to-primary-50/50 dark:from-primary-950/20 dark:to-primary-950/10 border-primary-200 dark:border-primary-900">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-[var(--text)]">Registration Status</h3>
+                        <p className="text-sm text-[var(--text-muted)] mt-1">
+                          {brands.length > 0
+                            ? `${brands.length} registrations configured`
+                            : 'No 10DLC registrations yet'}
+                        </p>
+                      </div>
+                      {brands.length > 0 && (
+                        <Badge variant="success">Active</Badge>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      onClick={() => setShow10DLCModal(true)}
+                    >
+                      Register 10DLC
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setShowRegistrationHistory(true)}
+                    >
+                      View Registration History
+                    </Button>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-4 text-sm text-[var(--text-muted)]">
+                    <p className="mb-2">
+                      <strong className="text-[var(--text)]">What is 10DLC?</strong> 10 Digit Long Code is a carrier registration for SMS messaging that provides higher delivery rates and compliance.
+                    </p>
+                    <p>Complete your business information in the registration wizard to get started.</p>
+                  </div>
+                </div>
+              )}
             </div>
-            <TenantFormField
-              id="tenant-timezone"
-              label="Timezone"
-              type="select"
-              value={form.timezone}
-              onChange={(val) => handleChange('timezone', val)}
-              isPaidPlan={isPaidPlan}
-              helper="Choose an IANA timezone for scheduling."
-            >
-              <option value="" disabled>Select a timezone</option>
-              {timezoneOptions.map(tz => (
-                <option key={tz} value={tz}>{tz}</option>
-              ))}
-            </TenantFormField>
-          </div>
-
-          <div className="flex justify-end pt-12 border-t border-[var(--border)]">
-            <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
-          </div>
           </form>
 
-        {/* SMS Setup Buttons */}
-        <div className="flex gap-3 pt-12 border-t border-[var(--border)]">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setShow10DLCModal(true)}
-          >
-            Register 10DLC
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setShowRegistrationHistory(true)}
-          >
-            View Registration History
-          </Button>
-        </div>
+          {/* Mobile/Tablet: Tab-based Layout */}
+          <form onSubmit={handleSave} className="lg:hidden space-y-6">
+            {/* Tab Navigation */}
+            <div className="flex gap-2 border-b border-[var(--border)] overflow-x-auto">
+              {sections.map(section => (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActiveSection(section.id)}
+                  className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition ${
+                    activeSection === section.id
+                      ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                      : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  {section.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            <div className="space-y-6 pb-6">
+              {/* Basics Section */}
+              {activeSection === 'basics' && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-semibold text-[var(--text)] mb-1">Basics</h2>
+                    <p className="text-sm text-[var(--text-muted)]">Name and contact emails shown to your team and customers.</p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-6">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label htmlFor="tenant-name" className="text-sm font-medium text-[var(--text)]">Tenant name</label>
+                        <span className="required-badge">Required</span>
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)]">Appears in navigation, emails, and billing docs.</p>
+                      <Input
+                        id="tenant-name"
+                        value={form.name || ''}
+                        onChange={(e) => handleChange('name', e.target.value)}
+                        placeholder="Acme Corp"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label htmlFor="tenant-plan" className="text-sm font-medium text-[var(--text)]">Plan</label>
+                        <span className="required-badge">Required</span>
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)]">Choose the plan for this tenant.</p>
+                      <Select
+                        id="tenant-plan"
+                        value={form.plan_id || ''}
+                        onChange={(e) => handleChange('plan_id', e.target.value)}
+                        required
+                      >
+                        <option value="" disabled>Select a plan</option>
+                        {currentPlanMissing && (
+                          <option value={form.plan_id}>{form.plan_id} (current)</option>
+                        )}
+                        {planOptions.map(option => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </Select>
+                    </div>
+                    <TenantFormField
+                      id="tenant-legal-name"
+                      label="Legal name"
+                      value={form.legal_name}
+                      onChange={(val) => handleChange('legal_name', val)}
+                      placeholder="Acme Corporation LLC"
+                      isPaidPlan={isPaidPlan}
+                      helper="Used on invoices and compliance documents."
+                    />
+                    <TenantFormField
+                      id="tenant-billing-email"
+                      label="Billing email"
+                      value={form.billing_email}
+                      onChange={(val) => handleChange('billing_email', val)}
+                      placeholder="billing@acme.com"
+                      isPaidPlan={isPaidPlan}
+                      helper="Where invoices and billing alerts are sent."
+                    />
+                    <TenantFormField
+                      id="tenant-support-email"
+                      label="Support email"
+                      value={form.support_email}
+                      onChange={(val) => handleChange('support_email', val)}
+                      placeholder="support@acme.com"
+                      isPaidPlan={isPaidPlan}
+                      helper="Shown to customers when they need help."
+                    />
+                  </div>
+                  <div className="pt-3">
+                    <Button type="submit" disabled={saving} className="w-full">{saving ? 'Saving...' : 'Save Changes'}</Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Address Section */}
+              {activeSection === 'address' && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-semibold text-[var(--text)] mb-1">Address</h2>
+                    <p className="text-sm text-[var(--text-muted)]">Used for receipts and location-aware features.</p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-6">
+                    <TenantFormField
+                      id="tenant-address1"
+                      label="Address line 1"
+                      value={form.address_line1}
+                      onChange={(val) => handleChange('address_line1', val)}
+                      placeholder="123 Main St."
+                      isPaidPlan={isPaidPlan}
+                    />
+                    <div className="space-y-1.5">
+                      <label htmlFor="tenant-address2" className="text-sm font-medium text-[var(--text)]">Address line 2</label>
+                      <Input
+                        id="tenant-address2"
+                        value={form.address_line2 || ''}
+                        onChange={(e) => handleChange('address_line2', e.target.value)}
+                        placeholder="Suite 400"
+                      />
+                    </div>
+                    <TenantFormField
+                      id="tenant-city"
+                      label="City"
+                      value={form.city}
+                      onChange={(val) => handleChange('city', val)}
+                      placeholder="San Francisco"
+                      isPaidPlan={isPaidPlan}
+                    />
+                    <TenantFormField
+                      id="tenant-state"
+                      label="State/Province"
+                      value={form.state}
+                      onChange={(val) => handleChange('state', val)}
+                      placeholder="CA"
+                      isPaidPlan={isPaidPlan}
+                    />
+                    <TenantFormField
+                      id="tenant-postal"
+                      label="Postal code"
+                      value={form.postal_code}
+                      onChange={(val) => handleChange('postal_code', val)}
+                      placeholder="94107"
+                      isPaidPlan={isPaidPlan}
+                    />
+                    <TenantFormField
+                      id="tenant-country"
+                      label="Country"
+                      type="select"
+                      value={form.country}
+                      onChange={(val) => handleChange('country', val)}
+                      isPaidPlan={isPaidPlan}
+                    >
+                      <option value="" disabled>Select a country</option>
+                      {countryOptions.map((country) => (
+                        <option key={country.value} value={country.value}>{country.label}</option>
+                      ))}
+                    </TenantFormField>
+                  </div>
+                  <div className="pt-3">
+                    <Button type="submit" disabled={saving} className="w-full">{saving ? 'Saving...' : 'Save Changes'}</Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Timezone Section */}
+              {activeSection === 'timezone' && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-semibold text-[var(--text)] mb-1">Timezone</h2>
+                    <p className="text-sm text-[var(--text-muted)]">Choose your timezone for scheduling.</p>
+                  </div>
+                  <TenantFormField
+                    id="tenant-timezone"
+                    label="Timezone"
+                    type="select"
+                    value={form.timezone}
+                    onChange={(val) => handleChange('timezone', val)}
+                    isPaidPlan={isPaidPlan}
+                    helper="Choose an IANA timezone for scheduling."
+                  >
+                    <option value="" disabled>Select a timezone</option>
+                    {timezoneOptions.map(tz => (
+                      <option key={tz} value={tz}>{tz}</option>
+                    ))}
+                  </TenantFormField>
+                  <div className="pt-3">
+                    <Button type="submit" disabled={saving} className="w-full">{saving ? 'Saving...' : 'Save Changes'}</Button>
+                  </div>
+                </div>
+              )}
+
+              {/* SMS Setup Section */}
+              {activeSection === 'sms' && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-semibold text-[var(--text)] mb-1">SMS Setup</h2>
+                    <p className="text-sm text-[var(--text-muted)]">Register and manage 10DLC phone numbers for SMS messaging.</p>
+                  </div>
+
+                  {/* Registration Status Card */}
+                  <Card className="bg-gradient-to-r from-primary-50 to-primary-50/50 dark:from-primary-950/20 dark:to-primary-950/10 border-primary-200 dark:border-primary-900">
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-[var(--text)]">Registration Status</h3>
+                      <p className="text-sm text-[var(--text-muted)]">
+                        {brands.length > 0
+                          ? `${brands.length} registrations configured`
+                          : 'No 10DLC registrations yet'}
+                      </p>
+                      {brands.length > 0 && (
+                        <Badge variant="success">Active</Badge>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      onClick={() => setShow10DLCModal(true)}
+                      className="w-full"
+                    >
+                      Register 10DLC
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setShowRegistrationHistory(true)}
+                      className="w-full"
+                    >
+                      View Registration History
+                    </Button>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-4 text-sm text-[var(--text-muted)]">
+                    <p className="mb-2">
+                      <strong className="text-[var(--text)]">What is 10DLC?</strong> 10 Digit Long Code is a carrier registration for SMS messaging that provides higher delivery rates and compliance.
+                    </p>
+                    <p>Complete your business information in the registration wizard to get started.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </form>
 
         {/* 10DLC Registration Modal */}
         <Tenant10DLCModal
