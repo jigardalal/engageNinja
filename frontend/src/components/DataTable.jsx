@@ -148,16 +148,16 @@ export const DataTable = ({
               </Button>
               {openMenuId === row.id && (
                 <>
-                  {/* Backdrop portal - prevents text bleed and allows outside click */}
+                  {/* Backdrop portal - allows outside click to close */}
                   {createPortal(
                     <div
-                      className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+                      className="fixed inset-0 z-40"
                       onClick={() => setOpenMenuId(null)}
                     />,
                     document.body
                   )}
-                  {/* Menu */}
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--card)] border border-[var(--border)] shadow-lg z-50 rounded-lg overflow-hidden">
+                  {/* Menu - styled like Settings dropdown */}
+                  <div className="absolute right-0 top-full mt-2 w-48 rounded-2xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-50 overflow-hidden">
                     {actionsForRow.map((action, index) => (
                       <button
                         key={`${action.label}-${index}`}
@@ -166,7 +166,7 @@ export const DataTable = ({
                           action.onClick(row.original)
                           setOpenMenuId(null)
                         }}
-                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors rounded-lg ${
                           action.disabled
                             ? 'opacity-50 cursor-not-allowed'
                             : 'hover:bg-[var(--border)] cursor-pointer'
@@ -326,17 +326,17 @@ export const DataTable = ({
                     </Button>
                     {showColumnsMenu && (
                       <>
-                        {/* Backdrop portal - prevents text bleed and allows outside click */}
+                        {/* Backdrop portal - allows outside click to close */}
                         {createPortal(
                           <div
-                            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+                            className="fixed inset-0 z-40"
                             onClick={() => setShowColumnsMenu(false)}
                           />,
                           document.body
                         )}
-                        {/* Menu */}
+                        {/* Menu - styled like Settings dropdown */}
                         <div
-                          className="absolute right-0 top-full mt-2 w-48 bg-[var(--card)] border border-[var(--border)] shadow-lg z-50 rounded-lg overflow-hidden"
+                          className="absolute right-0 top-full mt-2 w-48 rounded-2xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-50 overflow-hidden"
                           data-columns-menu
                         >
                           {table
@@ -345,7 +345,7 @@ export const DataTable = ({
                             .map((column) => (
                               <label
                                 key={column.id}
-                                className="flex items-center gap-2 px-4 py-2 text-sm capitalize text-[var(--text)] hover:bg-[var(--border)] cursor-pointer transition-colors"
+                                className="flex items-center gap-2 px-3 py-2 text-sm capitalize text-[var(--text)] hover:bg-[var(--border)] cursor-pointer transition-colors rounded-lg"
                               >
                                 <input
                                   type="checkbox"
