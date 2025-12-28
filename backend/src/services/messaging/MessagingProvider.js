@@ -118,13 +118,19 @@ class MessagingProvider {
   normalizeStatus(providerStatus) {
     // Default implementation - override in subclasses
     const statusMap = {
-      // Twilio SMS/WhatsApp
+      // Twilio SMS/WhatsApp (both lowercase and capitalized)
       'queued': 'queued',
+      'Queued': 'queued',
       'sent': 'sent',
+      'Sent': 'sent',
       'delivered': 'delivered',
+      'Delivered': 'delivered',
       'read': 'read',
+      'Read': 'read',
       'failed': 'failed',
+      'Failed': 'failed',
       'undelivered': 'failed',
+      'Undelivered': 'failed',
 
       // AWS SES (uses SNS notifications)
       'Send': 'sent',
@@ -138,7 +144,7 @@ class MessagingProvider {
       'error': 'failed'
     };
 
-    return statusMap[providerStatus] || providerStatus;
+    return statusMap[providerStatus] || providerStatus.toLowerCase();
   }
 
   /**
