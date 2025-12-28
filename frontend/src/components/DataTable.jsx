@@ -105,16 +105,17 @@ export const DataTable = ({
   }, [openMenuId, showColumnsMenu])
 
   // Check menu position and adjust if it goes off-screen
-  const checkMenuPosition = (menuId, itemCount) => {
-    const menuElement = rowMenuRefs.current[menuId]
-    const buttonElement = document.querySelector(`[data-menu-button="${menuId}"]`)
+  const checkMenuPosition = (menuElement, itemCount) => {
+    if (!menuElement) return 'below'
 
-    if (!menuElement || !buttonElement) return 'below'
+    // Find the button (previous sibling in the relative container)
+    const buttonElement = menuElement.parentElement?.querySelector('button')
+    if (!buttonElement) return 'below'
 
     const buttonRect = buttonElement.getBoundingClientRect()
     const menuRect = menuElement.getBoundingClientRect()
     const menuHeight = menuRect.height
-    const buffer = 20 // Safety margin
+    const buffer = 10 // Safety margin
 
     // Check if menu fits below
     const spaceBelow = window.innerHeight - (buttonRect.bottom + 8) // 8px for mt-2
@@ -201,7 +202,7 @@ export const DataTable = ({
                         rowMenuRefs.current[row.id] = el
                         // Measure and update position when menu mounts
                         requestAnimationFrame(() => {
-                          const pos = checkMenuPosition(row.id, actionsForRow.length)
+                          const pos = checkMenuPosition(el, actionsForRow.length)
                           setMenuPosition(row.id, pos)
                         })
                       }
