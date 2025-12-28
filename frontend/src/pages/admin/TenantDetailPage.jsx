@@ -17,7 +17,8 @@ import {
   ErrorState,
   EmptyState,
   PrimaryAction,
-  SecondaryAction
+  SecondaryAction,
+  toast
 } from '../../components/ui'
 import TenantEditForm from './TenantEditForm'
 import TenantBillingTab from './TenantBillingTab'
@@ -84,7 +85,6 @@ export const TenantDetailPage = () => {
     try {
       setUpdating(true)
       setUpdateError(null)
-      setUpdateSuccess(null)
       const response = await fetch(`/api/admin/tenants/${tenantId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -95,11 +95,19 @@ export const TenantDetailPage = () => {
         const data = await response.json()
         throw new Error(data.error || 'Failed to update tenant')
       }
-      setUpdateSuccess('Tenant status updated')
-      setTimeout(() => setUpdateSuccess(null), 3000)
+      toast({
+        title: 'Tenant status updated',
+        description: `Tenant status changed to ${newStatus}`,
+        variant: 'success'
+      })
       await fetchTenant()
     } catch (err) {
       setUpdateError(err.message)
+      toast({
+        title: 'Failed to update tenant',
+        description: err.message || 'Please try again',
+        variant: 'error'
+      })
     } finally {
       setUpdating(false)
     }
@@ -109,7 +117,6 @@ export const TenantDetailPage = () => {
     try {
       setSyncing(true)
       setSyncError(null)
-      setSyncResult(null)
       const response = await fetch(`/api/admin/tenants/${tenantId}/sync-global-tags`, {
         method: 'POST',
         credentials: 'include'
@@ -118,9 +125,19 @@ export const TenantDetailPage = () => {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to sync global tags')
       }
-      setSyncResult(`Synced ${data.added} tag(s) from ${data.total_active_global || data.added} active global tags.`)
+      const message = `Synced ${data.added} tag(s) from ${data.total_active_global || data.added} active global tags.`
+      toast({
+        title: 'Tags synced',
+        description: message,
+        variant: 'success'
+      })
     } catch (err) {
       setSyncError(err.message)
+      toast({
+        title: 'Failed to sync tags',
+        description: err.message || 'Please try again',
+        variant: 'error'
+      })
     } finally {
       setSyncing(false)
     }
@@ -130,9 +147,19 @@ export const TenantDetailPage = () => {
     try {
       setOpeningTenant(true)
       await switchTenant(tenantId)
+      toast({
+        title: 'Tenant opened',
+        description: 'Switching to tenant dashboard',
+        variant: 'success'
+      })
       navigate('/dashboard')
     } catch (err) {
       setOpeningTenant(false)
+      toast({
+        title: 'Failed to open tenant',
+        description: 'Unable to switch tenant context',
+        variant: 'error'
+      })
     }
   }
 

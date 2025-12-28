@@ -12,7 +12,8 @@ import {
   CardDescription,
   CardContent,
   PrimaryAction,
-  DataTable
+  DataTable,
+  toast
 } from '../../components/ui'
 
 const statusBadge = (status) => {
@@ -80,11 +81,22 @@ export const AdminTagsPage = () => {
       if (!res.ok) {
         throw new Error(data.error || 'Failed to create tag')
       }
+      toast({
+        title: 'Tag created',
+        description: `Global tag "${newTag}" has been created`,
+        variant: 'success'
+      })
       setNewTag('')
       await fetchTags()
     } catch (err) {
       console.error('AdminTagsPage create tag error', err)
-      setError(err.message || 'Failed to create tag')
+      const errorMsg = err.message || 'Failed to create tag'
+      setError(errorMsg)
+      toast({
+        title: 'Failed to create tag',
+        description: errorMsg,
+        variant: 'error'
+      })
     } finally {
       setCreating(false)
     }
@@ -117,10 +129,21 @@ export const AdminTagsPage = () => {
         if (!res.ok) {
           throw new Error(data.error || 'Failed to update tag')
         }
+        toast({
+          title: 'Tag updated',
+          description: `Global tag "${draft.name}" has been updated`,
+          variant: 'success'
+        })
         await fetchTags()
       } catch (err) {
         console.error('AdminTagsPage save tag error', err)
-        setError(err.message || 'Failed to update tag')
+        const errorMsg = err.message || 'Failed to update tag'
+        setError(errorMsg)
+        toast({
+          title: 'Failed to update tag',
+          description: errorMsg,
+          variant: 'error'
+        })
       } finally {
         setSavingId(null)
       }

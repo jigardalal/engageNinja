@@ -7,7 +7,8 @@ import {
   Badge,
   ErrorState,
   PrimaryAction,
-  DataTable
+  DataTable,
+  toast
 } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
 
@@ -59,9 +60,19 @@ export const AdminUsersPage = () => {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to update role')
+      toast({
+        title: 'Role updated',
+        description: `User role changed to ${role}`,
+        variant: 'success'
+      })
       fetchUsers(search)
     } catch (err) {
       setError(err.message)
+      toast({
+        title: 'Failed to update role',
+        description: err.message || 'Please try again',
+        variant: 'error'
+      })
     } finally {
       setRoleSaving((prev) => ({ ...prev, [userId]: false }))
     }
@@ -82,9 +93,19 @@ export const AdminUsersPage = () => {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to update user')
+      toast({
+        title: `User ${verb}d`,
+        description: `User has been successfully ${verb}d`,
+        variant: 'success'
+      })
       fetchUsers(search)
     } catch (err) {
       setError(err.message)
+      toast({
+        title: `Failed to ${verb} user`,
+        description: err.message || 'Please try again',
+        variant: 'error'
+      })
     } finally {
       setActionLoading((prev) => ({ ...prev, [userId]: false }))
     }
