@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import AppShell from '../components/layout/AppShell'
 import TemplateBuilder from '../components/templates/TemplateBuilder'
 import WhatsAppPreview from '../components/templates/WhatsAppPreview'
@@ -28,6 +29,7 @@ import { Sparkles, MessageSquare, Globe } from 'lucide-react'
 export const CreateTemplatePage = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { activeTenant } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -94,6 +96,11 @@ export const CreateTemplatePage = () => {
     e.preventDefault()
     setError('')
     setSuccess('')
+
+    if (!activeTenant) {
+      setError('No tenant selected. Please select a workspace.')
+      return
+    }
 
     if (!validateTemplate()) return
 

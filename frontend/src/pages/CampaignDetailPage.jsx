@@ -23,7 +23,7 @@ import { Megaphone, BarChart3, MessageSquare, Users, Activity } from 'lucide-rea
 export default function CampaignDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { activeTenant, user } = useAuth()
   const [campaign, setCampaign] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -69,8 +69,11 @@ export default function CampaignDetailPage() {
 
   // Fetch campaign details
   useEffect(() => {
+    if (!activeTenant) {
+      return
+    }
     fetchCampaign()
-  }, [id])
+  }, [activeTenant, id])
 
   // Update metrics from SSE stream
   useEffect(() => {

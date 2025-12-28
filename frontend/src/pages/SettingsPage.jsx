@@ -32,7 +32,7 @@ import { Settings, Wifi, Mail, Layers, Tag, Users, CreditCard, FileText, Phone }
 export default function SettingsPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userRole } = useAuth();
+  const { activeTenant, userRole } = useAuth();
   const [activeTab, setActiveTab] = useState('channels');
   const canManageTenant = userRole && ['admin', 'owner'].includes(userRole);
   const [channels, setChannels] = useState({
@@ -117,6 +117,9 @@ export default function SettingsPage() {
   // Fetch channel settings
   useEffect(() => {
     const fetchChannels = async () => {
+      if (!activeTenant) {
+        return;
+      }
       try {
         setLoading(true);
         const response = await fetch('/api/settings/channels', {
@@ -150,7 +153,7 @@ export default function SettingsPage() {
     };
 
     fetchChannels();
-  }, []);
+  }, [activeTenant]);
 
   useEffect(() => {
     if (channels.sms) {

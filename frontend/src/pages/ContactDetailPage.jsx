@@ -26,7 +26,7 @@ import { User, ShieldCheck, Tag, MessageCircle } from 'lucide-react';
 export const ContactDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { activeTenant, user } = useAuth();
   const [contact, setContact] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -35,9 +35,12 @@ export const ContactDetailPage = () => {
   const [availableTags, setAvailableTags] = useState([]);
 
   useEffect(() => {
+    if (!activeTenant) {
+      return;
+    }
     fetchContactDetail();
     fetchTags();
-  }, [id]);
+  }, [activeTenant, id]);
 
   const fetchContactDetail = async () => {
     try {

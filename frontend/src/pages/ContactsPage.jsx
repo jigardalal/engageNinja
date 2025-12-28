@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { CreateContactModal } from '../components/CreateContactModal'
 import { CSVImportModal } from '../components/CSVImportModal'
 import AppShell from '../components/layout/AppShell'
@@ -37,6 +38,7 @@ import {
  */
 export const ContactsPage = () => {
   const navigate = useNavigate()
+  const { activeTenant } = useAuth()
   const [contacts, setContacts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -55,9 +57,12 @@ export const ContactsPage = () => {
   const [contactToDelete, setContactToDelete] = useState(null)
 
   useEffect(() => {
+    if (!activeTenant) {
+      return
+    }
     fetchContacts()
     fetchTags()
-  }, [searchTerm, selectedTag])
+  }, [activeTenant, searchTerm, selectedTag])
 
   const fetchContacts = async () => {
     try {

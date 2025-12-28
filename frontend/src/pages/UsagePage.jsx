@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 import AppShell from '../components/layout/AppShell'
 import PageHeader from '../components/layout/PageHeader'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Alert, Badge } from '../components/ui'
@@ -8,13 +9,17 @@ import UsageBar from '../components/billing/UsageBar'
 import { AlertCircle, TrendingUp, Zap, Mail, MessageSquare, RefreshCw, Users } from 'lucide-react'
 
 export default function UsagePage({ embedded = false }) {
+  const { activeTenant } = useAuth()
   const [loading, setLoading] = useState(true)
   const [billingData, setBillingData] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (!activeTenant) {
+      return
+    }
     fetchData()
-  }, [])
+  }, [activeTenant])
 
   const fetchData = async () => {
     try {

@@ -43,6 +43,11 @@ export const DashboardPage = () => {
   const activeTenantInfo = tenants.find(t => t.tenant_id === activeTenant);
 
   useEffect(() => {
+    // Guard: Do not fetch data if no tenant is selected
+    if (!activeTenant) {
+      return;
+    }
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -97,7 +102,7 @@ export const DashboardPage = () => {
     };
 
     fetchData();
-  }, []);
+  }, [activeTenant]);
 
   return (
     <AppShell hideTitleBlock title="Dashboard" subtitle="Quick overview of your EngageNinja workspace">

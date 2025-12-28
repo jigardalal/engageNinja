@@ -27,7 +27,7 @@ import PageHeader from '../components/layout/PageHeader'
 import { Sparkles, Archive, Megaphone, Activity, BarChart3, Eye, Clock, Users, ArrowUpDown } from 'lucide-react'
 
 export default function CampaignsPage() {
-  useAuth()
+  const { activeTenant } = useAuth()
   const navigate = useNavigate()
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
@@ -42,10 +42,13 @@ export default function CampaignsPage() {
   const [archiveError, setArchiveError] = useState('')
 
   useEffect(() => {
+    if (!activeTenant) {
+      return
+    }
     fetchCampaigns()
     setSelectedIds([])
     setSelectAll(false)
-  }, [search, statusFilter, hideArchived, pagination.offset])
+  }, [activeTenant, search, statusFilter, hideArchived, pagination.offset])
 
   const fetchCampaigns = async () => {
     setLoading(true)

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 import AppShell from '../components/layout/AppShell'
 import PageHeader from '../components/layout/PageHeader'
 import {
@@ -16,13 +17,17 @@ import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
 import { AlertCircle, Download, FileText } from 'lucide-react'
 
 export default function InvoicesPage({ embedded = false }) {
+  const { activeTenant } = useAuth()
   const [loading, setLoading] = useState(true)
   const [billingData, setBillingData] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (!activeTenant) {
+      return
+    }
     fetchData()
-  }, [])
+  }, [activeTenant])
 
   const fetchData = async () => {
     try {

@@ -9,7 +9,8 @@
  */
 
 const express = require('express');
-const { requireAuth, validateTenantAccess } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
+const { validateTenantAccess } = require('../middleware/rbac');
 const { getBillingSummary, BillingSummaryError } = require('../services/billingSummary');
 const InvoiceGenerator = require('../services/invoiceGenerator');
 

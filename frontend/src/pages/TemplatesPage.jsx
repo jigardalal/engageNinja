@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import AppShell from '../components/layout/AppShell'
 import {
   Button,
@@ -33,6 +34,7 @@ import { Layers, Filter, Sparkles, BookOpen, ArrowUpDown } from 'lucide-react'
  */
 export const TemplatesPage = ({ embedded = false } = {}) => {
   const navigate = useNavigate()
+  const { activeTenant } = useAuth()
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -52,8 +54,11 @@ export const TemplatesPage = ({ embedded = false } = {}) => {
   const Shell = ({ children }) => (embedded ? <>{children}</> : <AppShell hideTitleBlock>{children}</AppShell>)
 
   useEffect(() => {
+    if (!activeTenant) {
+      return
+    }
     fetchTemplates()
-  }, [filters])
+  }, [activeTenant, filters])
 
   const fetchTemplates = async () => {
     try {

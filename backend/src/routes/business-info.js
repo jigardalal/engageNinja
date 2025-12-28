@@ -12,8 +12,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
-const { requireAuth, validateTenantAccess } = require('../middleware/auth');
-const { requireMember, requireAdmin } = require('../middleware/rbac');
+const { requireAuth } = require('../middleware/auth');
+const { validateTenantAccess, requireMember, requireAdmin } = require('../middleware/rbac');
 const { logAudit, AUDIT_ACTIONS } = require('../utils/audit');
 
 /**

@@ -10,13 +10,37 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
-const validateTenantAccess = (req, res, next) => {
+const validateTenantAccess = async (req, res, next) => {
   const tenantId = req.session?.activeTenantId;
   if (!tenantId) {
     return res.status(400).json({ error: 'No active tenant selected' });
   }
-  req.tenantId = tenantId;
-  next();
+
+  try {
+    // Verify user has access to this tenant
+    const membership = await db.prepare(`
+      SELECT role, active FROM user_tenants
+      WHERE user_id = ? AND tenant_id = ?
+    `).get(req.session.userId, tenantId);
+
+    if (!membership) {
+      return res.status(403).json({
+        error: 'Forbidden - user does not have access to this tenant'
+      });
+    }
+
+    if (!membership.active) {
+      return res.status(403).json({
+        error: 'Forbidden - membership is inactive'
+      });
+    }
+
+    req.tenantId = tenantId;
+    next();
+  } catch (error) {
+    console.error('Tenant access validation error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 };
 
 // GET current tenant profile

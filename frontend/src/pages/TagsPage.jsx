@@ -25,7 +25,7 @@ const statusBadgeClass = (status) => {
 }
 
 export default function TagsPage({ embedded = false } = {}) {
-  const { userRole } = useAuth()
+  const { activeTenant, userRole } = useAuth()
   const canManage = ['admin', 'owner'].includes(userRole)
   const [tags, setTags] = useState([])
   const [drafts, setDrafts] = useState({})
@@ -61,8 +61,11 @@ export default function TagsPage({ embedded = false } = {}) {
   }, [])
 
   useEffect(() => {
+    if (!activeTenant) {
+      return
+    }
     fetchTags()
-  }, [fetchTags])
+  }, [activeTenant, fetchTags])
 
   const handleCreate = async (e) => {
     e.preventDefault()

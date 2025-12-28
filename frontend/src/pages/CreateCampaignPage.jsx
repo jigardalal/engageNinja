@@ -26,7 +26,7 @@ import 'react-quill/dist/quill.snow.css'
 import '../styles/quillOverrides.css'
 
 export default function CreateCampaignPage() {
-  useAuth()
+  const { activeTenant } = useAuth()
   const navigate = useNavigate()
   const { id: campaignId } = useParams()
   const isEditing = Boolean(campaignId)
@@ -67,10 +67,13 @@ export default function CreateCampaignPage() {
   }
   // Fetch tags, contacts, and templates on mount
   useEffect(() => {
+    if (!activeTenant) {
+      return
+    }
     fetchTags()
     fetchContacts()
     fetchTemplates()
-  }, [])
+  }, [activeTenant])
 
   // Load campaign for editing
   useEffect(() => {

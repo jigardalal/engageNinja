@@ -9,7 +9,8 @@ const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const whatsappService = require('../services/whatsapp');
-const { requireAdmin } = require('../middleware/rbac');
+const { requireAuth } = require('../middleware/auth');
+const { validateTenantAccess, requireAdmin } = require('../middleware/rbac');
 const { logAudit, AUDIT_ACTIONS } = require('../utils/audit');
 
 // Ensure optional webhook columns exist (multi-tenant per channel)
@@ -56,23 +57,8 @@ async function ensureWhatsAppProviderColumns() {
 })();
 
 // ===== MIDDLEWARE =====
-
-// Check if user is authenticated
-const requireAuth = (req, res, next) => {
-  if (!req.session || !req.session.userId) {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'You must be logged in',
-      status: 'error'
-    });
-  }
-  next();
-};
-
-// Get tenant context from session
-const getTenantId = (req) => {
-  return req.session.activeTenantId;
-};
+// All routes use: requireAuth -> validateTenantAccess -> requireAdmin
+// validateTenantAccess verifies user membership and sets req.tenantId
 
 // ===== ENCRYPTION UTILITIES =====
 
@@ -157,12 +143,9 @@ const validateWhatsAppCredentials = async (accessToken, phoneNumberId, businessA
  * POST /api/settings/channels/whatsapp/test
  * Exercise webhook signature verification using tenant secrets
  */
-router.post('/channels/whatsapp/test', requireAuth, requireAdmin, async (req, res) => {
+router.post('/channels/whatsapp/test', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
-    const tenantId = getTenantId(req);
-    if (!tenantId) {
-      return res.status(400).json({ error: 'Bad Request', message: 'No active tenant selected' });
-    }
+    const tenantId = req.tenantId;
 
     const channel = db.prepare(`
       SELECT credentials_encrypted, webhook_secret, webhook_verify_token
@@ -259,17 +242,9 @@ router.post('/channels/whatsapp/test', requireAuth, requireAdmin, async (req, re
  * GET /api/settings/channels
  * Get all channel settings for current tenant
  */
-router.get('/channels', requireAuth, async (req, res) => {
+router.get('/channels', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
-    const tenantId = getTenantId(req);
-
-    if (!tenantId) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'No active tenant selected',
-        status: 'error'
-      });
-    }
+    const tenantId = req.tenantId;
 
     // Get WhatsApp channel settings
     const whatsappChannel = await db.prepare(
@@ -404,18 +379,10 @@ router.get('/channels', requireAuth, async (req, res) => {
  * POST /api/settings/channels/whatsapp
  * Connect WhatsApp channel
  */
-router.post('/channels/whatsapp', requireAuth, requireAdmin, async (req, res) => {
+router.post('/channels/whatsapp', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
-    const tenantId = getTenantId(req);
+    const tenantId = req.tenantId;
     const { accessToken, phoneNumberId, businessAccountId, webhookVerifyToken, webhookSecret } = req.body;
-
-    if (!tenantId) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'No active tenant selected',
-        status: 'error'
-      });
-    }
 
     // Validate input
     if (!accessToken || !phoneNumberId) {
@@ -547,18 +514,10 @@ router.post('/channels/whatsapp', requireAuth, requireAdmin, async (req, res) =>
  * POST /api/settings/channels/email
  * Connect Email channel (SES or Brevo)
  */
-router.post('/channels/email', requireAuth, requireAdmin, async (req, res) => {
+router.post('/channels/email', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
-    const tenantId = getTenantId(req);
+    const tenantId = req.tenantId;
     const { provider, accessKeyId, secretAccessKey, region, apiKey, verifiedSenderEmail, useStoredCredentials } = req.body;
-
-    if (!tenantId) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'No active tenant selected',
-        status: 'error'
-      });
-    }
 
     // Validate input
     if (!provider || !verifiedSenderEmail) {
@@ -686,18 +645,10 @@ router.post('/channels/email', requireAuth, requireAdmin, async (req, res) => {
  * POST /api/settings/channels/sms
  * Update per-tenant Twilio phone number + webhook URL
  */
-router.post('/channels/sms', requireAuth, requireAdmin, async (req, res) => {
+router.post('/channels/sms', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
-    const tenantId = getTenantId(req);
+    const tenantId = req.tenantId;
     const { phoneNumber, webhookUrl } = req.body;
-
-    if (!tenantId) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'No active tenant selected',
-        status: 'error'
-      });
-    }
 
     if (!phoneNumber) {
       return res.status(400).json({
@@ -775,18 +726,10 @@ router.post('/channels/sms', requireAuth, requireAdmin, async (req, res) => {
  * DELETE /api/settings/channels/:channel
  * Disconnect a channel
  */
-router.delete('/channels/:channel', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/channels/:channel', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
-    const tenantId = getTenantId(req);
+    const tenantId = req.tenantId;
     const { channel } = req.params;
-
-    if (!tenantId) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'No active tenant selected',
-        status: 'error'
-      });
-    }
 
     // Validate channel
     if (!['whatsapp', 'email'].includes(channel)) {
@@ -917,18 +860,10 @@ router.get('/channels/email/health', requireAuth, async (req, res) => {
  * POST /api/settings/channels/whatsapp/validate
  * Validate WhatsApp credentials (uses provided token/ids or stored credentials)
  */
-router.post('/channels/whatsapp/validate', requireAuth, requireAdmin, async (req, res) => {
+router.post('/channels/whatsapp/validate', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
-    const tenantId = getTenantId(req);
+    const tenantId = req.tenantId;
     const { accessToken, phoneNumberId, useStoredCredentials = false } = req.body || {};
-
-    if (!tenantId) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'No active tenant selected',
-        status: 'error'
-      });
-    }
 
     let tokenToUse = accessToken;
     let phoneToUse = phoneNumberId;

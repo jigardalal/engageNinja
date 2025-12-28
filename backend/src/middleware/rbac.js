@@ -184,10 +184,16 @@ function logRBACDecision(decision, details) {
 /**
  * Validate tenant access for route handlers
  * Sets req.tenantId from query param or session
+ * CRITICALLY: Verifies user has actual membership in this tenant
  * Used with async route handlers
  */
 const validateTenantAccess = async (req, res, next) => {
   try {
+    // Check if user is authenticated
+    if (!req.session?.userId) {
+      return res.status(401).json({ error: 'Unauthorized - no session' });
+    }
+
     // Get tenant ID from query params, body, or session
     let tenantId = req.query.tenant_id || req.body?.tenant_id || req.session?.activeTenantId;
 
@@ -195,8 +201,29 @@ const validateTenantAccess = async (req, res, next) => {
       return res.status(400).json({ error: 'Tenant ID is required' });
     }
 
+    // CRITICAL: Verify user has membership in this tenant
+    const membership = await db.prepare(`
+      SELECT role, active FROM user_tenants
+      WHERE user_id = ? AND tenant_id = ?
+    `).get(req.session.userId, tenantId);
+
+    // Check if user has membership in this tenant
+    if (!membership) {
+      return res.status(403).json({
+        error: 'Forbidden - user does not have access to this tenant'
+      });
+    }
+
+    // Check if membership is active
+    if (!membership.active) {
+      return res.status(403).json({
+        error: 'Forbidden - membership is inactive'
+      });
+    }
+
     // Store in request for handlers to access
     req.tenantId = tenantId;
+    req.userRole = membership.role;
 
     next();
   } catch (error) {

@@ -31,7 +31,7 @@ const requireAuth = (req, res, next) => {
 };
 
 // Validate tenant access (ensure user has access to tenant)
-const validateTenantAccess = (req, res, next) => {
+const validateTenantAccess = async (req, res, next) => {
   const tenantId = req.session.activeTenantId;
 
   if (!tenantId) {
@@ -42,22 +42,27 @@ const validateTenantAccess = (req, res, next) => {
     });
   }
 
-  // Check if user has access to this tenant
-  const userTenant = db.prepare(`
-    SELECT ut.tenant_id FROM user_tenants ut
-    WHERE ut.user_id = ? AND ut.tenant_id = ?
-  `).get(req.session.userId, tenantId);
+  try {
+    // Check if user has access to this tenant
+    const userTenant = await db.prepare(`
+      SELECT ut.tenant_id FROM user_tenants ut
+      WHERE ut.user_id = ? AND ut.tenant_id = ?
+    `).get(req.session.userId, tenantId);
 
-  if (!userTenant) {
-    return res.status(403).json({
-      error: 'Forbidden',
-      message: 'You do not have access to this tenant',
-      status: 'error'
-    });
+    if (!userTenant) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'You do not have access to this tenant',
+        status: 'error'
+      });
+    }
+
+    req.tenantId = tenantId;
+    next();
+  } catch (error) {
+    console.error('Tenant access validation error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
-
-  req.tenantId = tenantId;
-  next();
 };
 
 // ===== HELPER FUNCTIONS =====

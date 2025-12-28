@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 import AppShell from '../components/layout/AppShell'
 import PageHeader from '../components/layout/PageHeader'
 import {
@@ -46,6 +47,7 @@ const getButtonVariant = (currentPlanId, targetPlanId) => {
 }
 
 export default function BillingPage({ embedded = false }) {
+  const { activeTenant } = useAuth()
   const [loading, setLoading] = useState(true)
   const [billingData, setBillingData] = useState(null)
   const [plans, setPlans] = useState([])
@@ -54,13 +56,16 @@ export default function BillingPage({ embedded = false }) {
   const [syncLoading, setSyncLoading] = useState(false)
 
   useEffect(() => {
+    if (!activeTenant) {
+      return
+    }
     fetchData()
     const params = new URLSearchParams(window.location.search)
     if (params.has('session_id')) {
       const timer = setTimeout(fetchData, 2000)
       return () => clearTimeout(timer)
     }
-  }, [])
+  }, [activeTenant])
 
   const fetchData = async () => {
     try {

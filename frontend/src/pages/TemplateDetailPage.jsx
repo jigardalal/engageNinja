@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import AppShell from '../components/layout/AppShell'
 import WhatsAppPreview from '../components/templates/WhatsAppPreview'
 import PageHeader from '../components/layout/PageHeader'
@@ -25,13 +26,17 @@ import { MessageSquare, BookOpen, Clock, Layers } from 'lucide-react'
 export const TemplateDetailPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { activeTenant } = useAuth()
   const [template, setTemplate] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (!activeTenant) {
+      return
+    }
     fetchTemplate()
-  }, [id])
+  }, [activeTenant, id])
 
   const fetchTemplate = async () => {
     try {
