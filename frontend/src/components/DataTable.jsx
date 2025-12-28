@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -84,6 +84,22 @@ export const DataTable = ({
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
   const [showColumnsMenu, setShowColumnsMenu] = useState(false)
   const [openMenuId, setOpenMenuId] = useState(null)
+  const menuRef = useRef(null)
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpenMenuId(null)
+        setShowColumnsMenu(false)
+      }
+    }
+
+    if (openMenuId || showColumnsMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [openMenuId, showColumnsMenu])
 
   const selectionColumn = enableSelection
     ? {
@@ -119,7 +135,7 @@ export const DataTable = ({
             return null
           }
           return (
-            <div className="relative">
+            <div className="relative" ref={menuRef}>
               <Button
                 variant="ghost"
                 size="icon"
@@ -130,25 +146,37 @@ export const DataTable = ({
                 <MoreVertical className="h-4 w-4" />
               </Button>
               {openMenuId === row.id && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--card)] border border-[var(--border)] shadow-lg z-50">
-                  {actionsForRow.map((action, index) => (
-                    <button
-                      key={`${action.label}-${index}`}
-                      onClick={() => {
-                        if (action.disabled) return
-                        action.onClick(row.original)
-                        setOpenMenuId(null)
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 hover:bg-[var(--border)] ${
-                        action.variant === 'destructive' ? 'text-red-600 dark:text-red-400' : ''
-                      } ${action.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      disabled={action.disabled}
-                    >
-                      {action.icon && <span>{action.icon}</span>}
-                      {action.label}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  {/* Backdrop - prevents text bleed and allows outside click */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setOpenMenuId(null)}
+                  />
+                  {/* Menu */}
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--card)] border border-[var(--border)] shadow-lg z-50 rounded-lg overflow-hidden">
+                    {actionsForRow.map((action, index) => (
+                      <button
+                        key={`${action.label}-${index}`}
+                        onClick={() => {
+                          if (action.disabled) return
+                          action.onClick(row.original)
+                          setOpenMenuId(null)
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${
+                          action.disabled
+                            ? 'opacity-50 cursor-not-allowed'
+                            : 'hover:bg-[var(--border)] cursor-pointer'
+                        } ${
+                          action.variant === 'destructive' ? 'text-red-600 dark:text-red-400 hover:bg-red-500/10' : ''
+                        }`}
+                        disabled={action.disabled}
+                      >
+                        {action.icon && <span>{action.icon}</span>}
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           )
@@ -282,7 +310,7 @@ export const DataTable = ({
                 </div>
 
                 {enableColumnToggle && (
-                  <div className="relative" data-columns-menu>
+                  <div className="relative" ref={menuRef} data-columns-menu>
                     <Button
                       variant="outline"
                       size="default"
@@ -292,29 +320,37 @@ export const DataTable = ({
                       <SlidersHorizontal className="mr-1 h-4 w-4 text-[var(--text-muted)]" />
                       Columns
                     </Button>
-                  {showColumnsMenu && (
-                    <div
-                      className="absolute right-0 top-full mt-2 w-48 bg-white/60 dark:bg-slate-900/60 border border-[var(--border)] shadow-lg backdrop-blur-xl z-50"
-                      data-columns-menu
-                    >
-                        {table
-                          .getAllColumns()
-                          .filter((column) => column.getCanHide())
-                          .map((column) => (
-                            <label
-                              key={column.id}
-                              className="flex items-center gap-2 px-4 py-2 text-sm capitalize text-[var(--foreground)] hover:bg-[var(--border)] cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={column.getIsVisible()}
-                                onChange={(value) => column.toggleVisibility(!!value.target.checked)}
-                                className="rounded border border-[var(--border)]"
-                              />
-                              {column.id.replace(/_/g, ' ')}
-                            </label>
-                          ))}
-                      </div>
+                    {showColumnsMenu && (
+                      <>
+                        {/* Backdrop - prevents text bleed and allows outside click */}
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setShowColumnsMenu(false)}
+                        />
+                        {/* Menu */}
+                        <div
+                          className="absolute right-0 top-full mt-2 w-48 bg-[var(--card)] border border-[var(--border)] shadow-lg z-50 rounded-lg overflow-hidden"
+                          data-columns-menu
+                        >
+                          {table
+                            .getAllColumns()
+                            .filter((column) => column.getCanHide())
+                            .map((column) => (
+                              <label
+                                key={column.id}
+                                className="flex items-center gap-2 px-4 py-2 text-sm capitalize text-[var(--text)] hover:bg-[var(--border)] cursor-pointer transition-colors"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={column.getIsVisible()}
+                                  onChange={(value) => column.toggleVisibility(!!value.target.checked)}
+                                  className="rounded border border-[var(--border)]"
+                                />
+                                {column.id.replace(/_/g, ' ')}
+                              </label>
+                            ))}
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
