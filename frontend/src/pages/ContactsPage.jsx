@@ -366,7 +366,6 @@ export const ContactsPage = () => {
     <AppShell
       title="Contacts"
       subtitle=""
-      hideFooter
       hideTitleBlock
     >
       <div className="space-y-6">
