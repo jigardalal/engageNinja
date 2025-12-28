@@ -15,7 +15,8 @@ import {
   Label,
   Dialog,
   LoadingState,
-  ErrorState
+  ErrorState,
+  toast
 } from '../components/ui';
 import TemplatesPage from './TemplatesPage';
 import TagsPage from './TagsPage';
@@ -330,7 +331,13 @@ export default function SettingsPage() {
 
     // Validation
     if (!whatsappForm.accessToken || !whatsappForm.phoneNumberId) {
-      setWhatsappError('Access token and phone number ID are required');
+      const errorMsg = 'Access token and phone number ID are required';
+      setWhatsappError(errorMsg);
+      toast({
+        title: 'Validation error',
+        description: errorMsg,
+        variant: 'error'
+      });
       return;
     }
 
@@ -354,7 +361,13 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setWhatsappError(data.message || 'Failed to connect WhatsApp');
+        const errorMsg = data.message || 'Failed to connect WhatsApp';
+        setWhatsappError(errorMsg);
+        toast({
+          title: 'Failed to connect WhatsApp',
+          description: errorMsg,
+          variant: 'error'
+        });
         return;
       }
 
@@ -373,6 +386,11 @@ export default function SettingsPage() {
       }));
 
       setSuccessMessage('WhatsApp connected successfully!');
+      toast({
+        title: 'WhatsApp connected',
+        description: 'Your WhatsApp channel is now connected and ready to send messages',
+        variant: 'success'
+      });
       setShowWhatsAppModal(false);
       setWhatsappForm(prev => ({
         ...prev,
@@ -384,7 +402,13 @@ export default function SettingsPage() {
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       console.error('Error connecting WhatsApp:', err);
-      setWhatsappError('Failed to connect WhatsApp. Please try again.');
+      const errorMsg = 'Failed to connect WhatsApp. Please try again.';
+      setWhatsappError(errorMsg);
+      toast({
+        title: 'Connection error',
+        description: errorMsg,
+        variant: 'error'
+      });
     } finally {
       setWhatsappLoading(false);
     }
