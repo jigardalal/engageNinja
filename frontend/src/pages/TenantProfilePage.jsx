@@ -928,7 +928,7 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                   </div>
 
                   {/* Registration Status Card */}
-                  <Card className="bg-gradient-to-r from-primary-50 to-primary-50/50 dark:from-primary-950/20 dark:to-primary-950/10 border-primary-200 dark:border-primary-900 p-4">
+                  <Card className="bg-primary-500/10 dark:bg-primary-500/10 border-2 border-primary-300 dark:border-primary-700 p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-semibold text-[var(--text)]">Registration Status</h3>
@@ -1157,7 +1157,7 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                   </div>
 
                   {/* Registration Status Card */}
-                  <Card className="bg-gradient-to-r from-primary-50 to-primary-50/50 dark:from-primary-950/20 dark:to-primary-950/10 border-primary-200 dark:border-primary-900 p-4">
+                  <Card className="bg-primary-500/10 dark:bg-primary-500/10 border-2 border-primary-300 dark:border-primary-700 p-4">
                     <div className="space-y-2">
                       <h3 className="font-semibold text-[var(--text)]">Registration Status</h3>
                       <p className="text-sm text-[var(--text-muted)]">
