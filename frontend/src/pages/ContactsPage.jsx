@@ -409,7 +409,7 @@ export const ContactsPage = () => {
           />
 
           <section className="grid gap-6 lg:grid-cols-2">
-            <Card variant="glass" className="space-y-3 rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <Card variant="glass" className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
               <CardHeader>
                 <div className="flex items-center gap-2 text-sm uppercase tracking-[0.3em] text-[var(--text-muted)]">
                   <Tag className="h-4 w-4 text-primary-500" />
@@ -430,7 +430,7 @@ export const ContactsPage = () => {
               </CardContent>
             </Card>
 
-            <Card variant="glass" className="space-y-3 rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <Card variant="glass" className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
               <CardHeader>
                 <div className="flex items-center gap-2 text-sm uppercase tracking-[0.3em] text-[var(--text-muted)]">
                   <Users className="h-4 w-4 text-primary-500" />

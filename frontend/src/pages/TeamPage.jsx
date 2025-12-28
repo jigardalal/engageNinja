@@ -36,7 +36,7 @@ export const TeamPage = ({ embedded = false } = {}) => {
   const isAdmin = hasRole('admin');
   const isOwner = userRole === 'owner';
   const canManageMembers = isAdmin;
-  const selectClassName = 'px-3 py-2 border border-[var(--border)] bg-[var(--card)] text-[var(--text)] rounded-md focus:outline-none focus:ring-primary focus:ring-2 focus:ring-offset-0 transition';
+  const selectClassName = 'px-3 py-2 border border-[var(--border)] bg-[var(--card)] text-[var(--text)] rounded-lg focus:outline-none focus:ring-primary focus:ring-2 focus:ring-offset-0 transition';
 
   const inviteAction = isAdmin ? (
     <PrimaryAction onClick={() => setShowInviteDialog(true)}>
@@ -448,14 +448,14 @@ export const TeamPage = ({ embedded = false } = {}) => {
                 type="button"
                 onClick={() => setShowInviteDialog(false)}
                 disabled={inviting}
-                className="px-4 py-2 border border-[var(--border)] rounded-md text-[var(--text)] hover:bg-black/5"
+                className="px-4 py-2 border border-[var(--border)] rounded-lg text-[var(--text)] hover:bg-black/5"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={inviting || !inviteEmail.trim()}
-                className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50"
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50"
               >
                 {inviting ? 'Sending...' : 'Send Invitation'}
               </Button>

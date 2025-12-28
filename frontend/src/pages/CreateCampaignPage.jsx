@@ -579,7 +579,7 @@ export default function CreateCampaignPage() {
               </div>
             </div>
 
-            <div className="border rounded-xl border-[var(--border)] p-4 space-y-4">
+            <div className="border rounded-2xl border-[var(--border)] p-4 space-y-4">
               <Label className="font-semibold">Channel *</Label>
               <div className="space-y-3">
                 <label className="flex items-center gap-3 text-[var(--text)]">
@@ -621,7 +621,7 @@ export default function CreateCampaignPage() {
         )
       case 1:
         return (
-          <div className="border rounded-xl border-[var(--border)] p-4 space-y-4">
+          <div className="border rounded-2xl border-[var(--border)] p-4 space-y-4">
             <CardTitle className="text-xl">Audience</CardTitle>
             <CardDescription>Choose who receives this campaign</CardDescription>
 
@@ -682,7 +682,7 @@ export default function CreateCampaignPage() {
       case 2:
         if (formData.channel === 'whatsapp') {
           return (
-            <div className="border rounded-xl border-[var(--border)] p-4 space-y-4">
+            <div className="border rounded-2xl border-[var(--border)] p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-xl">WhatsApp Configuration</CardTitle>
@@ -848,7 +848,7 @@ export default function CreateCampaignPage() {
 
         if (formData.channel === 'email') {
           return (
-            <div className="border rounded-xl border-[var(--border)] p-4 space-y-4">
+            <div className="border rounded-2xl border-[var(--border)] p-4 space-y-4">
               <CardTitle className="text-xl">Email Configuration</CardTitle>
               <div className="space-y-2">
                 <Label>Subject Line *</Label>
@@ -905,7 +905,7 @@ export default function CreateCampaignPage() {
 
         if (formData.channel === 'sms') {
           return (
-            <div className="border rounded-xl border-[var(--border)] p-4 space-y-4">
+            <div className="border rounded-2xl border-[var(--border)] p-4 space-y-4">
               <div>
                 <CardTitle className="text-xl">SMS Configuration</CardTitle>
                 <CardDescription>Send a plain-text SMS via Twilio</CardDescription>
@@ -941,7 +941,7 @@ export default function CreateCampaignPage() {
         )
       case 3:
         return (
-          <div className="border rounded-xl border-[var(--border)] p-4 space-y-4">
+          <div className="border rounded-2xl border-[var(--border)] p-4 space-y-4">
             <CardTitle className="text-xl">Review</CardTitle>
             <CardDescription>Confirm details before creating the campaign</CardDescription>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

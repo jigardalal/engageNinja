@@ -216,13 +216,13 @@ export const DashboardPage = () => {
                       <Badge variant="primary">{roiSnapshot.total_campaigns} campaigns</Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-[var(--border)] p-3">
+                      <div className="rounded-2xl border border-[var(--border)] p-3">
                         <p className="text-xs text-[var(--text-muted)]">Uplift reads</p>
                         <p className="text-xl font-semibold text-[var(--text)]">
                           +{roiSnapshot.uplift_reads ?? 0}
                         </p>
                       </div>
-                      <div className="rounded-xl border border-[var(--border)] p-3">
+                      <div className="rounded-2xl border border-[var(--border)] p-3">
                         <p className="text-xs text-[var(--text-muted)]">Avg uplift</p>
                         <p className="text-xl font-semibold text-[var(--text)]">
                           {roiSnapshot.avg_uplift_points?.toFixed(2) ?? roiSnapshot.avg_uplift_points ?? 0} pts
@@ -259,7 +259,7 @@ export const DashboardPage = () => {
                 {!loading && recentCampaigns.length > 0 && recentCampaigns.map((camp) => (
                   <div
                     key={camp.id}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-[var(--border)] bg-[var(--card)]/70 p-3 shadow-sm backdrop-blur"
+                    className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)]/70 p-3 shadow-sm backdrop-blur"
                   >
                     <div>
                       <p className="text-sm font-semibold text-[var(--text)]">{camp.name}</p>

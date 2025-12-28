@@ -136,7 +136,7 @@ const TemplateBuilder = ({ components, onChange, disabled = false }) => {
               }
               placeholder="Hi {{1}}, your order {{2}} is confirmed!"
               disabled={disabled}
-              className="w-full border border-gray-300 rounded-md p-2 min-h-[120px] font-mono text-sm mt-1"
+              className="w-full border border-gray-300 rounded-lg p-2 min-h-[120px] font-mono text-sm mt-1"
             />
             <p className="text-xs text-gray-500 mt-1">
               Use {'{{1}}, {{2}}, etc.'} for variables that will be replaced when sending messages

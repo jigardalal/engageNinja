@@ -315,7 +315,7 @@ export default function BillingPage({ embedded = false }) {
                   <p className="text-xs text-[var(--text-muted)]">Renews {new Date(billingData.subscription.current_period_end).toLocaleDateString()}</p>
                 )}
                 {billingData.subscription?.cancel_at_period_end && (
-                  <p className="text-xs text-yellow-700 bg-yellow-50 px-2 py-1 rounded-md">⚠ Will cancel at period end</p>
+                  <p className="text-xs text-yellow-700 bg-yellow-50 px-2 py-1 rounded-lg">⚠ Will cancel at period end</p>
                 )}
               </div>
             </CardContent>

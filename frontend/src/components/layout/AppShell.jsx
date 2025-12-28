@@ -170,7 +170,7 @@ export default function AppShell({
                     </span>
                   </button>
                   {settingsMenuOpen && (
-                    <div className="absolute left-0 mt-2 w-56 rounded-xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-40">
+                    <div className="absolute left-0 mt-2 w-56 rounded-2xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-40">
                       <button
                         className="dropdown-item"
                         onClick={() => {
@@ -268,7 +268,7 @@ export default function AppShell({
                     </span>
                   </button>
                   {adminMenuOpen && (
-                    <div className="absolute left-0 mt-2 w-52 rounded-xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-40">
+                    <div className="absolute left-0 mt-2 w-52 rounded-2xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-40">
                       {adminShortcuts.map((item) => {
                         const Icon = item.icon;
                         return (
@@ -308,7 +308,7 @@ export default function AppShell({
                     </span>
                   </button>
                   {tenantMenuOpen && (
-                    <div className="absolute left-0 mt-2 w-60 rounded-xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-40">
+                    <div className="absolute left-0 mt-2 w-60 rounded-2xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-40">
                       {tenantShortcuts.map((item) => {
                         const Icon = item.icon;
                         return (
@@ -359,7 +359,7 @@ export default function AppShell({
                 <UserIcon />
               </button>
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-40">
+                <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-40">
                   <div className="px-2 py-2 border-b border-[var(--border)]">
                     <p className="text-sm font-semibold text-[var(--text)]">{user?.name || user?.email || 'Signed in'}</p>
                     {activeTenantInfo && (

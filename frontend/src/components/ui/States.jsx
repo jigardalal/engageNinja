@@ -15,7 +15,7 @@ export function LoadingState({ message = 'Loading...', className }) {
 
 export function ErrorState({ title = 'Something went wrong', description, onRetry, retryLabel = 'Retry', className }) {
   return (
-    <div className={cn('rounded-xl border border-red-200 bg-red-50 text-red-800 p-4', className)}>
+    <div className={cn('rounded-2xl border border-red-200 bg-red-50 text-red-800 p-4', className)}>
       <div className="font-semibold mb-1">{title}</div>
       {description && <div className="text-sm mb-3">{description}</div>}
       {onRetry && (

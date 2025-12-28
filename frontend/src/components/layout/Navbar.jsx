@@ -80,7 +80,7 @@ export default function Navbar() {
                   <UserIcon />
                 </button>
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-64 rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-xl backdrop-blur p-2 z-40">
+                  <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-xl backdrop-blur p-2 z-40">
                     <div className="px-2 py-2 border-b border-[var(--border)]">
                       <p className="text-sm font-semibold text-[var(--text)]">{user?.name || user?.email || 'Signed in'}</p>
                       {activeTenantInfo && (

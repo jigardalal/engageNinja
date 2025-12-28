@@ -960,7 +960,7 @@ export default function TenantProfilePage({ embedded = false } = {}) {
           </Card>
 
         {/* BUSINESS INFORMATION SECTION */}
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow p-6 space-y-6">
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow p-6 space-y-6">
           <div>
             <h2 className="text-xl font-semibold text-[var(--text)]">Business Information</h2>
             <p className="text-sm text-[var(--text-muted)]">Complete for 10DLC registration</p>
