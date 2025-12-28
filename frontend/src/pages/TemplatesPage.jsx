@@ -31,6 +31,8 @@ import { Layers, Filter, Sparkles, BookOpen, ArrowUpDown } from 'lucide-react'
 /**
  * Templates Page
  * List and manage WhatsApp templates
+ *
+ * @param {boolean} embedded - If true, renders without AppShell (for SettingsPage)
  */
 export const TemplatesPage = ({ embedded = false } = {}) => {
   const navigate = useNavigate()
@@ -365,32 +367,56 @@ export const TemplatesPage = ({ embedded = false } = {}) => {
 
   return (
     <Shell>
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
-        <PageHeader
-          icon={Layers}
-          title="WhatsApp Templates"
-          description="Build, version, and manage templates submitted to Meta."
-          helper={`${totalTemplates} template${totalTemplates !== 1 ? 's' : ''}`}
-          actions={
-            <PrimaryAction onClick={() => navigate('/templates/create')}>
-              <Sparkles className="h-4 w-4" />
-              Create template
-            </PrimaryAction>
-          }
-        />
+      <div className="space-y-6">
+        {!embedded && (
+          <PageHeader
+            icon={Layers}
+            title="WhatsApp Templates"
+            description="Build, version, and manage templates submitted to Meta."
+            helper={`${totalTemplates} template${totalTemplates !== 1 ? 's' : ''}`}
+            actions={
+              <PrimaryAction onClick={() => navigate('/templates/create')}>
+                <Sparkles className="h-4 w-4" />
+                Create template
+              </PrimaryAction>
+            }
+          />
+        )}
 
-        <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
-          <Card variant="glass" className="space-y-5">
+        {/* Error Alert */}
+        {error && (
+          <Alert variant="destructive">
+            {error}
+          </Alert>
+        )}
+
+        {/* DataTable with Filters */}
+        {loading ? (
+          <SkeletonTable rows={5} columns={6} />
+        ) : templates.length === 0 ? (
+          <EmptyState
+            icon={Sparkles}
+            title="No templates found"
+            description="Create a template to get started."
+            action={
+              <PrimaryAction onClick={() => navigate('/templates/create')}>
+                Create template
+              </PrimaryAction>
+            }
+          />
+        ) : (
+          <Card variant="glass">
             <CardHeader className="flex flex-col gap-2">
               <div className="flex items-center gap-3">
                 <Filter className="h-5 w-5 text-primary-500" />
-                <CardTitle className="text-xl md:text-2xl">Template workspace</CardTitle>
+                <CardTitle>Filters & templates</CardTitle>
               </div>
               <CardDescription>
-                Adjust filters and view templates in one workspace.
+                Manage WhatsApp templates from Meta.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Filters */}
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-1">
                   <label className="block text-xs font-semibold tracking-wide text-[var(--text-muted)]">Status</label>
@@ -436,79 +462,14 @@ export const TemplatesPage = ({ embedded = false } = {}) => {
                 </div>
               </div>
 
-              {error && (
-                <Alert variant="destructive">
-                  {error}
-                </Alert>
-              )}
-
-              {loading ? (
-                <SkeletonTable rows={5} columns={6} />
-              ) : templates.length === 0 ? (
-                <EmptyState
-                  icon={Sparkles}
-                  title="No templates found"
-                  description="Create a template to get started."
-                  action={
-                    <PrimaryAction onClick={() => navigate('/templates/create')}>
-                      Create template
-                    </PrimaryAction>
-                  }
-                />
-              ) : (
-                <DataTable
-                  columns={columns}
-                  data={templates}
-                />
-              )}
+              {/* DataTable inside the same container */}
+              <DataTable
+                columns={columns}
+                data={templates}
+              />
             </CardContent>
           </Card>
-
-          <Card variant="glass" className="space-y-4">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary-500" />
-                <CardTitle className="text-lg">Insights</CardTitle>
-              </div>
-              <CardDescription>Top-level counts for quick context.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2 text-sm text-[var(--text-muted)]">
-                <p className="text-xs uppercase tracking-[0.3em]">By status</p>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(statusCounts).map(([status, count]) => (
-                    <Badge key={status} variant="primary">{`${status}: ${count}`}</Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2 text-sm text-[var(--text-muted)]">
-                <p className="text-xs uppercase tracking-[0.3em]">Top languages</p>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(languageCounts)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 3)
-                    .map(([lang, count]) => (
-                      <Badge key={lang} variant="neutral">
-                        <span className="capitalize">{lang}</span>: {count}
-                      </Badge>
-                    ))}
-                </div>
-              </div>
-
-              <div className="space-y-2 text-sm text-[var(--text-muted)]">
-                <p className="text-xs uppercase tracking-[0.3em]">Category mix</p>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(categoryCounts).map(([category, count]) => (
-                    <Badge key={category} variant="neutral">
-                      {category}: {count}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}

@@ -107,18 +107,18 @@ async function seed() {
     // 1. Seed Plans
     console.log('📋 Seeding plans...');
     const plans = [
-      { id: 'free', name: 'Free Plan', whatsapp: 50, email: 500, users: 1, contacts: 50, sms: 25, api: 10000, ai: false, api_enabled: false },
-      { id: 'starter', name: 'Starter Plan', whatsapp: 250, email: 10000, users: 3, contacts: 500, sms: 500, api: 100000, ai: false, api_enabled: false },
-      { id: 'growth', name: 'Growth Plan', whatsapp: 1000, email: 50000, users: 10, contacts: 5000, sms: 2000, api: 500000, ai: true, api_enabled: true },
-      { id: 'pro', name: 'Pro Plan', whatsapp: 5000, email: 100000, users: 20, contacts: 25000, sms: 10000, api: 1000000, ai: true, api_enabled: true },
-      { id: 'enterprise', name: 'Enterprise Plan', whatsapp: 50000, email: 500000, users: 100, contacts: 250000, sms: 50000, api: 5000000, ai: true, api_enabled: true }
+      { id: 'free', name: 'Free Plan', whatsapp: 50, email: 500, users: 1, contacts: 50, sms: 25, api: 10000, ai: false, api_enabled: false, price: 0 },
+      { id: 'starter', name: 'Starter Plan', whatsapp: 250, email: 10000, users: 3, contacts: 500, sms: 500, api: 100000, ai: false, api_enabled: false, price: 19.99 },
+      { id: 'growth', name: 'Growth Plan', whatsapp: 1000, email: 50000, users: 10, contacts: 5000, sms: 2000, api: 500000, ai: true, api_enabled: true, price: 59.99 },
+      { id: 'pro', name: 'Pro Plan', whatsapp: 5000, email: 100000, users: 20, contacts: 25000, sms: 10000, api: 1000000, ai: true, api_enabled: true, price: 149.99 },
+      { id: 'enterprise', name: 'Enterprise Plan', whatsapp: 50000, email: 500000, users: 100, contacts: 250000, sms: 50000, api: 5000000, ai: true, api_enabled: true, price: 299.99 }
     ];
 
     for (const plan of plans) {
       await query(
         `INSERT INTO plans (id, name, whatsapp_messages_per_month, email_messages_per_month, max_users, contacts_limit, sms_messages_per_month, api_tokens_per_month, ai_features_enabled, api_enabled, default_price)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [plan.id, plan.name, plan.whatsapp, plan.email, plan.users, plan.contacts, plan.sms, plan.api, plan.ai, plan.api_enabled, 0]
+        [plan.id, plan.name, plan.whatsapp, plan.email, plan.users, plan.contacts, plan.sms, plan.api, plan.ai, plan.api_enabled, plan.price]
       );
     }
     console.log(`  ✓ ${plans.length} plans seeded\n`);
@@ -126,7 +126,9 @@ async function seed() {
     // 2. Seed Users
     console.log('👥 Seeding users...');
     const users = [
-      { email: 'admin@engageninja.local', password: 'AdminPassword123', name: 'Admin User', role: 'platform_admin' },
+      { email: 'platform.admin@engageninja.local', password: 'PlatformAdminPassword123', name: 'Platform Admin', role: 'platform_admin' },
+      { email: 'admin@engageninja.local', password: 'AdminPassword123', name: 'Admin User', role: null },
+      { email: 'member@engageninja.local', password: 'MemberPassword123', name: 'Team Member', role: null },
       { email: 'user@engageninja.local', password: 'UserPassword123', name: 'Regular User', role: null },
       { email: 'switcher@engageninja.local', password: 'UserPassword123', name: 'Switcher User', role: null },
       { email: 'system+demo@engageninja.local', password: uuidv4(), name: 'System', role: null },
@@ -174,14 +176,19 @@ async function seed() {
     // 4. Seed User-Tenant associations
     console.log('🔗 Seeding user-tenant associations...');
     const associations = [
-      { userId: hashedUsers[0].id, tenantId: tenantDemo, role: 'owner' },
-      { userId: hashedUsers[0].id, tenantId: tenantBeta, role: 'admin' },
-      { userId: hashedUsers[1].id, tenantId: tenantDemo, role: 'member' },
-      { userId: hashedUsers[1].id, tenantId: tenantBeta, role: 'member' },
-      { userId: hashedUsers[2].id, tenantId: tenantDemo, role: 'viewer' },
-      { userId: hashedUsers[2].id, tenantId: tenantBeta, role: 'viewer' },
-      { userId: hashedUsers[3].id, tenantId: tenantDemo, role: 'owner' },
-      { userId: hashedUsers[4].id, tenantId: tenantBeta, role: 'owner' }
+      // platform.admin@engageninja.local - Platform admin (no tenant associations needed)
+      // admin@engageninja.local - Tenant admin
+      { userId: hashedUsers[1].id, tenantId: tenantDemo, role: 'owner' },
+      { userId: hashedUsers[1].id, tenantId: tenantBeta, role: 'admin' },
+      // member@engageninja.local - Team member
+      { userId: hashedUsers[2].id, tenantId: tenantDemo, role: 'member' },
+      { userId: hashedUsers[2].id, tenantId: tenantBeta, role: 'member' },
+      // user@engageninja.local - Regular user
+      { userId: hashedUsers[3].id, tenantId: tenantDemo, role: 'member' },
+      { userId: hashedUsers[3].id, tenantId: tenantBeta, role: 'member' },
+      // switcher@engageninja.local - Switcher user
+      { userId: hashedUsers[4].id, tenantId: tenantDemo, role: 'viewer' },
+      { userId: hashedUsers[4].id, tenantId: tenantBeta, role: 'viewer' }
     ];
 
     for (const assoc of associations) {
@@ -310,8 +317,10 @@ async function seed() {
 
     console.log('✅ Seeding complete!');
     console.log('\n🔐 Test Credentials:');
-    console.log('  admin@engageninja.local / AdminPassword123');
-    console.log('  user@engageninja.local / UserPassword123\n');
+    console.log('  platform.admin@engageninja.local / PlatformAdminPassword123 (Platform Admin)');
+    console.log('  admin@engageninja.local / AdminPassword123 (Tenant Admin)');
+    console.log('  member@engageninja.local / MemberPassword123 (Team Member)');
+    console.log('  user@engageninja.local / UserPassword123 (Regular User)\n');
 
   } catch (error) {
     console.error('\n❌ Seeding failed:');
