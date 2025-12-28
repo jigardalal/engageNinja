@@ -33,6 +33,7 @@ export default function CampaignsPage() {
   const [selectAll, setSelectAll] = useState(false)
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [archiveError, setArchiveError] = useState('')
+  const [campaignToArchive, setCampaignToArchive] = useState(null)
 
   useEffect(() => {
     if (!activeTenant) {
@@ -121,29 +122,39 @@ export default function CampaignsPage() {
   const handleBulkArchive = () => {
     if (selectedIds.length === 0) return
     setArchiveError('')
+    setCampaignToArchive(null)
+    setShowArchiveModal(true)
+  }
+
+  const handleArchiveSingleCampaign = (campaign) => {
+    setArchiveError('')
+    setCampaignToArchive(campaign)
     setShowArchiveModal(true)
   }
 
   const confirmBulkArchive = async () => {
     try {
+      const campaignIds = campaignToArchive ? [campaignToArchive.id] : selectedIds
       const response = await fetch('/api/campaigns/bulk/archive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ campaign_ids: selectedIds })
+        body: JSON.stringify({ campaign_ids: campaignIds })
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
         throw new Error(data.message || 'Failed to archive campaigns')
       }
+      const count = campaignIds.length
       toast({
         title: 'Campaigns archived',
-        description: `${selectedIds.length} campaign(s) have been archived`,
+        description: `${count} campaign(s) have been archived`,
         variant: 'success'
       })
       setShowArchiveModal(false)
       setSelectedIds([])
       setSelectAll(false)
+      setCampaignToArchive(null)
       fetchCampaigns()
     } catch (err) {
       console.error('Bulk archive campaigns error', err)
@@ -286,6 +297,14 @@ export default function CampaignsPage() {
       onClick: (campaign) => {
         handleViewCampaign(campaign.id)
       }
+    },
+    {
+      label: 'Archive',
+      icon: <Archive className="h-4 w-4" />,
+      onClick: (campaign) => {
+        handleArchiveSingleCampaign(campaign)
+      },
+      variant: 'destructive'
     }
   ], [navigate])
 
@@ -433,14 +452,17 @@ export default function CampaignsPage() {
       <Dialog
         open={showArchiveModal}
         onClose={() => setShowArchiveModal(false)}
-        title="Archive Selected Campaigns"
+        title={campaignToArchive ? `Archive "${campaignToArchive.name}"?` : 'Archive Selected Campaigns'}
         description="Archiving keeps metrics and messages but hides the campaign from active lists."
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowArchiveModal(false)}>
+            <Button variant="secondary" onClick={() => {
+              setShowArchiveModal(false)
+              setCampaignToArchive(null)
+            }}>
               Cancel
             </Button>
-            <Button variant="secondary" onClick={confirmBulkArchive} disabled={selectedIds.length === 0}>
+            <Button variant="secondary" onClick={confirmBulkArchive} disabled={!campaignToArchive && selectedIds.length === 0}>
               Archive
             </Button>
           </>
@@ -448,7 +470,10 @@ export default function CampaignsPage() {
       >
         {archiveError && <Alert variant="error" className="mb-3">{archiveError}</Alert>}
         <p className="text-sm text-[var(--text-muted)]">
-          This will archive {selectedIds.length} selected campaign(s). Data and metrics remain intact.
+          {campaignToArchive
+            ? `This will archive "${campaignToArchive.name}". Data and metrics remain intact.`
+            : `This will archive ${selectedIds.length} selected campaign(s). Data and metrics remain intact.`
+          }
         </p>
       </Dialog>
     </AppShell>
