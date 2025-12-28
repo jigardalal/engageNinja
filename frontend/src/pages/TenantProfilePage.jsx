@@ -4,6 +4,7 @@ import PageHeader from '../components/layout/PageHeader';
 import { Card, Input, Button, Alert, Badge, Select, toast } from '../components/ui';
 import { Building, ChevronDown } from 'lucide-react';
 import TenantFormField from '../components/TenantFormField';
+import Tenant10DLCModal from '../components/modals/Tenant10DLCModal';
 import { useAuth } from '../context/AuthContext';
 import { timezoneOptions } from '../data/timezones';
 
@@ -84,6 +85,7 @@ export default function TenantProfilePage({ embedded = false } = {}) {
   const [brands, setBrands] = useState([]);
   const [loadingBrands, setLoadingBrands] = useState(false);
   const [submitting10DLC, setSubmitting10DLC] = useState(false);
+  const [show10DLCModal, setShow10DLCModal] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -690,78 +692,6 @@ export default function TenantProfilePage({ embedded = false } = {}) {
     }
   };
 
-  // Render 10DLC Section
-  const render10DLCSection = () => {
-    const isComplete = Boolean(
-      businessInfo.legal_business_name &&
-      businessInfo.business_type &&
-      businessInfo.owner_name &&
-      businessInfo.owner_email &&
-      businessInfo.owner_phone &&
-      businessInfo.country &&
-      businessInfo.business_address
-    );
-
-    return (
-      <div className="space-y-6">
-        <div className="mb-6">
-          <h3 className="text-base font-semibold text-[var(--text)] mb-1">10DLC Registration</h3>
-          <p className="text-sm text-[var(--text-muted)]">
-            Register your business for 10DLC (10 Digit Long Code) SMS messaging
-          </p>
-        </div>
-
-        {!isComplete ? (
-          <Alert type="warning">
-            Complete and save your business information above before submitting a 10DLC registration.
-          </Alert>
-        ) : (
-          <div className="space-y-4">
-            <Button onClick={submit10DLC} disabled={submitting10DLC}>
-              {submitting10DLC ? 'Submitting...' : 'Submit 10DLC Registration'}
-            </Button>
-
-            {brands.length > 0 && (
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-black/5 border-b border-[var(--border)]">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text)]">Business Name</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text)]">Provider</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text)]">Status</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text)]">Approval Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {brands.map(brand => (
-                      <tr key={brand.id} className="border-b border-[var(--border)] last:border-0">
-                        <td className="px-4 py-3 text-sm text-[var(--text)]">{brand.legal_business_name}</td>
-                        <td className="px-4 py-3 text-sm text-[var(--text)]">{brand.provider}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant={
-                            brand.provider_status === 'APPROVED' || brand.provider_status === 'approved' ? 'success' :
-                            brand.provider_status === 'PENDING' || brand.provider_status === 'pending' ? 'warning' :
-                            'danger'
-                          }>
-                            {brand.provider_status || 'Unknown'}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-[var(--text-muted)]">
-                          {brand.provider_approved_at
-                            ? new Date(brand.provider_approved_at).toLocaleDateString()
-                            : '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
 
   if (!hasRole('admin') && !hasRole('owner')) {
     return embedded ? (
@@ -1043,16 +973,39 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                       </Button>
                     )}
                   </div>
+
+                  {/* 10DLC Setup Button - appears after business info is saved */}
+                  {businessInfoStep === businessInfoSteps.length - 1 && businessInfo.legal_business_name && (
+                    <div className="pt-6 border-t border-[var(--border)]">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setShow10DLCModal(true)}
+                      >
+                        Set up 10DLC Registration
+                      </Button>
+                      <p className="text-xs text-[var(--text-muted)] mt-2">
+                        Register for SMS carrier compliance after saving business information
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
             </div>
 
-            {/* 10DLC REGISTRATION SECTION - Now inside collapsible */}
-            <div className="border-t border-[var(--border)] pt-8">
-              {render10DLCSection()}
-            </div>
           </div>
         </details>
+
+        {/* 10DLC Modal */}
+        <Tenant10DLCModal
+          isOpen={show10DLCModal}
+          onClose={() => setShow10DLCModal(false)}
+          businessInfo={businessInfo}
+          brands={brands}
+          submitting10DLC={submitting10DLC}
+          onSubmit10DLC={submit10DLC}
+          loadingBrands={loadingBrands}
+        />
         </>
           );
         })()
