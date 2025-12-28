@@ -735,7 +735,6 @@ export default function TenantProfilePage({ embedded = false } = {}) {
           const sections = [
             { id: 'basics', label: 'Basics', icon: User },
             { id: 'address', label: 'Address', icon: MapPin },
-            { id: 'timezone', label: 'Timezone', icon: Clock },
             { id: 'sms', label: 'SMS Setup', icon: MessageSquare }
           ];
         return (
@@ -787,26 +786,34 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label htmlFor="tenant-plan" className="text-sm font-medium text-[var(--text)]">Plan</label>
-                        <span className="required-badge">Required</span>
+                      <label className="text-sm font-medium text-[var(--text)]">Current Plan</label>
+                      <p className="text-xs text-[var(--text-muted)]">Current plan for this tenant.</p>
+                      <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-[var(--border)] bg-[var(--card)]">
+                        <span className="text-sm font-medium text-[var(--text)] capitalize">{currentPlanLabel}</span>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => window.location.href = '/settings?tab=billing'}
+                        >
+                          Upgrade Plan
+                        </Button>
                       </div>
-                      <p className="text-xs text-[var(--text-muted)]">Choose the plan for this tenant.</p>
-                      <Select
-                        id="tenant-plan"
-                        value={form.plan_id || ''}
-                        onChange={(e) => handleChange('plan_id', e.target.value)}
-                        required
-                      >
-                        <option value="" disabled>Select a plan</option>
-                        {currentPlanMissing && (
-                          <option value={form.plan_id}>{form.plan_id} (current)</option>
-                        )}
-                        {planOptions.map(option => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </Select>
                     </div>
+                    <TenantFormField
+                      id="tenant-timezone"
+                      label="Timezone"
+                      type="select"
+                      value={form.timezone}
+                      onChange={(val) => handleChange('timezone', val)}
+                      isPaidPlan={isPaidPlan}
+                      helper="Choose an IANA timezone for scheduling."
+                    >
+                      <option value="" disabled>Select a timezone</option>
+                      {timezoneOptions.map(tz => (
+                        <option key={tz} value={tz}>{tz}</option>
+                      ))}
+                    </TenantFormField>
                     <TenantFormField
                       id="tenant-legal-name"
                       label="Legal name"
@@ -903,35 +910,6 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                       <option value="" disabled>Select a country</option>
                       {countryOptions.map((country) => (
                         <option key={country.value} value={country.value}>{country.label}</option>
-                      ))}
-                    </TenantFormField>
-                  </div>
-                  <div className="pt-6">
-                    <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Timezone Section */}
-              {activeSection === 'timezone' && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-2xl font-semibold text-[var(--text)] mb-1">Timezone</h2>
-                    <p className="text-[var(--text-muted)]">Choose your timezone for scheduling.</p>
-                  </div>
-                  <div className="max-w-md">
-                    <TenantFormField
-                      id="tenant-timezone"
-                      label="Timezone"
-                      type="select"
-                      value={form.timezone}
-                      onChange={(val) => handleChange('timezone', val)}
-                      isPaidPlan={isPaidPlan}
-                      helper="Choose an IANA timezone for scheduling."
-                    >
-                      <option value="" disabled>Select a timezone</option>
-                      {timezoneOptions.map(tz => (
-                        <option key={tz} value={tz}>{tz}</option>
                       ))}
                     </TenantFormField>
                   </div>
@@ -1039,26 +1017,34 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label htmlFor="tenant-plan" className="text-sm font-medium text-[var(--text)]">Plan</label>
-                        <span className="required-badge">Required</span>
+                      <label className="text-sm font-medium text-[var(--text)]">Current Plan</label>
+                      <p className="text-xs text-[var(--text-muted)]">Current plan for this tenant.</p>
+                      <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-[var(--border)] bg-[var(--card)]">
+                        <span className="text-sm font-medium text-[var(--text)] capitalize">{currentPlanLabel}</span>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => window.location.href = '/settings?tab=billing'}
+                        >
+                          Upgrade Plan
+                        </Button>
                       </div>
-                      <p className="text-xs text-[var(--text-muted)]">Choose the plan for this tenant.</p>
-                      <Select
-                        id="tenant-plan"
-                        value={form.plan_id || ''}
-                        onChange={(e) => handleChange('plan_id', e.target.value)}
-                        required
-                      >
-                        <option value="" disabled>Select a plan</option>
-                        {currentPlanMissing && (
-                          <option value={form.plan_id}>{form.plan_id} (current)</option>
-                        )}
-                        {planOptions.map(option => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </Select>
                     </div>
+                    <TenantFormField
+                      id="tenant-timezone-mobile"
+                      label="Timezone"
+                      type="select"
+                      value={form.timezone}
+                      onChange={(val) => handleChange('timezone', val)}
+                      isPaidPlan={isPaidPlan}
+                      helper="Choose an IANA timezone for scheduling."
+                    >
+                      <option value="" disabled>Select a timezone</option>
+                      {timezoneOptions.map(tz => (
+                        <option key={tz} value={tz}>{tz}</option>
+                      ))}
+                    </TenantFormField>
                     <TenantFormField
                       id="tenant-legal-name"
                       label="Legal name"
@@ -1156,33 +1142,6 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                       ))}
                     </TenantFormField>
                   </div>
-                  <div className="pt-3">
-                    <Button type="submit" disabled={saving} className="w-full">{saving ? 'Saving...' : 'Save Changes'}</Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Timezone Section */}
-              {activeSection === 'timezone' && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-xl font-semibold text-[var(--text)] mb-1">Timezone</h2>
-                    <p className="text-sm text-[var(--text-muted)]">Choose your timezone for scheduling.</p>
-                  </div>
-                  <TenantFormField
-                    id="tenant-timezone"
-                    label="Timezone"
-                    type="select"
-                    value={form.timezone}
-                    onChange={(val) => handleChange('timezone', val)}
-                    isPaidPlan={isPaidPlan}
-                    helper="Choose an IANA timezone for scheduling."
-                  >
-                    <option value="" disabled>Select a timezone</option>
-                    {timezoneOptions.map(tz => (
-                      <option key={tz} value={tz}>{tz}</option>
-                    ))}
-                  </TenantFormField>
                   <div className="pt-3">
                     <Button type="submit" disabled={saving} className="w-full">{saving ? 'Saving...' : 'Save Changes'}</Button>
                   </div>
