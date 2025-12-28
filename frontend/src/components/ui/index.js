@@ -23,3 +23,6 @@ export { LoadingState, ErrorState, EmptyState } from './States';
 export { Skeleton, SkeletonText, SkeletonCard, SkeletonTable, SkeletonAvatar, SkeletonButton } from './Skeleton';
 export { PrimaryAction, SecondaryAction, DestructiveAction, GhostAction } from './ActionButtons';
 export { DataTable } from '../DataTable';
+export { StatBlock } from './StatBlock';
+export { SectionDivider } from './SectionDivider';
+export { StatRow } from './StatRow';
