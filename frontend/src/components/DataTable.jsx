@@ -177,16 +177,8 @@ export const DataTable = ({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 p-0 hover:bg-white/20 dark:hover:bg-white/10"
-                data-menu-button={row.id}
                 onClick={() => {
-                  const newOpen = openMenuId === row.id ? null : row.id
-                  setOpenMenuId(newOpen)
-                  if (newOpen) {
-                    setTimeout(() => {
-                      const pos = checkMenuPosition(newOpen, actionsForRow.length)
-                      setMenuPosition(newOpen, pos)
-                    }, 0)
-                  }
+                  setOpenMenuId(openMenuId === row.id ? null : row.id)
                 }}
               >
                 <span className="sr-only">Open menu</span>
@@ -205,7 +197,14 @@ export const DataTable = ({
                   {/* Menu - styled like Settings dropdown */}
                   <div
                     ref={(el) => {
-                      if (el) rowMenuRefs.current[row.id] = el
+                      if (el) {
+                        rowMenuRefs.current[row.id] = el
+                        // Measure and update position when menu mounts
+                        requestAnimationFrame(() => {
+                          const pos = checkMenuPosition(row.id, actionsForRow.length)
+                          setMenuPosition(row.id, pos)
+                        })
+                      }
                     }}
                     className={`absolute right-0 w-48 rounded-2xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-50 overflow-hidden ${
                       menuPosition === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'
