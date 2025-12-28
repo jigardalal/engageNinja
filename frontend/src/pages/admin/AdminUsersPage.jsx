@@ -8,6 +8,7 @@ import {
   ErrorState,
   PrimaryAction,
   DataTable,
+  Dialog,
   toast
 } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
@@ -24,6 +25,8 @@ export const AdminUsersPage = () => {
   const [roleUpdates, setRoleUpdates] = useState({})
   const [roleSaving, setRoleSaving] = useState({})
   const [actionLoading, setActionLoading] = useState({})
+  const [showActionConfirm, setShowActionConfirm] = useState(false)
+  const [pendingAction, setPendingAction] = useState(null)
 
   useEffect(() => {
     fetchUsers()
@@ -78,9 +81,15 @@ export const AdminUsersPage = () => {
     }
   }
 
-  const setUserActive = async (userId, active) => {
+  const setUserActive = (userId, active) => {
     const verb = active ? 'activate' : 'deactivate'
-    if (!window.confirm(`Are you sure you want to ${verb} this user?`)) return
+    setPendingAction({ userId, active, verb })
+    setShowActionConfirm(true)
+  }
+
+  const confirmUserAction = async () => {
+    if (!pendingAction) return
+    const { userId, active, verb } = pendingAction
 
     try {
       setActionLoading((prev) => ({ ...prev, [userId]: true }))
@@ -98,6 +107,8 @@ export const AdminUsersPage = () => {
         description: `User has been successfully ${verb}d`,
         variant: 'success'
       })
+      setShowActionConfirm(false)
+      setPendingAction(null)
       fetchUsers(search)
     } catch (err) {
       setError(err.message)
@@ -279,6 +290,32 @@ export const AdminUsersPage = () => {
           emptyDescription="Invite platform admins or support staff to see them listed here."
           rowActions={rowActions}
         />
+
+      <Dialog
+        open={showActionConfirm}
+        onClose={() => {
+          setShowActionConfirm(false)
+          setPendingAction(null)
+        }}
+        title={`Confirm user ${pendingAction?.verb || 'action'}`}
+        description={`Are you sure you want to ${pendingAction?.verb || 'action'} this user?`}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowActionConfirm(false)
+                setPendingAction(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmUserAction}>
+              {pendingAction?.verb === 'activate' ? 'Activate' : 'Deactivate'}
+            </Button>
+          </>
+        }
+      />
       </div>
     </AdminPageLayout>
   )

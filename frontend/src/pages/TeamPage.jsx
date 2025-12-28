@@ -29,6 +29,8 @@ export const TeamPage = ({ embedded = false } = {}) => {
   const [inviteError, setInviteError] = useState(null);
   const [inviteSuccess, setInviteSuccess] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [showRemoveConfirmDialog, setShowRemoveConfirmDialog] = useState(false);
+  const [userToRemove, setUserToRemove] = useState(null);
 
   // Check if user has admin access
   const isAdmin = hasRole('admin');
@@ -190,7 +192,7 @@ export const TeamPage = ({ embedded = false } = {}) => {
     }
   };
 
-  const handleRemoveUser = async (userId, userEmail) => {
+  const handleRemoveUser = (userId, userEmail) => {
     if (!canManageMembers) {
       const errorMsg = 'You need admin access to remove users';
       setError(errorMsg);
@@ -213,12 +215,15 @@ export const TeamPage = ({ embedded = false } = {}) => {
       return;
     }
 
-    if (!window.confirm(`Remove ${userEmail} from this team?`)) {
-      return;
-    }
+    setUserToRemove({ id: userId, email: userEmail });
+    setShowRemoveConfirmDialog(true);
+  };
+
+  const confirmRemoveUser = async () => {
+    if (!userToRemove) return;
 
     try {
-      const response = await fetch(`/api/tenant/users/${userId}`, {
+      const response = await fetch(`/api/tenant/users/${userToRemove.id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -230,11 +235,11 @@ export const TeamPage = ({ embedded = false } = {}) => {
 
       toast({
         title: 'Member removed',
-        description: `${userEmail} has been removed from the team`,
+        description: `${userToRemove.email} has been removed from the team`,
         variant: 'success'
       });
-      setSuccessMessage('User removed from team');
-      setTimeout(() => setSuccessMessage(null), 3000);
+      setShowRemoveConfirmDialog(false);
+      setUserToRemove(null);
       await fetchTeamMembers();
     } catch (err) {
       setError(err.message);
@@ -459,6 +464,32 @@ export const TeamPage = ({ embedded = false } = {}) => {
             </div>
           </form>
         </Dialog>
+
+        <Dialog
+          open={showRemoveConfirmDialog}
+          onClose={() => {
+            setShowRemoveConfirmDialog(false);
+            setUserToRemove(null);
+          }}
+          title="Remove team member"
+          description={`Remove ${userToRemove?.email} from this team? They will lose access to all workspace data.`}
+          footer={
+            <>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowRemoveConfirmDialog(false);
+                  setUserToRemove(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={confirmRemoveUser}>
+                Remove
+              </Button>
+            </>
+          }
+        />
       </div>
     </Shell>
   );

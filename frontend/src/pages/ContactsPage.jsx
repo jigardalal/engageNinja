@@ -51,6 +51,8 @@ export const ContactsPage = () => {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
   const [bulkTagError, setBulkTagError] = useState('')
   const [bulkDeleteError, setBulkDeleteError] = useState('')
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false)
+  const [contactToDelete, setContactToDelete] = useState(null)
 
   useEffect(() => {
     fetchContacts()
@@ -299,13 +301,16 @@ export const ContactsPage = () => {
     }
   }
 
-  const handleDeleteContact = async (contact) => {
-    if (!window.confirm(`Are you sure you want to delete ${contact.name}? This cannot be undone.`)) {
-      return
-    }
+  const handleDeleteContact = (contact) => {
+    setContactToDelete(contact)
+    setShowDeleteConfirmDialog(true)
+  }
+
+  const confirmDeleteContact = async () => {
+    if (!contactToDelete) return
 
     try {
-      const response = await fetch(`/api/contacts/${contact.id}`, {
+      const response = await fetch(`/api/contacts/${contactToDelete.id}`, {
         method: 'DELETE',
         credentials: 'include'
       })
@@ -316,11 +321,12 @@ export const ContactsPage = () => {
 
       toast({
         title: 'Contact deleted',
-        description: `${contact.name} has been removed from your contacts`,
+        description: `${contactToDelete.name} has been removed from your contacts`,
         variant: 'success'
       })
 
-      // Refresh the contacts list
+      setShowDeleteConfirmDialog(false)
+      setContactToDelete(null)
       fetchContacts()
     } catch (err) {
       console.error('Delete contact error:', err)
@@ -453,6 +459,32 @@ export const ContactsPage = () => {
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
         onImported={fetchContacts}
+      />
+
+      <Dialog
+        open={showDeleteConfirmDialog}
+        onClose={() => {
+          setShowDeleteConfirmDialog(false)
+          setContactToDelete(null)
+        }}
+        title="Delete contact"
+        description={`Are you sure you want to delete ${contactToDelete?.name || 'this contact'}? This cannot be undone.`}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowDeleteConfirmDialog(false)
+                setContactToDelete(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmDeleteContact}>
+              Delete
+            </Button>
+          </>
+        }
       />
     </AppShell>
   )
