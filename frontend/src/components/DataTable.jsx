@@ -86,8 +86,10 @@ export const DataTable = ({
   const [showColumnsMenu, setShowColumnsMenu] = useState(false)
   const [openMenuId, setOpenMenuId] = useState(null)
   const [menuPositions, setMenuPositions] = useState({}) // Track position for each menu
+  const [columnsMenuPosition, setColumnsMenuPosition] = useState('below')
   const menuRef = useRef(null)
   const rowMenuRefs = useRef({})
+  const columnsMenuRef = useRef(null)
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -389,8 +391,20 @@ export const DataTable = ({
                         )}
                         {/* Menu - styled like Settings dropdown */}
                         <div
-                          className="absolute right-0 top-full mt-2 w-48 rounded-2xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-50 overflow-hidden"
-                          data-columns-menu
+                          ref={(el) => {
+                            if (el) {
+                              columnsMenuRef.current = el
+                              // Measure and update position when menu mounts
+                              requestAnimationFrame(() => {
+                                const visibleColumns = table.getAllColumns().filter((column) => column.getCanHide()).length
+                                const pos = checkMenuPosition(el, visibleColumns)
+                                setColumnsMenuPosition(pos)
+                              })
+                            }
+                          }}
+                          className={`absolute right-0 w-48 rounded-2xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-50 overflow-hidden ${
+                            columnsMenuPosition === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'
+                          }`}
                         >
                           {table
                             .getAllColumns()
