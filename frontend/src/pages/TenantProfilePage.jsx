@@ -806,7 +806,7 @@ export default function TenantProfilePage({ embedded = false } = {}) {
               <h2 className="text-lg font-semibold text-[var(--text)] mb-1">Basics</h2>
               <p className="text-sm text-[var(--text-muted)]">Name and contact emails shown to your team and customers.</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label htmlFor="tenant-name" className="text-sm font-medium text-[var(--text)]">Tenant name</label>
@@ -876,15 +876,17 @@ export default function TenantProfilePage({ embedded = false } = {}) {
               <h2 className="text-lg font-semibold text-[var(--text)] mb-1">Address</h2>
               <p className="text-sm text-[var(--text-muted)]">Used for receipts and location-aware features.</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <TenantFormField
-                id="tenant-address1"
-                label="Address line 1"
-                value={form.address_line1}
-                onChange={(val) => handleChange('address_line1', val)}
-                placeholder="123 Main St."
-                isPaidPlan={isPaidPlan}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <TenantFormField
+                  id="tenant-address1"
+                  label="Address line 1"
+                  value={form.address_line1}
+                  onChange={(val) => handleChange('address_line1', val)}
+                  placeholder="123 Main St."
+                  isPaidPlan={isPaidPlan}
+                />
+              </div>
               <div className="space-y-1.5">
                 <label htmlFor="tenant-address2" className="text-sm font-medium text-[var(--text)]">Address line 2</label>
                 <Input
