@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 import {
@@ -10,12 +10,6 @@ import {
   CardDescription,
   Alert,
   Badge,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   LoadingState,
   ErrorState,
   EmptyState,
@@ -23,11 +17,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter
+  DialogFooter,
+  DataTable,
+  toast
 } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { PrimaryAction } from '../components/ui/ActionButtons'
-import { Layers, Filter, Sparkles, BookOpen } from 'lucide-react'
+import { Layers, Filter, Sparkles, BookOpen, ArrowUpDown } from 'lucide-react'
 
 /**
  * Templates Page
@@ -123,12 +119,23 @@ export const TemplatesPage = ({ embedded = false } = {}) => {
         throw new Error(data.message || 'Failed to delete template')
       }
 
+      toast({
+        title: 'Template deleted',
+        description: `${selectedTemplate.name} has been deleted`,
+        variant: 'success'
+      })
       setShowDeleteDialog(false)
       setSelectedTemplate(null)
       await fetchTemplates()
     } catch (err) {
       console.error('Delete error:', err)
-      setDeleteError(err.message || 'Failed to delete template')
+      const errorMsg = err.message || 'Failed to delete template'
+      setDeleteError(errorMsg)
+      toast({
+        title: 'Failed to delete template',
+        description: errorMsg,
+        variant: 'error'
+      })
     } finally {
       setDeleteLoading(false)
     }
@@ -164,12 +171,23 @@ export const TemplatesPage = ({ embedded = false } = {}) => {
       }
 
       const data = await response.json()
+      toast({
+        title: 'Version created',
+        description: 'New template version ready for editing',
+        variant: 'success'
+      })
       setShowVersionDialog(false)
       setSelectedTemplate(null)
       navigate(`/templates/create?versionOf=${data.id}`)
     } catch (err) {
       console.error('Version error:', err)
-      setVersionError(err.message || 'Failed to create version')
+      const errorMsg = err.message || 'Failed to create version'
+      setVersionError(errorMsg)
+      toast({
+        title: 'Failed to create version',
+        description: errorMsg,
+        variant: 'error'
+      })
     } finally {
       setVersionLoading(false)
     }
@@ -230,6 +248,113 @@ export const TemplatesPage = ({ embedded = false } = {}) => {
     }
     return acc
   }, {})
+
+  const sortHeader = (label) => ({ column }) => (
+    <Button
+      variant="ghost"
+      onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--text-muted)] hover:bg-transparent px-0"
+    >
+      {label}
+      <ArrowUpDown className="ml-1 h-4 w-4 text-[var(--text-muted)]" />
+    </Button>
+  )
+
+  const columns = useMemo(() => [
+    {
+      accessorKey: 'name',
+      header: sortHeader('Name'),
+      cell: ({ row }) => (
+        <span className="font-medium text-[var(--text)]">{row.getValue('name')}</span>
+      )
+    },
+    {
+      accessorKey: 'status',
+      header: sortHeader('Status'),
+      cell: ({ row }) => getStatusBadge(row.getValue('status'))
+    },
+    {
+      accessorKey: 'language',
+      header: sortHeader('Language'),
+      cell: ({ row }) => getLanguageLabel(row.getValue('language'))
+    },
+    {
+      accessorKey: 'category',
+      header: sortHeader('Category'),
+      cell: ({ row }) => getCategoryLabel(row.getValue('category'))
+    },
+    {
+      accessorKey: 'variable_count',
+      header: sortHeader('Variables'),
+      cell: ({ row }) => (
+        <span className="text-sm text-[var(--text-muted)]">{row.getValue('variable_count') || 0}</span>
+      )
+    },
+    {
+      accessorKey: 'updated_at',
+      header: sortHeader('Updated'),
+      cell: ({ row }) => {
+        const date = row.getValue('updated_at')
+        return (
+          <span className="text-sm text-[var(--text-muted)]">
+            {date ? new Date(date).toLocaleDateString() : '-'}
+          </span>
+        )
+      }
+    },
+    {
+      id: 'actions',
+      header: sortHeader('Actions'),
+      cell: ({ row }) => {
+        const template = row.original
+        return (
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => navigate(`/templates/${template.id}`)}
+            >
+              View
+            </Button>
+
+            {template.status === 'APPROVED' && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setSelectedTemplate(template)
+                  setShowVersionDialog(true)
+                }}
+              >
+                Version
+              </Button>
+            )}
+
+            {template.status !== 'APPROVED' && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => navigate(`/templates/${template.id}/edit`)}
+              >
+                Edit
+              </Button>
+            )}
+
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setSelectedTemplate(template)
+                setShowDeleteDialog(true)
+              }}
+            >
+              Delete
+            </Button>
+          </div>
+        )
+      }
+    }
+  ], [navigate, setSelectedTemplate])
 
   return (
     <Shell>
@@ -327,84 +452,10 @@ export const TemplatesPage = ({ embedded = false } = {}) => {
                   }
                 />
               ) : (
-                <div className="overflow-hidden rounded-2xl border border-white/20 bg-white/80 shadow-inner dark:bg-slate-900/70">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Language</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead className="text-right">Variables</TableHead>
-                        <TableHead className="text-right">Updated</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {templates.map((template) => (
-                        <TableRow key={template.id}>
-                          <TableCell className="font-medium text-[var(--text)]">{template.name}</TableCell>
-                          <TableCell>{getStatusBadge(template.status)}</TableCell>
-                          <TableCell>{getLanguageLabel(template.language)}</TableCell>
-                          <TableCell>{getCategoryLabel(template.category)}</TableCell>
-                          <TableCell className="text-right text-sm text-[var(--text-muted)]">
-                            {template.variable_count || 0}
-                          </TableCell>
-                          <TableCell className="text-right text-sm text-[var(--text-muted)]">
-                            {template.updated_at
-                              ? new Date(template.updated_at).toLocaleDateString()
-                              : '-'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex flex-wrap justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => navigate(`/templates/${template.id}`)}
-                              >
-                                View
-                              </Button>
-
-                              {template.status === 'APPROVED' && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setSelectedTemplate(template)
-                                    setShowVersionDialog(true)
-                                  }}
-                                >
-                                  Version
-                                </Button>
-                              )}
-
-                              {template.status !== 'APPROVED' && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => navigate(`/templates/${template.id}/edit`)}
-                                >
-                                  Edit
-                                </Button>
-                              )}
-
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setSelectedTemplate(template)
-                                  setShowDeleteDialog(true)
-                                }}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                <DataTable
+                  columns={columns}
+                  data={templates}
+                />
               )}
             </CardContent>
           </Card>
