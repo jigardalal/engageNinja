@@ -18,6 +18,7 @@ import {
   ErrorState,
   DataTable,
   Alert,
+  SkeletonTable,
   Select,
   toast
 } from '../components/ui'
@@ -400,7 +401,7 @@ export default function CampaignsPage() {
                     retryLabel="Retry"
                   />
                 ) : loading ? (
-                  <LoadingState message="Loading campaigns..." />
+                  <SkeletonTable rows={5} columns={7} />
                 ) : campaigns.length === 0 ? (
                   <EmptyState
                     icon={Sparkles}

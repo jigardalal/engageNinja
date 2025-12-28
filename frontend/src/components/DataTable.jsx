@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
   LoadingState,
+  SkeletonTable,
   Select
 } from './ui'
 import Checkbox from './ui/Checkbox'
@@ -320,7 +321,7 @@ export const DataTable = ({
 
         <div className="px-6 py-4">
           {loading ? (
-            <LoadingState message={loadingMessage} />
+            <SkeletonTable rows={5} columns={columns.length} />
           ) : data.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               {emptyIcon && (

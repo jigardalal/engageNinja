@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogFooter,
   DataTable,
+  SkeletonTable,
   Select,
   toast
 } from '../components/ui'
@@ -437,7 +438,7 @@ export const TemplatesPage = ({ embedded = false } = {}) => {
               )}
 
               {loading ? (
-                <LoadingState message="Loading templates..." />
+                <SkeletonTable rows={5} columns={6} />
               ) : templates.length === 0 ? (
                 <EmptyState
                   icon={Sparkles}

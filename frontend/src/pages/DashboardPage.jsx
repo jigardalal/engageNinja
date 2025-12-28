@@ -9,7 +9,8 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  Alert
+  Alert,
+  SkeletonCard
 } from '../components/ui';
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons';
 import PageHeader from '../components/layout/PageHeader';
@@ -198,7 +199,7 @@ export const DashboardPage = () => {
                 </Badge>
               </CardHeader>
               <CardContent className="space-y-4">
-                {loading && <p className="text-sm text-[var(--text-muted)]">Loading snapshot...</p>}
+                {loading && <SkeletonCard />}
                 {!loading && !roiSnapshot && (
                   <p className="text-sm text-[var(--text-muted)]">
                     Send campaigns to see uplift and ROI snapshots.
@@ -252,7 +253,7 @@ export const DashboardPage = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {loading && <p className="text-sm text-[var(--text-muted)]">Loading campaigns...</p>}
+                {loading && <SkeletonCard />}
                 {!loading && recentCampaigns.length === 0 && (
                   <p className="text-sm text-[var(--text-muted)]">No campaigns yet. Create your first one.</p>
                 )}
