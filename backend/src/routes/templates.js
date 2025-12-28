@@ -88,7 +88,7 @@ function normalizeWhatsAppCredentials(creds = {}) {
   };
 }
 
-function ensureTemplateColumns() {
+async function ensureTemplateColumns() {
   const columnsToAdd = [
     ['header_type', 'TEXT'],
     ['header_text', 'TEXT'],
@@ -97,13 +97,16 @@ function ensureTemplateColumns() {
     ['body_variables', 'TEXT'],
     ['header_variables', 'TEXT']
   ];
-  columnsToAdd.forEach(([name, type]) => {
+  for (const [name, type] of columnsToAdd) {
     try {
-      db.prepare(`ALTER TABLE whatsapp_templates ADD COLUMN ${name} ${type}`).run();
+      await db.prepare(`ALTER TABLE whatsapp_templates ADD COLUMN ${name} ${type}`).run();
     } catch (e) {
-      // Column already exists - ignore
+      // Column already exists - ignore (PostgreSQL returns error code 42701)
+      if (e.code !== '42701') {
+        console.warn(`Warning adding column ${name}: ${e.message}`);
+      }
     }
-  });
+  }
 }
 
 /**
@@ -216,7 +219,7 @@ function generateVersionedName(tenantId, baseName) {
  */
 router.post('/sync', requireAuth, validateTenantAccess, requireAdmin, async (req, res) => {
   try {
-    ensureTemplateColumns();
+    await ensureTemplateColumns();
 
     // Get WhatsApp channel settings
     const settings = db.prepare(`
@@ -384,7 +387,7 @@ router.post('/sync', requireAuth, validateTenantAccess, requireAdmin, async (req
  */
 router.get('/', requireAuth, validateTenantAccess, async (req, res) => {
   try {
-    ensureTemplateColumns();
+    await ensureTemplateColumns();
 
     const { status, language, category } = req.query;
 
