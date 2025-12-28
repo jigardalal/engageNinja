@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   flexRender,
   getCoreRowModel,
@@ -147,11 +148,14 @@ export const DataTable = ({
               </Button>
               {openMenuId === row.id && (
                 <>
-                  {/* Backdrop - prevents text bleed and allows outside click */}
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setOpenMenuId(null)}
-                  />
+                  {/* Backdrop portal - prevents text bleed and allows outside click */}
+                  {createPortal(
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setOpenMenuId(null)}
+                    />,
+                    document.body
+                  )}
                   {/* Menu */}
                   <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--card)] border border-[var(--border)] shadow-lg z-50 rounded-lg overflow-hidden">
                     {actionsForRow.map((action, index) => (
@@ -322,11 +326,14 @@ export const DataTable = ({
                     </Button>
                     {showColumnsMenu && (
                       <>
-                        {/* Backdrop - prevents text bleed and allows outside click */}
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setShowColumnsMenu(false)}
-                        />
+                        {/* Backdrop portal - prevents text bleed and allows outside click */}
+                        {createPortal(
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setShowColumnsMenu(false)}
+                          />,
+                          document.body
+                        )}
                         {/* Menu */}
                         <div
                           className="absolute right-0 top-full mt-2 w-48 bg-[var(--card)] border border-[var(--border)] shadow-lg z-50 rounded-lg overflow-hidden"
