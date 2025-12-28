@@ -31,6 +31,7 @@ import {
   Edit,
   Trash2
 } from 'lucide-react'
+import { StatRow, SectionDivider } from '../components/ui'
 
 /**
  * Contacts Page
@@ -413,42 +414,33 @@ export const ContactsPage = () => {
             }
           />
 
-          <section className="grid gap-6 lg:grid-cols-2">
-            <Card variant="glass" className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-              <CardHeader>
-                <div className="flex items-center gap-2 text-sm uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                  <Tag className="h-4 w-4 text-primary-500" />
-                  Tag insights
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-[var(--border)] p-4">
-                    <p className="text-xs uppercase tracking-[0.4em] text-[var(--text-muted)]">Total tags</p>
-                    <p className="text-2xl font-bold text-[var(--text)]">{availableTags.length}</p>
-                  </div>
-                  <div className="rounded-2xl border border-[var(--border)] p-4">
-                    <p className="text-xs uppercase tracking-[0.4em] text-[var(--text-muted)]">Contacts</p>
-                    <p className="text-2xl font-bold text-[var(--text)]">{contacts.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <section className="space-y-6">
+            <SectionDivider label="Audience Insights" spacing="loose" />
 
-            <Card variant="glass" className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-              <CardHeader>
-                <div className="flex items-center gap-2 text-sm uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                  <Users className="h-4 w-4 text-primary-500" />
-                  Contact health
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-2xl border border-[var(--border)] bg-gradient-to-br from-primary-50/40 to-transparent p-4">
-                  <p className="text-xs uppercase tracking-[0.4em] text-[var(--text-muted)]">Audience size</p>
-                  <p className="text-3xl font-bold text-[var(--text)]">{contacts.length}</p>
-                </div>
-              </CardContent>
-            </Card>
+            <StatRow
+              stats={[
+                {
+                  label: 'Total Tags',
+                  value: availableTags.length,
+                  icon: Tag
+                },
+                {
+                  label: 'Total Contacts',
+                  value: contacts.length,
+                  icon: Users
+                },
+                {
+                  label: 'WhatsApp Opted In',
+                  value: contacts.filter(c => c.consent_whatsapp).length,
+                  icon: Check
+                },
+                {
+                  label: 'Email Opted In',
+                  value: contacts.filter(c => c.consent_email).length,
+                  icon: Check
+                }
+              ]}
+            />
           </section>
         </div>
       </div>
