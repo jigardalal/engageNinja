@@ -928,11 +928,11 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                   </div>
 
                   {/* Registration Status Card */}
-                  <Card className="bg-gradient-to-r from-primary-50 to-primary-50/50 dark:from-primary-950/20 dark:to-primary-950/10 border-primary-200 dark:border-primary-900">
+                  <Card className="bg-gradient-to-r from-primary-50 to-primary-50/50 dark:from-primary-950/20 dark:to-primary-950/10 border-primary-200 dark:border-primary-900 p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-semibold text-[var(--text)]">Registration Status</h3>
-                        <p className="text-sm text-[var(--text-muted)] mt-1">
+                        <p className="text-sm text-[var(--text-muted)] mt-2">
                           {brands.length > 0
                             ? `${brands.length} registrations configured`
                             : 'No 10DLC registrations yet'}
@@ -1157,7 +1157,7 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                   </div>
 
                   {/* Registration Status Card */}
-                  <Card className="bg-gradient-to-r from-primary-50 to-primary-50/50 dark:from-primary-950/20 dark:to-primary-950/10 border-primary-200 dark:border-primary-900">
+                  <Card className="bg-gradient-to-r from-primary-50 to-primary-50/50 dark:from-primary-950/20 dark:to-primary-950/10 border-primary-200 dark:border-primary-900 p-4">
                     <div className="space-y-2">
                       <h3 className="font-semibold text-[var(--text)]">Registration Status</h3>
                       <p className="text-sm text-[var(--text-muted)]">
@@ -1172,7 +1172,7 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                   </Card>
 
                   {/* Action Buttons */}
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-3">
                     <Button
                       type="button"
                       onClick={() => setShow10DLCModal(true)}
