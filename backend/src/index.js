@@ -139,6 +139,9 @@ app.use('/api/billing', createBillingRoutes(require('./db'), billingService));
 // Pass billingService to webhook handlers via app.locals
 app.locals.billingService = billingService;
 
+// Analytics routes for conversion tracking
+app.use('/api/analytics', require('./routes/analytics'));
+
 app.use('/webhooks', require('./routes/webhooks'));
 
 // ===== ERROR HANDLING =====
