@@ -105,14 +105,31 @@ export const DataTable = ({
   }, [openMenuId, showColumnsMenu])
 
   // Check menu position and adjust if it goes off-screen
-  const checkMenuPosition = (menuId) => {
+  const checkMenuPosition = (menuId, itemCount) => {
     const menuElement = rowMenuRefs.current[menuId]
-    if (!menuElement) return 'below'
+    const buttonElement = document.querySelector(`[data-menu-button="${menuId}"]`)
 
-    const rect = menuElement.getBoundingClientRect()
-    const isOffBottom = rect.bottom > window.innerHeight - 10
+    if (!menuElement || !buttonElement) return 'below'
 
-    return isOffBottom ? 'above' : 'below'
+    const buttonRect = buttonElement.getBoundingClientRect()
+    const menuRect = menuElement.getBoundingClientRect()
+    const menuHeight = menuRect.height
+    const buffer = 20 // Safety margin
+
+    // Check if menu fits below
+    const spaceBelow = window.innerHeight - (buttonRect.bottom + 8) // 8px for mt-2
+    const spaceBelowMenu = spaceBelow - menuHeight - buffer
+
+    // Check if menu fits above
+    const spaceAbove = buttonRect.top - 8 // 8px for mb-2
+    const spaceAboveMenu = spaceAbove - menuHeight - buffer
+
+    // If fits below, show below. Otherwise if fits above, show above. Otherwise show where more space
+    if (spaceBelowMenu >= 0) return 'below'
+    if (spaceAboveMenu >= 0) return 'above'
+
+    // If neither fits perfectly, use the one with more space
+    return spaceAboveMenu > spaceBelowMenu ? 'above' : 'below'
   }
 
   const setMenuPosition = (menuId, position) => {
@@ -160,12 +177,13 @@ export const DataTable = ({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 p-0 hover:bg-white/20 dark:hover:bg-white/10"
+                data-menu-button={row.id}
                 onClick={() => {
                   const newOpen = openMenuId === row.id ? null : row.id
                   setOpenMenuId(newOpen)
                   if (newOpen) {
                     setTimeout(() => {
-                      const pos = checkMenuPosition(newOpen)
+                      const pos = checkMenuPosition(newOpen, actionsForRow.length)
                       setMenuPosition(newOpen, pos)
                     }, 0)
                   }
