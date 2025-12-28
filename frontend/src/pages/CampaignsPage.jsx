@@ -380,8 +380,8 @@ export default function CampaignsPage() {
           <Card variant="glass" className="space-y-5">
               <CardHeader className="flex flex-col gap-3">
                 <div>
-                  <CardTitle className="text-xl md:text-2xl">Campaign workspace</CardTitle>
-                  <CardDescription>Filter, review, and act on your campaigns before sending.</CardDescription>
+                  <CardTitle className="text-h3 md:text-h2">Campaign workspace</CardTitle>
+                  <CardDescription className="text-body">Filter, review, and act on your campaigns before sending.</CardDescription>
                 </div>
                 <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
                   {workspaceRangeLabel}

@@ -1024,7 +1024,7 @@ export default function SettingsPage() {
                     {/* Templates Section */}
                     {channels.whatsapp.is_connected && (
                       <div className="pt-4 border-t border-[var(--border)] space-y-3">
-                        <h3 className="text-lg font-semibold text-[var(--text)]">WhatsApp Templates</h3>
+                        <h3 className="text-h4 text-[var(--text)]">WhatsApp Templates</h3>
 
                         {templatesError && (
                           <Alert variant="error">{templatesError}</Alert>
