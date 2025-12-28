@@ -140,7 +140,7 @@ export default function AppShell({
   return (
     <div className="min-h-screen bg-transparent text-[var(--text)]">
       <header className="border-b border-[var(--border)] bg-[var(--card)] backdrop-blur sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4 md:gap-8">
             <Link to="/dashboard" className="flex items-center gap-2">
               <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-300 text-white flex items-center justify-center font-bold shadow-lg">
@@ -491,7 +491,7 @@ export default function AppShell({
 
       {!inAdminMode && hasPlatformRole && hasPlatformRole() && activeTenant && (
         <div className="bg-amber-50 border-b border-amber-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4" data-testid="admin-tenant-banner">
+          <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 py-3 flex items-center justify-between gap-4" data-testid="admin-tenant-banner">
             <div className="text-sm text-amber-900">
               Admin viewing tenant: <span className="font-semibold">{activeTenantInfo?.name || activeTenant}</span>
             </div>
@@ -507,7 +507,7 @@ export default function AppShell({
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 py-10">
         {!hideTitleBlock && (title || subtitle || actions) && (
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
             <div>
@@ -522,7 +522,7 @@ export default function AppShell({
 
       {!hideFooter && (
         <footer className="border-t border-[var(--border)] bg-[var(--card)] backdrop-blur">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-sm text-[var(--text-muted)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16 py-6 text-sm text-[var(--text-muted)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <span>EngageNinja © 2025</span>
             <div className="flex items-center gap-4">
               <span className="text-[var(--text-muted)]">Frontend: 3173</span>
