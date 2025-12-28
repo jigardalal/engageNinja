@@ -377,7 +377,7 @@ export default function CampaignsPage() {
           <SectionDivider />
 
           {/* Full-width table */}
-          <Card variant="glass" className="space-y-5">
+          <Card variant="glass" className="space-y-6">
               <CardHeader className="flex flex-col gap-3">
                 <div>
                   <CardTitle className="text-h3 md:text-h2">Campaign workspace</CardTitle>
