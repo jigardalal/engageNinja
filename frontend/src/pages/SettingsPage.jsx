@@ -61,27 +61,21 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [templatesSyncing, setTemplatesSyncing] = useState(false);
   const [templatesError, setTemplatesError] = useState('');
-  const [templatesSuccess, setTemplatesSuccess] = useState('');
   const [webhookTestLoading, setWebhookTestLoading] = useState(false);
-  const [webhookTestResult, setWebhookTestResult] = useState(null);
   const [useStoredEmail, setUseStoredEmail] = useState(false);
   const [emailHealthLoading, setEmailHealthLoading] = useState(false);
-  const [emailHealthResult, setEmailHealthResult] = useState(null);
   const [validationLoading, setValidationLoading] = useState(false);
-  const [validationResult, setValidationResult] = useState(null);
   const [whatsappHealth, setWhatsappHealth] = useState({ status: 'unknown', message: '' });
   const [emailHealth, setEmailHealth] = useState({ status: 'unknown', message: '' });
   const [smsPhone, setSmsPhone] = useState('');
   const [smsWebhook, setSmsWebhook] = useState('');
   const [smsSaving, setSmsSaving] = useState(false);
   const [smsError, setSmsError] = useState('');
-  const [smsSuccess, setSmsSuccess] = useState('');
   const openEmailModal = (stored = false) => {
     setEmailError('');
     setUseStoredEmail(stored);
@@ -209,13 +203,18 @@ export default function SettingsPage() {
 
   const handleSaveSmsSettings = async () => {
     if (!smsPhone.trim()) {
-      setSmsError('Twilio phone number is required');
+      const errorMsg = 'Twilio phone number is required';
+      setSmsError(errorMsg);
+      toast({
+        title: 'Validation error',
+        description: errorMsg,
+        variant: 'error'
+      });
       return;
     }
 
     setSmsSaving(true);
     setSmsError('');
-    setSmsSuccess('');
 
     try {
       const payload = {
@@ -232,7 +231,14 @@ export default function SettingsPage() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.message || 'Failed to save SMS settings');
+        const errorMsg = data.message || 'Failed to save SMS settings';
+        setSmsError(errorMsg);
+        toast({
+          title: 'Failed to save SMS settings',
+          description: errorMsg,
+          variant: 'error'
+        });
+        throw new Error(errorMsg);
       }
 
       const data = await response.json();
@@ -248,8 +254,11 @@ export default function SettingsPage() {
         }
       }));
 
-      setSmsSuccess('Saved SMS settings');
-      setTimeout(() => setSmsSuccess(''), 3500);
+      toast({
+        title: 'SMS settings saved',
+        description: 'Your SMS configuration has been updated successfully',
+        variant: 'success'
+      });
     } catch (err) {
       setSmsError(err.message);
     } finally {
@@ -270,7 +279,6 @@ export default function SettingsPage() {
   };
 
   const handleTestWebhook = async () => {
-    setWebhookTestResult(null);
     try {
       setWebhookTestLoading(true);
       const response = await fetch('/api/settings/channels/whatsapp/test', {
@@ -279,21 +287,32 @@ export default function SettingsPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setWebhookTestResult({ variant: 'error', message: data.message || 'Webhook test failed' });
+        const errorMsg = data.message || 'Webhook test failed';
+        toast({
+          title: 'Webhook test failed',
+          description: errorMsg,
+          variant: 'error'
+        });
         return;
       }
-      setWebhookTestResult({ variant: 'success', message: 'Webhook test succeeded' });
+      toast({
+        title: 'Webhook test succeeded',
+        description: 'Your webhook endpoint is working correctly',
+        variant: 'success'
+      });
     } catch (err) {
       console.error('Error testing webhook:', err);
-      setWebhookTestResult({ variant: 'error', message: 'Webhook test failed. Check console logs.' });
+      toast({
+        title: 'Webhook test failed',
+        description: 'Check your webhook configuration and try again',
+        variant: 'error'
+      });
     } finally {
       setWebhookTestLoading(false);
-      setTimeout(() => setWebhookTestResult(null), 4000);
     }
   };
 
   const handleValidateWhatsApp = async () => {
-    setValidationResult(null);
     try {
       setValidationLoading(true);
       const payload = channels.whatsapp.is_connected
@@ -311,16 +330,28 @@ export default function SettingsPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setValidationResult({ variant: 'error', message: data.message || 'Validation failed' });
+        const errorMsg = data.message || 'Validation failed';
+        toast({
+          title: 'Validation failed',
+          description: errorMsg,
+          variant: 'error'
+        });
       } else {
-        setValidationResult({ variant: 'success', message: data.message || 'Credentials valid' });
+        toast({
+          title: 'Validation succeeded',
+          description: data.message || 'Your credentials are valid',
+          variant: 'success'
+        });
       }
     } catch (err) {
       console.error('WhatsApp validation error:', err);
-      setValidationResult({ variant: 'error', message: 'Validation failed. Check console.' });
+      toast({
+        title: 'Validation failed',
+        description: 'Check your credentials and try again',
+        variant: 'error'
+      });
     } finally {
       setValidationLoading(false);
-      setTimeout(() => setValidationResult(null), 4000);
     }
   };
 
@@ -385,7 +416,6 @@ export default function SettingsPage() {
         }
       }));
 
-      setSuccessMessage('WhatsApp connected successfully!');
       toast({
         title: 'WhatsApp connected',
         description: 'Your WhatsApp channel is now connected and ready to send messages',
@@ -397,9 +427,6 @@ export default function SettingsPage() {
         accessToken: '',
         webhookSecret: ''
       }));
-
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       console.error('Error connecting WhatsApp:', err);
       const errorMsg = 'Failed to connect WhatsApp. Please try again.';
@@ -426,7 +453,8 @@ export default function SettingsPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to disconnect WhatsApp');
+        const errorMsg = 'Failed to disconnect WhatsApp';
+        throw new Error(errorMsg);
       }
 
       // Update channels state
@@ -443,11 +471,19 @@ export default function SettingsPage() {
         }
       }));
 
-      setSuccessMessage('WhatsApp disconnected successfully!');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      toast({
+        title: 'WhatsApp disconnected',
+        description: 'Your WhatsApp channel has been disconnected',
+        variant: 'success'
+      });
     } catch (err) {
       console.error('Error disconnecting WhatsApp:', err);
-      setError('Failed to disconnect WhatsApp. Please try again.');
+      const errorMsg = err.message || 'Failed to disconnect WhatsApp. Please try again.';
+      toast({
+        title: 'Failed to disconnect WhatsApp',
+        description: errorMsg,
+        variant: 'error'
+      });
     } finally {
       setLoading(false);
     }
@@ -460,18 +496,36 @@ export default function SettingsPage() {
 
     // Validation
     if (!emailForm.verifiedSenderEmail) {
-      setEmailError('Verified sender email is required');
+      const errorMsg = 'Verified sender email is required';
+      setEmailError(errorMsg);
+      toast({
+        title: 'Validation error',
+        description: errorMsg,
+        variant: 'error'
+      });
       return;
     }
 
     if (!useStoredEmail) {
       if (emailForm.provider === 'ses' && (!emailForm.accessKeyId || !emailForm.secretAccessKey || !emailForm.region)) {
-        setEmailError('AWS Access Key, Secret Key, and Region are required for SES');
+        const errorMsg = 'AWS Access Key, Secret Key, and Region are required for SES';
+        setEmailError(errorMsg);
+        toast({
+          title: 'Validation error',
+          description: errorMsg,
+          variant: 'error'
+        });
         return;
       }
 
       if (emailForm.provider === 'brevo' && !emailForm.apiKey) {
-        setEmailError('Brevo API key is required');
+        const errorMsg = 'Brevo API key is required';
+        setEmailError(errorMsg);
+        toast({
+          title: 'Validation error',
+          description: errorMsg,
+          variant: 'error'
+        });
         return;
       }
     }
@@ -498,9 +552,15 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-      setEmailError(data.message || 'Failed to connect email');
-      return;
-    }
+        const errorMsg = data.message || 'Failed to connect email';
+        setEmailError(errorMsg);
+        toast({
+          title: 'Failed to connect email',
+          description: errorMsg,
+          variant: 'error'
+        });
+        return;
+      }
 
     // Update channels state
     setChannels(prev => ({
@@ -513,7 +573,11 @@ export default function SettingsPage() {
       }
     }));
 
-      setSuccessMessage('Email provider connected successfully!');
+      toast({
+        title: 'Email provider connected',
+        description: 'Your email channel is now connected and ready to send messages',
+        variant: 'success'
+      });
       setShowEmailModal(false);
       setEmailForm({
         provider: 'ses',
@@ -523,11 +587,15 @@ export default function SettingsPage() {
         apiKey: '',
         verifiedSenderEmail: ''
       });
-
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       console.error('Error connecting email:', err);
-      setEmailError('Failed to connect email provider. Please try again.');
+      const errorMsg = 'Failed to connect email provider. Please try again.';
+      setEmailError(errorMsg);
+      toast({
+        title: 'Failed to connect email',
+        description: errorMsg,
+        variant: 'error'
+      });
     } finally {
       setEmailLoading(false);
     }
@@ -559,11 +627,19 @@ export default function SettingsPage() {
         }
       }));
 
-      setSuccessMessage('Email provider disconnected successfully!');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      toast({
+        title: 'Email disconnected',
+        description: 'Your email channel has been disconnected',
+        variant: 'success'
+      });
     } catch (err) {
       console.error('Error disconnecting email:', err);
-      setError('Failed to disconnect email. Please try again.');
+      const errorMsg = 'Failed to disconnect email. Please try again.';
+      toast({
+        title: 'Failed to disconnect email',
+        description: errorMsg,
+        variant: 'error'
+      });
     } finally {
       setLoading(false);
     }
@@ -615,7 +691,6 @@ export default function SettingsPage() {
   };
 
   const handleEmailHealth = async () => {
-    setEmailHealthResult(null);
     try {
       setEmailHealthLoading(true);
       const response = await fetch('/api/settings/channels/email/health', {
@@ -623,20 +698,32 @@ export default function SettingsPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setEmailHealthResult({ variant: 'error', message: data.message || 'Health check failed' });
+        const errorMsg = data.message || 'Health check failed';
+        toast({
+          title: 'Health check failed',
+          description: errorMsg,
+          variant: 'error'
+        });
       } else {
         const missing = Array.isArray(data.data?.missing_fields) ? data.data.missing_fields : [];
         const summary = missing.length === 0
           ? 'Credentials look good and a verified sender is set.'
           : `Missing: ${missing.join(', ')}`;
-        setEmailHealthResult({ variant: missing.length === 0 ? 'success' : 'warning', message: summary });
+        toast({
+          title: missing.length === 0 ? 'Health check passed' : 'Health check warning',
+          description: summary,
+          variant: missing.length === 0 ? 'success' : 'warning'
+        });
       }
     } catch (err) {
       console.error('Email health check error:', err);
-      setEmailHealthResult({ variant: 'error', message: 'Health check failed. Check console.' });
+      toast({
+        title: 'Health check failed',
+        description: 'Check your email configuration and try again',
+        variant: 'error'
+      });
     } finally {
       setEmailHealthLoading(false);
-      setTimeout(() => setEmailHealthResult(null), 4000);
     }
   };
 
@@ -645,7 +732,6 @@ export default function SettingsPage() {
     try {
       setTemplatesSyncing(true);
       setTemplatesError('');
-      setTemplatesSuccess('');
 
       const response = await fetch('/api/templates/sync', {
         method: 'POST',
@@ -655,7 +741,13 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setTemplatesError(data.message || 'Failed to sync templates');
+        const errorMsg = data.message || 'Failed to sync templates';
+        setTemplatesError(errorMsg);
+        toast({
+          title: 'Failed to sync templates',
+          description: errorMsg,
+          variant: 'error'
+        });
         return;
       }
 
@@ -666,11 +758,20 @@ export default function SettingsPage() {
         : Array.isArray(data.templates)
           ? data.templates.length
           : 0;
-      setTemplatesSuccess(`Successfully synced ${syncedCount} templates from Meta!`);
-      setTimeout(() => setTemplatesSuccess(''), 3000);
+      toast({
+        title: 'Templates synced',
+        description: `Successfully synced ${syncedCount} templates from Meta!`,
+        variant: 'success'
+      });
     } catch (err) {
       console.error('Error syncing templates:', err);
-      setTemplatesError('Failed to sync templates. Please try again.');
+      const errorMsg = 'Failed to sync templates. Please try again.';
+      setTemplatesError(errorMsg);
+      toast({
+        title: 'Failed to sync templates',
+        description: errorMsg,
+        variant: 'error'
+      });
     } finally {
       setTemplatesSyncing(false);
     }
@@ -695,12 +796,6 @@ export default function SettingsPage() {
           <LoadingState message="Loading channel settings..." />
         ) : (
           <>
-            {successMessage && (
-              <Alert variant="success" className="mb-4">
-                {successMessage}
-              </Alert>
-            )}
-
             {error && (
               <ErrorState
                 title="Unable to load channel settings"
@@ -849,16 +944,6 @@ export default function SettingsPage() {
                     )}
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {webhookTestResult && (
-                      <Alert variant={webhookTestResult.variant} className="mb-2">
-                        {webhookTestResult.message}
-                      </Alert>
-                    )}
-                    {validationResult && (
-                      <Alert variant={validationResult.variant} className="mb-2">
-                        {validationResult.message}
-                      </Alert>
-                    )}
                     {(channels.whatsapp.is_connected || channels.whatsapp.phone_number_id || channels.whatsapp.webhook_verify_token || channels.whatsapp.webhook_secret_present) && (
                       <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-3 space-y-2">
                         {channels.whatsapp.is_connected && (
@@ -939,10 +1024,6 @@ export default function SettingsPage() {
 
                         {templatesError && (
                           <Alert variant="error">{templatesError}</Alert>
-                        )}
-
-                        {templatesSuccess && (
-                          <Alert variant="success">{templatesSuccess}</Alert>
                         )}
 
                         {templates.length > 0 ? (
@@ -1057,12 +1138,6 @@ export default function SettingsPage() {
                         </>
                       )}
                     </div>
-
-                    {emailHealthResult && (
-                      <Alert variant={emailHealthResult.variant} className="mt-3">
-                        {emailHealthResult.message}
-                      </Alert>
-                    )}
                   </CardContent>
                 </Card>
 
@@ -1083,9 +1158,6 @@ export default function SettingsPage() {
                   <CardContent className="space-y-4">
                     {smsError && (
                       <Alert variant="error">{smsError}</Alert>
-                    )}
-                    {smsSuccess && (
-                      <Alert variant="success">{smsSuccess}</Alert>
                     )}
                     <form className="grid gap-4 lg:grid-cols-2">
                       <div>
