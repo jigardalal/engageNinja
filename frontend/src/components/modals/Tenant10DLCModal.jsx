@@ -1,6 +1,5 @@
 import React from 'react';
-import { Dialog, Button, Alert, Badge, toast } from '../ui';
-import { X } from 'lucide-react';
+import { Dialog, Button, Alert } from '../ui';
 
 export default function Tenant10DLCModal({
   isOpen,
@@ -9,7 +8,14 @@ export default function Tenant10DLCModal({
   brands,
   submitting10DLC,
   onSubmit10DLC,
-  loadingBrands
+  loadingBrands,
+  isWizardMode = false,
+  businessInfoStep = 0,
+  onNextStep = null,
+  onPrevStep = null,
+  renderStep = null,
+  businessInfoSteps = [],
+  businessInfoError = ''
 }) {
   const isComplete = Boolean(
     businessInfo.legal_business_name &&
@@ -20,6 +26,68 @@ export default function Tenant10DLCModal({
     businessInfo.country &&
     businessInfo.business_address
   );
+
+  if (isWizardMode && renderStep) {
+    return (
+      <Dialog
+        open={isOpen}
+        onClose={onClose}
+        title="10DLC Registration Setup"
+        description="Complete your business information to register for SMS (10DLC)"
+        size="lg"
+        footer={
+          <div className="flex justify-between">
+            <Button
+              variant="secondary"
+              onClick={onPrevStep}
+              disabled={businessInfoStep === 0}
+            >
+              Back
+            </Button>
+            {businessInfoStep < businessInfoSteps.length - 1 ? (
+              <Button onClick={onNextStep}>
+                Next
+              </Button>
+            ) : (
+              <Button onClick={onSubmit10DLC} disabled={submitting10DLC}>
+                {submitting10DLC ? 'Submitting...' : 'Submit Registration'}
+              </Button>
+            )}
+          </div>
+        }
+      >
+        <div className="space-y-6 py-4">
+          {/* Step Indicator */}
+          <div className="flex items-center gap-3 overflow-x-auto pb-2">
+            {businessInfoSteps.map((step, idx) => (
+              <div key={step.id} className="flex items-center gap-2 flex-shrink-0">
+                <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold ${
+                  idx === businessInfoStep ? 'bg-primary-500 text-white' : 'border border-[var(--border)] text-[var(--text)]'
+                }`}>
+                  {idx + 1}
+                </div>
+                <span className={`text-sm whitespace-nowrap ${idx === businessInfoStep ? 'font-semibold text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
+                  {step.label}
+                </span>
+                {idx < businessInfoSteps.length - 1 && <div className="w-6 h-px bg-[var(--border)] flex-shrink-0" />}
+              </div>
+            ))}
+          </div>
+
+          {businessInfoError && (
+            <Alert type="error" title="Validation Error">
+              {businessInfoError}
+            </Alert>
+          )}
+
+          {/* Step Content */}
+          <div className="min-h-96">
+            {renderStep()}
+          </div>
+        </div>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog

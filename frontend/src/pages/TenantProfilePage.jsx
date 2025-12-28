@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import AppShell from '../components/layout/AppShell';
 import PageHeader from '../components/layout/PageHeader';
 import { Card, Input, Button, Alert, Badge, Select, toast } from '../components/ui';
-import { Building, ChevronDown } from 'lucide-react';
+import { Building } from 'lucide-react';
 import TenantFormField from '../components/TenantFormField';
 import Tenant10DLCModal from '../components/modals/Tenant10DLCModal';
+import TenantRegistrationHistoryModal from '../components/modals/TenantRegistrationHistoryModal';
 import { useAuth } from '../context/AuthContext';
 import { timezoneOptions } from '../data/timezones';
 
@@ -79,13 +80,13 @@ export default function TenantProfilePage({ embedded = false } = {}) {
   const [businessInfoError, setBusinessInfoError] = useState('');
   const [savingBusinessInfo, setSavingBusinessInfo] = useState(false);
   const [loadingBusinessInfo, setLoadingBusinessInfo] = useState(false);
-  const [businessInfoExpanded, setBusinessInfoExpanded] = useState(false);
 
   // 10DLC State
   const [brands, setBrands] = useState([]);
   const [loadingBrands, setLoadingBrands] = useState(false);
   const [submitting10DLC, setSubmitting10DLC] = useState(false);
   const [show10DLCModal, setShow10DLCModal] = useState(false);
+  const [showRegistrationHistory, setShowRegistrationHistory] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -891,106 +892,25 @@ export default function TenantProfilePage({ embedded = false } = {}) {
           </div>
           </form>
 
-        {/* BUSINESS INFORMATION SECTION - COLLAPSIBLE */}
-        <details
-          open={businessInfoExpanded}
-          onToggle={(e) => setBusinessInfoExpanded(e.currentTarget.open)}
-          className="group border-t border-[var(--border)] pt-12"
-        >
-          <summary className="cursor-pointer flex items-center gap-3 pb-6 hover:opacity-80 transition-opacity">
-            <ChevronDown className="w-5 h-5 text-[var(--text-muted)] group-open:rotate-180 transition-transform flex-shrink-0" />
-            <div>
-              <h2 className="text-lg font-semibold text-[var(--text)] mb-1">Advanced Setup</h2>
-              <p className="text-sm text-[var(--text-muted)]">Business information and 10DLC registration</p>
-            </div>
-          </summary>
+        {/* SMS Setup Buttons */}
+        <div className="flex gap-3 pt-12 border-t border-[var(--border)]">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setShow10DLCModal(true)}
+          >
+            Register 10DLC
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setShowRegistrationHistory(true)}
+          >
+            View Registration History
+          </Button>
+        </div>
 
-          <div className="pt-6 space-y-8">
-            {/* Business Information */}
-            <div>
-              <div className="mb-6 flex items-start justify-between">
-                <div>
-                  <h3 className="text-base font-semibold text-[var(--text)] mb-1">Business Information</h3>
-                  <p className="text-sm text-[var(--text-muted)]">Complete for 10DLC registration</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setShow10DLCModal(true)}
-                >
-                  Manage 10DLC
-                </Button>
-              </div>
-
-              {loadingBusinessInfo ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                  <p className="text-[var(--text-muted)]">Loading business info...</p>
-                </div>
-              ) : (
-                <>
-                  {/* Step Indicator */}
-                  <div className="flex items-center gap-3 overflow-x-auto pb-2">
-                    {businessInfoSteps.map((step, idx) => (
-                      <div key={step.id} className="flex items-center gap-2 flex-shrink-0">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold ${
-                          idx === businessInfoStep ? 'bg-primary-500 text-white' : 'border border-[var(--border)] text-[var(--text)]'
-                        }`}>
-                          {idx + 1}
-                        </div>
-                        <span className={`text-sm whitespace-nowrap ${idx === businessInfoStep ? 'font-semibold text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
-                          {step.label}
-                        </span>
-                        {idx < businessInfoSteps.length - 1 && <div className="w-6 h-px bg-[var(--border)] flex-shrink-0" />}
-                      </div>
-                    ))}
-                  </div>
-
-                  {businessInfoError && (
-                    <Alert type="error" title="Validation Error">
-                      {businessInfoError}
-                    </Alert>
-                  )}
-
-                  {/* Step Content */}
-                  <div className="min-h-96">
-                    {renderBusinessInfoStep()}
-                  </div>
-
-                  {/* Navigation Buttons */}
-                  <div className="flex justify-between pt-4 border-t border-[var(--border)]">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={goToPrevBusinessStep}
-                      disabled={businessInfoStep === 0}
-                    >
-                      Previous
-                    </Button>
-
-                    {businessInfoStep < businessInfoSteps.length - 1 ? (
-                      <Button type="button" onClick={goToNextBusinessStep}>
-                        Next
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        onClick={saveBusinessInfo}
-                        disabled={savingBusinessInfo}
-                      >
-                        {savingBusinessInfo ? 'Saving...' : 'Save Business Info'}
-                      </Button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-          </div>
-        </details>
-
-        {/* 10DLC Modal */}
+        {/* 10DLC Registration Modal */}
         <Tenant10DLCModal
           isOpen={show10DLCModal}
           onClose={() => setShow10DLCModal(false)}
@@ -998,6 +918,21 @@ export default function TenantProfilePage({ embedded = false } = {}) {
           brands={brands}
           submitting10DLC={submitting10DLC}
           onSubmit10DLC={submit10DLC}
+          loadingBrands={loadingBrands}
+          isWizardMode={true}
+          businessInfoStep={businessInfoStep}
+          onNextStep={goToNextBusinessStep}
+          onPrevStep={goToPrevBusinessStep}
+          renderStep={renderBusinessInfoStep}
+          businessInfoSteps={businessInfoSteps}
+          businessInfoError={businessInfoError}
+        />
+
+        {/* Registration History Modal */}
+        <TenantRegistrationHistoryModal
+          isOpen={showRegistrationHistory}
+          onClose={() => setShowRegistrationHistory(false)}
+          brands={brands}
           loadingBrands={loadingBrands}
         />
         </>
