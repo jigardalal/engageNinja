@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Button } from '../components/ui/Button';
+import { Button, toast } from '../components/ui';
 import { Dialog } from '../components/ui/Dialog';
 import { Input } from '../components/ui/Input';
 import { Alert } from '../components/ui/Alert';
@@ -93,7 +93,13 @@ export const TeamPage = ({ embedded = false } = {}) => {
     setInviteSuccess(null);
 
     if (!inviteEmail.trim()) {
-      setInviteError('Email is required');
+      const errorMsg = 'Email is required';
+      setInviteError(errorMsg);
+      toast({
+        title: 'Invalid email',
+        description: errorMsg,
+        variant: 'error'
+      });
       return;
     }
 
@@ -115,6 +121,11 @@ export const TeamPage = ({ embedded = false } = {}) => {
         throw new Error(data.error || 'Failed to send invitation');
       }
 
+      toast({
+        title: 'Invitation sent',
+        description: `Invitation sent to ${inviteEmail} as ${inviteRole}`,
+        variant: 'success'
+      });
       setInviteSuccess(`Invitation sent to ${inviteEmail}`);
       setInviteEmail('');
       setInviteRole('member');
@@ -126,6 +137,11 @@ export const TeamPage = ({ embedded = false } = {}) => {
       await fetchTeamMembers();
     } catch (err) {
       setInviteError(err.message);
+      toast({
+        title: 'Failed to send invitation',
+        description: err.message,
+        variant: 'error'
+      });
     } finally {
       setInviting(false);
     }
@@ -133,7 +149,13 @@ export const TeamPage = ({ embedded = false } = {}) => {
 
   const handleChangeRole = async (userId, newRole) => {
     if (!canManageMembers) {
-      setError('You need admin access to change user roles');
+      const errorMsg = 'You need admin access to change user roles';
+      setError(errorMsg);
+      toast({
+        title: 'Access denied',
+        description: errorMsg,
+        variant: 'error'
+      });
       return;
     }
 
@@ -150,22 +172,44 @@ export const TeamPage = ({ embedded = false } = {}) => {
         throw new Error(data.error || 'Failed to change role');
       }
 
+      toast({
+        title: 'Role updated',
+        description: `User role changed to ${newRole}`,
+        variant: 'success'
+      });
       setSuccessMessage('Role updated successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
       await fetchTeamMembers();
     } catch (err) {
       setError(err.message);
+      toast({
+        title: 'Failed to update role',
+        description: err.message,
+        variant: 'error'
+      });
     }
   };
 
   const handleRemoveUser = async (userId, userEmail) => {
     if (!canManageMembers) {
-      setError('You need admin access to remove users');
+      const errorMsg = 'You need admin access to remove users';
+      setError(errorMsg);
+      toast({
+        title: 'Access denied',
+        description: errorMsg,
+        variant: 'error'
+      });
       return;
     }
 
     if (userId === user?.id) {
-      setError('You cannot remove yourself from the tenant');
+      const errorMsg = 'You cannot remove yourself from the tenant';
+      setError(errorMsg);
+      toast({
+        title: 'Cannot remove yourself',
+        description: errorMsg,
+        variant: 'error'
+      });
       return;
     }
 
@@ -184,11 +228,21 @@ export const TeamPage = ({ embedded = false } = {}) => {
         throw new Error(data.error || 'Failed to remove user');
       }
 
+      toast({
+        title: 'Member removed',
+        description: `${userEmail} has been removed from the team`,
+        variant: 'success'
+      });
       setSuccessMessage('User removed from team');
       setTimeout(() => setSuccessMessage(null), 3000);
       await fetchTeamMembers();
     } catch (err) {
       setError(err.message);
+      toast({
+        title: 'Failed to remove member',
+        description: err.message,
+        variant: 'error'
+      });
     }
   };
 
