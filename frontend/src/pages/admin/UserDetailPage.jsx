@@ -45,6 +45,10 @@ export const UserDetailPage = () => {
   const [tenantsLoading, setTenantsLoading] = useState(false)
   const [selectedTenantId, setSelectedTenantId] = useState('')
   const [assignRole, setAssignRole] = useState('member')
+  const [showToggleConfirm, setShowToggleConfirm] = useState(false)
+  const [pendingToggleAction, setPendingToggleAction] = useState(null)
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
+  const [pendingRemoveAction, setPendingRemoveAction] = useState(null)
   const isProtectedAdmin = user?.role_global === 'platform_admin' || user?.role_global === 'system_admin'
 
   useEffect(() => {
@@ -143,8 +147,15 @@ export const UserDetailPage = () => {
     }
     const nextActive = !user?.active
     const verb = nextActive ? 'activate' : 'deactivate'
-    if (!window.confirm(`Are you sure you want to ${verb} ${user?.email}?`)) return
-    await updateUser({ active: nextActive })
+    setPendingToggleAction({ verb, email: user?.email, nextActive })
+    setShowToggleConfirm(true)
+  }
+
+  const confirmToggleUser = async () => {
+    if (!pendingToggleAction) return
+    setShowToggleConfirm(false)
+    await updateUser({ active: pendingToggleAction.nextActive })
+    setPendingToggleAction(null)
   }
 
   const handleUpdatePlatformRole = async () => {
@@ -207,7 +218,14 @@ export const UserDetailPage = () => {
   }
 
   const handleRemoveFromTenant = async (tenantId, tenantName) => {
-    if (!window.confirm(`Remove ${user?.email} from ${tenantName}?`)) return
+    setPendingRemoveAction({ tenantId, tenantName })
+    setShowRemoveConfirm(true)
+  }
+
+  const confirmRemoveFromTenant = async () => {
+    if (!pendingRemoveAction) return
+    const { tenantId } = pendingRemoveAction
+    setShowRemoveConfirm(false)
     try {
       setUpdating(true)
       setActionError(null)
@@ -224,6 +242,7 @@ export const UserDetailPage = () => {
       setActionError(err.message)
     } finally {
       setUpdating(false)
+      setPendingRemoveAction(null)
     }
   }
 
@@ -402,6 +421,60 @@ export const UserDetailPage = () => {
           </Button>
         </DialogFooter>
       </Dialog>
+
+      <Dialog
+        open={showToggleConfirm}
+        onClose={() => {
+          setShowToggleConfirm(false)
+          setPendingToggleAction(null)
+        }}
+        title={pendingToggleAction?.verb ? `${pendingToggleAction.verb.charAt(0).toUpperCase() + pendingToggleAction.verb.slice(1)} user` : 'Confirm action'}
+        description={`Are you sure you want to ${pendingToggleAction?.verb} ${pendingToggleAction?.email}?`}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowToggleConfirm(false)
+                setPendingToggleAction(null)
+              }}
+              disabled={updating}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={confirmToggleUser} disabled={updating}>
+              {updating ? 'Updating...' : 'Confirm'}
+            </Button>
+          </>
+        }
+      />
+
+      <Dialog
+        open={showRemoveConfirm}
+        onClose={() => {
+          setShowRemoveConfirm(false)
+          setPendingRemoveAction(null)
+        }}
+        title="Remove from tenant"
+        description={`Remove ${user?.email} from ${pendingRemoveAction?.tenantName}? This cannot be undone.`}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowRemoveConfirm(false)
+                setPendingRemoveAction(null)
+              }}
+              disabled={updating}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmRemoveFromTenant} disabled={updating}>
+              {updating ? 'Removing...' : 'Remove'}
+            </Button>
+          </>
+        }
+      />
     </AdminPageLayout>
   )
 }
