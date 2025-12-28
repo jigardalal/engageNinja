@@ -22,7 +22,9 @@ import {
   TableRow,
   EmptyState,
   LoadingState,
-  ErrorState
+  ErrorState,
+  DataTable,
+  toast
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
 import PageHeader from '../components/layout/PageHeader'
@@ -153,13 +155,24 @@ export default function CampaignsPage() {
       if (!response.ok) {
         throw new Error(data.message || 'Failed to archive campaigns')
       }
+      toast({
+        title: 'Campaigns archived',
+        description: `${selectedIds.length} campaign(s) have been archived`,
+        variant: 'success'
+      })
       setShowArchiveModal(false)
       setSelectedIds([])
       setSelectAll(false)
       fetchCampaigns()
     } catch (err) {
       console.error('Bulk archive campaigns error', err)
-      setArchiveError(err.message || 'Failed to archive campaigns')
+      const errorMsg = err.message || 'Failed to archive campaigns'
+      setArchiveError(errorMsg)
+      toast({
+        title: 'Failed to archive campaigns',
+        description: errorMsg,
+        variant: 'error'
+      })
     }
   }
 
