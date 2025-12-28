@@ -244,10 +244,12 @@ resource "aws_apigatewayv2_stage" "default" {
 
   default_route_settings {
     detailed_metrics_enabled = true
-    throttle_settings {
-      rate_limit  = 1000  # requests per second
-      burst_limit = 2000  # burst capacity
-    }
+  }
+
+  # Throttle settings for HTTP API (v2)
+  throttle_settings {
+    rate_limit  = 1000  # requests per second
+    burst_limit = 2000  # burst capacity
   }
 }
 
