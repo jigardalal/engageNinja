@@ -1,0 +1,191 @@
+{
+  "journey": {
+    "id": "dashboard-overview",
+    "name": "Dashboard Overview & Quick Actions",
+    "priority": "high",
+    "userType": "authenticated_any",
+    "frequency": "daily",
+    "businessImpact": "Primary landing page - drives engagement and key actions",
+    "preconditions": [
+      "User is authenticated",
+      "User has active tenant selected"
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Dashboard",
+        "page": "/dashboard",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-dashboard']",
+          "fallback": "a:has-text('Dashboard')",
+          "recommendation": "Add data-testid='nav-dashboard' to dashboard link"
+        },
+        "expectedResult": "Dashboard page loads with all components",
+        "assertions": [
+          "URL is /dashboard",
+          "Dashboard container visible",
+          "Stats cards are present",
+          "Welcome message visible"
+        ]
+      },
+      {
+        "stepNumber": 2,
+        "name": "View Dashboard Stats",
+        "page": "/dashboard",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='stat-contacts-total']",
+          "fallback": "div.stats-container",
+          "recommendation": "Add data-testid='stat-{metric}' to each metric card"
+        },
+        "expectedResult": "Key metrics display with current values",
+        "assertions": [
+          "Contacts total count shows",
+          "Campaigns total count shows",
+          "Active sending count displays",
+          "Read rate percentage shows"
+        ]
+      },
+      {
+        "stepNumber": 3,
+        "name": "View Recent Campaigns",
+        "page": "/dashboard",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='recent-campaigns-list']",
+          "fallback": "div.recent-campaigns",
+          "recommendation": "Add data-testid='recent-campaigns-list'"
+        },
+        "expectedResult": "Recent campaigns list displays",
+        "assertions": [
+          "Recent campaigns appear in order (newest first)",
+          "Each campaign shows name, status, send date",
+          "Campaign rows are clickable"
+        ]
+      },
+      {
+        "stepNumber": 4,
+        "name": "View Plan Context Card",
+        "page": "/dashboard",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='plan-context-card']",
+          "fallback": "div.plan-info",
+          "recommendation": "Add data-testid='plan-context-card'"
+        },
+        "expectedResult": "Plan and usage information displays",
+        "assertions": [
+          "Current plan name shows",
+          "Monthly usage displays",
+          "Quota remaining shows",
+          "Upgrade button visible if applicable"
+        ]
+      },
+      {
+        "stepNumber": 5,
+        "name": "View Welcome Carousel",
+        "page": "/dashboard",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='welcome-carousel']",
+          "fallback": "div.carousel",
+          "recommendation": "Add data-testid='welcome-carousel'"
+        },
+        "expectedResult": "Carousel displays for new users",
+        "assertions": [
+          "3-step carousel visible for new users only",
+          "Next/Previous buttons work",
+          "Skip button available"
+        ]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Click Create Campaign CTA",
+        "page": "/dashboard",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='dashboard-create-campaign']",
+          "fallback": "button:has-text('Create Campaign')",
+          "recommendation": "Add data-testid='dashboard-create-campaign'"
+        },
+        "expectedResult": "Navigate to campaign creation",
+        "assertions": [
+          "URL changes to /campaigns/new",
+          "Campaign creation form loads"
+        ]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Dismiss Welcome Carousel",
+        "page": "/dashboard",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='carousel-skip']",
+          "fallback": "button:has-text('Skip')",
+          "recommendation": "Add data-testid='carousel-skip'"
+        },
+        "expectedResult": "Carousel closes and is marked as seen",
+        "assertions": [
+          "Carousel disappears",
+          "State saved (doesn't reappear on refresh)"
+        ]
+      }
+    ],
+    "successOutcome": {
+      "description": "User sees current status and is ready to take action",
+      "finalState": "dashboard_engaged",
+      "finalPage": "/dashboard"
+    },
+    "alternativePaths": [
+      {
+        "name": "Returning User Path",
+        "trigger": "User with previous activity",
+        "outcome": "No welcome carousel, shows recent activity only"
+      },
+      {
+        "name": "Trial Expiring Path",
+        "trigger": "Trial user with <7 days left",
+        "outcome": "Urgent upgrade banner displays"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Data Not Loading",
+        "trigger": "Stats endpoint timeout",
+        "expectedBehavior": "Loading spinner, retry available",
+        "errorSelector": "[data-testid='dashboard-loading-error']",
+        "errorMessage": "Unable to load dashboard",
+        "recovery": "Auto-retry or user clicks refresh"
+      },
+      {
+        "name": "Insufficient Permissions",
+        "trigger": "User's role changed and lost access",
+        "expectedBehavior": "Limited view or error message",
+        "errorSelector": "[data-testid='dashboard-permission-error']",
+        "errorMessage": "You don't have permission to view this",
+        "recovery": "User contacts workspace admin"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Dashboard nav link",
+        "current": "a:has-text('Dashboard')",
+        "recommendation": "Add data-testid='nav-dashboard'",
+        "reason": "Stable selector for navigation testing"
+      },
+      {
+        "element": "Stat cards",
+        "current": "div.stats-container > div",
+        "recommendation": "Add data-testid='stat-{metric}-{tenantId}'",
+        "reason": "Specific metric identification"
+      },
+      {
+        "element": "Create campaign button",
+        "current": "button:has-text('Create Campaign')",
+        "recommendation": "Add data-testid='dashboard-create-campaign'",
+        "reason": "Avoids text changes breaking tests"
+      }
+    ]
+  }
+}

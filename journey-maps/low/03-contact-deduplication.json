@@ -1,0 +1,195 @@
+{
+  "journey": {
+    "id": "contact-deduplication",
+    "name": "Contact Deduplication & Merge",
+    "priority": "low",
+    "userType": "authenticated_admin",
+    "frequency": "rarely",
+    "businessImpact": "Data quality maintenance",
+    "preconditions": ["User is authenticated", "User has admin role", "Duplicate contacts exist"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Contacts Management",
+        "page": "/contacts",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-contacts']",
+          "fallback": "a:has-text('Contacts')"
+        },
+        "expectedResult": "Contacts page loads",
+        "assertions": ["URL is /contacts", "Contacts list visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Access Deduplication Tool",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='tools-menu']",
+          "fallback": "button:has-text('Tools')"
+        },
+        "expectedResult": "Tools menu opens",
+        "assertions": ["Menu displays", "Deduplication option visible"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Click Deduplication",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='deduplicate-option']",
+          "fallback": "a:has-text('Deduplicate')"
+        },
+        "expectedResult": "Deduplication analysis starts",
+        "assertions": ["Loading indicator shows", "Analysis running"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "View Duplicate Groups",
+        "page": "/contacts/deduplicate",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='duplicate-groups']",
+          "fallback": "div.duplicate-list"
+        },
+        "expectedResult": "Duplicate groups display",
+        "assertions": ["Groups show similar contacts", "Match confidence scores visible", "Merge options available"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Select Group to Merge",
+        "page": "/contacts/deduplicate",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='duplicate-group-{groupId}']",
+          "fallback": "div.group-card"
+        },
+        "inputData": {"groupId": 1},
+        "expectedResult": "Group details display",
+        "assertions": ["Duplicate contacts show", "Merge preview available"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Select Primary Contact",
+        "page": "/contacts/deduplicate",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='select-primary-{contactId}']",
+          "fallback": "radio[name='primary']"
+        },
+        "inputData": {"contactId": 123},
+        "expectedResult": "Primary contact selected",
+        "assertions": ["Radio selected", "Merge data preview updates"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Review Merge Preview",
+        "page": "/contacts/deduplicate",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='merge-preview']",
+          "fallback": "div.preview-section"
+        },
+        "expectedResult": "Merge result preview shows",
+        "assertions": ["Combined data displays", "All fields visible", "Conflicts highlighted"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Resolve Field Conflicts",
+        "page": "/contacts/deduplicate",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='field-selector-{fieldName}']",
+          "fallback": "select[name='{fieldName}']"
+        },
+        "inputData": {"fieldName": "email", "selectedValue": "primary@example.com"},
+        "expectedResult": "Conflict resolved",
+        "assertions": ["Field updated in preview"]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Confirm Merge",
+        "page": "/contacts/deduplicate",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='confirm-merge-button']",
+          "fallback": "button:has-text('Merge')"
+        },
+        "expectedResult": "Merge process starts",
+        "assertions": ["Loading indicator shows", "No errors"]
+      },
+      {
+        "stepNumber": 10,
+        "name": "Merge Complete",
+        "page": "/contacts",
+        "action": "wait_for_navigation",
+        "expectedResult": "Contacts merged successfully",
+        "assertions": ["Duplicate count reduced", "Primary contact updated", "Secondary contact removed"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Duplicate contacts merged into single record",
+      "finalState": "contacts_merged",
+      "finalPage": "/contacts"
+    },
+    "alternativePaths": [
+      {
+        "name": "Auto Merge Duplicates",
+        "trigger": "User selects auto-merge for high confidence duplicates",
+        "outcome": "All duplicates merged automatically"
+      },
+      {
+        "name": "Skip Duplicate Group",
+        "trigger": "User decides not to merge",
+        "outcome": "Moves to next duplicate group"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "No Duplicates Found",
+        "trigger": "Analysis completes with no duplicates",
+        "expectedBehavior": "Information message",
+        "errorSelector": "[data-testid='no-duplicates-message']",
+        "errorMessage": "No potential duplicates found",
+        "recovery": "User continues with contacts"
+      },
+      {
+        "name": "Merge Conflict",
+        "trigger": "Conflicting data in same field",
+        "expectedBehavior": "Conflict resolution required",
+        "errorSelector": "[data-testid='conflict-error']",
+        "errorMessage": "Resolve conflicts before merging",
+        "recovery": "User selects value for each field"
+      },
+      {
+        "name": "Contacts Modified",
+        "trigger": "Contact data changed during merge",
+        "expectedBehavior": "Error and retry",
+        "errorSelector": "[data-testid='data-changed-error']",
+        "errorMessage": "Data changed, please review again",
+        "recovery": "User refreshes and retries"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Tools menu",
+        "current": "button:has-text('Tools')",
+        "recommendation": "Add data-testid='tools-menu'",
+        "reason": "Specific tools menu"
+      },
+      {
+        "element": "Duplicate groups",
+        "current": "div.duplicate-list",
+        "recommendation": "Add data-testid='duplicate-groups'",
+        "reason": "Reliable duplicates list"
+      },
+      {
+        "element": "Merge preview",
+        "current": "div.preview-section",
+        "recommendation": "Add data-testid='merge-preview'",
+        "reason": "Specific preview section"
+      }
+    ]
+  }
+}

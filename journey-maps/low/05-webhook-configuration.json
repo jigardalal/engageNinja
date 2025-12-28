@@ -1,0 +1,214 @@
+{
+  "journey": {
+    "id": "webhook-configuration",
+    "name": "Configure & Test Webhooks",
+    "priority": "low",
+    "userType": "authenticated_admin",
+    "frequency": "rarely",
+    "businessImpact": "Integration and real-time notifications",
+    "preconditions": ["User is authenticated", "User has admin role", "Integration planned"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Webhooks Settings",
+        "page": "/settings?tab=webhooks",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='settings-tab-webhooks']",
+          "fallback": "button:has-text('Webhooks')"
+        },
+        "expectedResult": "Webhooks settings page loads",
+        "assertions": ["Tab is active", "Webhook list visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Click Add Webhook",
+        "page": "/settings?tab=webhooks",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='add-webhook-button']",
+          "fallback": "button:has-text('Add Webhook')"
+        },
+        "expectedResult": "Webhook creation form opens",
+        "assertions": ["URL field visible", "Event selector visible"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Enter Webhook URL",
+        "page": "/settings?tab=webhooks",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='webhook-url']",
+          "fallback": "input[placeholder*='URL']"
+        },
+        "inputData": {"url": "https://example.com/webhooks/engage", "type": "url"},
+        "expectedResult": "URL entered",
+        "assertions": ["URL displays in field", "Valid URL format"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Select Events to Subscribe",
+        "page": "/settings?tab=webhooks",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='event-selector']",
+          "fallback": "div.event-picker"
+        },
+        "expectedResult": "Event selector opens",
+        "assertions": ["Available events list shows", "Checkboxes visible"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Select Specific Events",
+        "page": "/settings?tab=webhooks",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='event-{eventName}']",
+          "fallback": "label:has-text('{eventName')"
+        },
+        "inputData": {"events": ["campaign.sent", "message.delivered", "contact.created"]},
+        "expectedResult": "Events selected",
+        "assertions": ["Checkboxes checked", "Selected events show"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Configure Headers (Optional)",
+        "page": "/settings?tab=webhooks",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='webhook-headers']",
+          "fallback": "button:has-text('Headers')"
+        },
+        "expectedResult": "Headers configuration opens",
+        "assertions": ["Header fields visible", "Add header button available"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Add Authorization Header",
+        "page": "/settings?tab=webhooks",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='header-key-1']",
+          "fallback": "input[name='headerKey']"
+        },
+        "inputData": {"headerKey": "Authorization", "headerValue": "Bearer token123"},
+        "expectedResult": "Header added",
+        "assertions": ["Key and value displayed"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Save Webhook",
+        "page": "/settings?tab=webhooks",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='save-webhook-button']",
+          "fallback": "button:has-text('Save')"
+        },
+        "expectedResult": "Webhook saved",
+        "assertions": ["Loading shows", "Success message displays"]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Test Webhook",
+        "page": "/settings?tab=webhooks",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='test-webhook-{webhookId}']",
+          "fallback": "button:has-text('Test')"
+        },
+        "inputData": {"webhookId": 1},
+        "expectedResult": "Test payload sent",
+        "assertions": ["Loading shows", "Response displays"]
+      },
+      {
+        "stepNumber": 10,
+        "name": "View Test Response",
+        "page": "/settings?tab=webhooks",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='webhook-test-response']",
+          "fallback": "div.response-section"
+        },
+        "expectedResult": "Test response displays",
+        "assertions": ["Status code shows", "Response body visible", "Success or error"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Webhook configured and tested successfully",
+      "finalState": "webhook_configured",
+      "finalPage": "/settings?tab=webhooks"
+    },
+    "alternativePaths": [
+      {
+        "name": "Edit Webhook",
+        "trigger": "User clicks edit on existing webhook",
+        "outcome": "Webhook form opens with current values"
+      },
+      {
+        "name": "Disable Webhook",
+        "trigger": "User toggles webhook off",
+        "outcome": "Webhook stopped receiving events"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Invalid URL",
+        "trigger": "User enters malformed URL",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='url-invalid-error']",
+        "errorMessage": "Invalid URL format",
+        "recovery": "User enters valid URL"
+      },
+      {
+        "name": "No Events Selected",
+        "trigger": "User saves without selecting events",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='events-required-error']",
+        "errorMessage": "At least one event required",
+        "recovery": "User selects events"
+      },
+      {
+        "name": "Webhook Endpoint Timeout",
+        "trigger": "Endpoint doesn't respond in time",
+        "expectedBehavior": "Timeout error",
+        "errorSelector": "[data-testid='webhook-timeout-error']",
+        "errorMessage": "Webhook endpoint timed out",
+        "recovery": "User checks endpoint and retests"
+      },
+      {
+        "name": "Certificate Error",
+        "trigger": "HTTPS endpoint has cert issues",
+        "expectedBehavior": "Security error",
+        "errorSelector": "[data-testid='ssl-error']",
+        "errorMessage": "SSL certificate invalid",
+        "recovery": "User fixes certificate or uses HTTP"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Webhooks tab",
+        "current": "button:has-text('Webhooks')",
+        "recommendation": "Add data-testid='settings-tab-webhooks'",
+        "reason": "Specific webhooks tab"
+      },
+      {
+        "element": "Add webhook button",
+        "current": "button:has-text('Add Webhook')",
+        "recommendation": "Add data-testid='add-webhook-button'",
+        "reason": "Unique add button"
+      },
+      {
+        "element": "Webhook URL input",
+        "current": "input[placeholder*='URL']",
+        "recommendation": "Add data-testid='webhook-url'",
+        "reason": "Specific URL field"
+      },
+      {
+        "element": "Event selector",
+        "current": "div.event-picker",
+        "recommendation": "Add data-testid='event-selector'",
+        "reason": "Reliable event picker"
+      }
+    ]
+  }
+}

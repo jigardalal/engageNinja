@@ -1,0 +1,243 @@
+{
+  "journey": {
+    "id": "campaign-detail-tracking",
+    "name": "View Campaign Detail & Message Tracking",
+    "priority": "high",
+    "userType": "authenticated_member_admin",
+    "frequency": "multiple_times_per_session",
+    "businessImpact": "Campaign analytics and ROI measurement",
+    "preconditions": [
+      "User is authenticated",
+      "Campaign exists",
+      "User has access to campaign"
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Campaigns",
+        "page": "/campaigns",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-campaigns']",
+          "fallback": "a:has-text('Campaigns')",
+          "recommendation": "Add data-testid='nav-campaigns'"
+        },
+        "expectedResult": "Campaigns list page loads",
+        "assertions": [
+          "URL is /campaigns",
+          "Campaign list displays"
+        ]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Search for Campaign",
+        "page": "/campaigns",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='campaigns-search']",
+          "fallback": "input[placeholder*='Search']",
+          "recommendation": "Add data-testid='campaigns-search'"
+        },
+        "inputData": {
+          "searchTerm": "Summer Sale",
+          "type": "text"
+        },
+        "expectedResult": "Campaigns filtered by search",
+        "assertions": [
+          "Search results show matching campaigns",
+          "Campaign list updates immediately"
+        ]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Click Campaign Row",
+        "page": "/campaigns",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='campaign-row-{campaignId}']",
+          "fallback": "tr:has-text('{campaignName}')",
+          "recommendation": "Add data-testid='campaign-row-{campaignId}'"
+        },
+        "expectedResult": "Campaign detail page opens",
+        "assertions": [
+          "URL changes to /campaigns/{id}",
+          "Campaign details load",
+          "Status and metrics display"
+        ]
+      },
+      {
+        "stepNumber": 4,
+        "name": "View Campaign Overview",
+        "page": "/campaigns/{id}",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='campaign-detail-header']",
+          "fallback": "div.campaign-header",
+          "recommendation": "Add data-testid='campaign-detail-header'"
+        },
+        "expectedResult": "Campaign header information displays",
+        "assertions": [
+          "Campaign name shows",
+          "Status badge displays (Sending/Sent/Draft/Scheduled)",
+          "Send date/time shows",
+          "Total recipients count shows"
+        ]
+      },
+      {
+        "stepNumber": 5,
+        "name": "View Campaign Stats",
+        "page": "/campaigns/{id}",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='campaign-stats']",
+          "fallback": "div.stats-container",
+          "recommendation": "Add data-testid='campaign-stats'"
+        },
+        "expectedResult": "Campaign statistics display",
+        "assertions": [
+          "Sent count shows",
+          "Delivered count shows",
+          "Read count shows",
+          "Failed count shows",
+          "Delivery rate percentage shows"
+        ]
+      },
+      {
+        "stepNumber": 6,
+        "name": "View Message Status Table",
+        "page": "/campaigns/{id}",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='message-status-table']",
+          "fallback": "table.messages",
+          "recommendation": "Add data-testid='message-status-table'"
+        },
+        "expectedResult": "Message status table displays",
+        "assertions": [
+          "Each recipient listed",
+          "Status shows for each (Sent/Delivered/Read/Failed)",
+          "Delivery time shows if delivered",
+          "Error reason shows if failed"
+        ]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Filter Messages by Status",
+        "page": "/campaigns/{id}",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='status-filter-failed']",
+          "fallback": "button:has-text('Failed')",
+          "recommendation": "Add data-testid='status-filter-{status}'"
+        },
+        "inputData": {
+          "statusFilter": "failed",
+          "type": "button"
+        },
+        "expectedResult": "Table filters to show only selected status",
+        "assertions": [
+          "Only messages with selected status display",
+          "Filter button shows active state",
+          "Message count updates"
+        ]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Retry Failed Messages",
+        "page": "/campaigns/{id}",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='retry-failed-button']",
+          "fallback": "button:has-text('Retry Failed')",
+          "recommendation": "Add data-testid='retry-failed-button'"
+        },
+        "expectedResult": "Retry process starts",
+        "assertions": [
+          "Confirmation dialog appears",
+          "Retry button shows loading state",
+          "Status updates after retry"
+        ]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Export Campaign Data",
+        "page": "/campaigns/{id}",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='export-campaign-button']",
+          "fallback": "button:has-text('Export')",
+          "recommendation": "Add data-testid='export-campaign-button'"
+        },
+        "expectedResult": "Export options appear or download starts",
+        "assertions": [
+          "Export dialog or download trigger",
+          "File format options shown (CSV, JSON)",
+          "Download initiates"
+        ]
+      }
+    ],
+    "successOutcome": {
+      "description": "User has complete visibility into campaign performance",
+      "finalState": "campaign_details_viewed",
+      "finalPage": "/campaigns/{id}"
+    },
+    "alternativePaths": [
+      {
+        "name": "Active Campaign with Real-time Updates",
+        "trigger": "Campaign still actively sending",
+        "outcome": "Real-time SSE updates show new messages"
+      },
+      {
+        "name": "Draft Campaign",
+        "trigger": "Campaign not yet sent",
+        "outcome": "Edit and send options available"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Campaign Not Found",
+        "trigger": "Campaign ID doesn't exist or no access",
+        "expectedBehavior": "404 error or access denied",
+        "errorSelector": "[data-testid='campaign-not-found-error']",
+        "errorMessage": "Campaign not found",
+        "recovery": "User returns to campaigns list"
+      },
+      {
+        "name": "Real-time Updates Fail",
+        "trigger": "SSE connection drops",
+        "expectedBehavior": "Graceful fallback, manual refresh",
+        "errorSelector": "[data-testid='live-update-error']",
+        "errorMessage": "Live updates paused",
+        "recovery": "User clicks refresh button"
+      },
+      {
+        "name": "Export Fails",
+        "trigger": "Backend export fails",
+        "expectedBehavior": "Error message, retry available",
+        "errorSelector": "[data-testid='export-error']",
+        "errorMessage": "Failed to export campaign",
+        "recovery": "User retries export"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Campaign row",
+        "current": "tr:has-text('{name}')",
+        "recommendation": "Add data-testid='campaign-row-{campaignId}'",
+        "reason": "Stable, specific selector"
+      },
+      {
+        "element": "Status filters",
+        "current": "button:has-text('{status}')",
+        "recommendation": "Add data-testid='status-filter-{status}'",
+        "reason": "Avoid text changes breaking tests"
+      },
+      {
+        "element": "Message table",
+        "current": "table.messages",
+        "recommendation": "Add data-testid='message-status-table'",
+        "reason": "Clear purpose identifier"
+      }
+    ]
+  }
+}

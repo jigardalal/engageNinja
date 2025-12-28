@@ -1,0 +1,169 @@
+{
+  "journey": {
+    "id": "template-duplication",
+    "name": "Duplicate Message Template",
+    "priority": "low",
+    "userType": "authenticated_member_admin",
+    "frequency": "rarely",
+    "businessImpact": "Template management convenience",
+    "preconditions": ["User is authenticated", "Template exists"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Templates",
+        "page": "/templates",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-templates']",
+          "fallback": "a:has-text('Templates')"
+        },
+        "expectedResult": "Templates list loads",
+        "assertions": ["URL is /templates", "Template list visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Locate Template to Duplicate",
+        "page": "/templates",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='template-row-{templateId}']",
+          "fallback": "tr:has-text('{templateName')"
+        },
+        "inputData": {"templateId": 1},
+        "expectedResult": "Template row visible",
+        "assertions": ["Template name shows", "Actions menu available"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Open Template Actions",
+        "page": "/templates",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='template-actions-{templateId}']",
+          "fallback": "button:has-text('Actions')"
+        },
+        "inputData": {"templateId": 1},
+        "expectedResult": "Actions menu opens",
+        "assertions": ["Menu displays", "Duplicate option visible"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Click Duplicate",
+        "page": "/templates",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='duplicate-template']",
+          "fallback": "button:has-text('Duplicate')"
+        },
+        "expectedResult": "Duplication starts",
+        "assertions": ["Loading shows", "Duplicate name generated"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Review Duplicate Template",
+        "page": "/templates",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='duplicate-confirmation']",
+          "fallback": "div.success-message"
+        },
+        "expectedResult": "Duplicate created",
+        "assertions": ["Success message shows", "New template in list", "Duplicate name shown"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Edit Duplicate Name",
+        "page": "/templates",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='edit-template-name']",
+          "fallback": "button:has-text('Edit')"
+        },
+        "expectedResult": "Template edit dialog opens",
+        "assertions": ["Name field visible", "Duplicate suffix shown"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Enter New Template Name",
+        "page": "/templates",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='template-name-input']",
+          "fallback": "input[name='name']"
+        },
+        "inputData": {"name": "My Template Copy", "type": "text"},
+        "expectedResult": "New name entered",
+        "assertions": ["Name displays in field"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Save Template Name",
+        "page": "/templates",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='save-template-name']",
+          "fallback": "button:has-text('Save')"
+        },
+        "expectedResult": "Name saved",
+        "assertions": ["Success message shows", "Template list updates"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Template successfully duplicated with new name",
+      "finalState": "template_duplicated",
+      "finalPage": "/templates"
+    },
+    "errorCases": [
+      {
+        "name": "Template Not Found",
+        "trigger": "Template was deleted",
+        "expectedBehavior": "Error message",
+        "errorSelector": "[data-testid='template-not-found-error']",
+        "errorMessage": "Template no longer exists",
+        "recovery": "User views templates list"
+      },
+      {
+        "name": "Duplication Failed",
+        "trigger": "Backend error",
+        "expectedBehavior": "Error message",
+        "errorSelector": "[data-testid='duplicate-error']",
+        "errorMessage": "Failed to duplicate template",
+        "recovery": "User retries"
+      },
+      {
+        "name": "Duplicate Name Exists",
+        "trigger": "Name already in use",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='name-exists-error']",
+        "errorMessage": "Template name already exists",
+        "recovery": "User enters different name"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Template row",
+        "current": "tr:has-text('{templateName')",
+        "recommendation": "Add data-testid='template-row-{templateId}'",
+        "reason": "Unique template row"
+      },
+      {
+        "element": "Actions button",
+        "current": "button:has-text('Actions')",
+        "recommendation": "Add data-testid='template-actions-{templateId}'",
+        "reason": "Unique actions per template"
+      },
+      {
+        "element": "Duplicate option",
+        "current": "button:has-text('Duplicate')",
+        "recommendation": "Add data-testid='duplicate-template'",
+        "reason": "Specific duplicate action"
+      },
+      {
+        "element": "Name input",
+        "current": "input[name='name']",
+        "recommendation": "Add data-testid='template-name-input'",
+        "reason": "Specific name field"
+      }
+    ]
+  }
+}

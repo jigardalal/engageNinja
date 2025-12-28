@@ -1,0 +1,160 @@
+{
+  "journey": {
+    "id": "logout-flow",
+    "name": "Logout & End Session",
+    "priority": "high",
+    "userType": "authenticated_any_role",
+    "frequency": "daily",
+    "businessImpact": "Security and session management",
+    "preconditions": ["User is authenticated", "User is logged in"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Access User Menu",
+        "page": "/dashboard",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='user-menu-button']",
+          "fallback": "button.profile-menu"
+        },
+        "expectedResult": "User menu dropdown opens",
+        "assertions": ["Menu appears", "Logout option visible", "Other menu items visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Click Logout",
+        "page": "/dashboard",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='logout-button']",
+          "fallback": "a:has-text('Logout')"
+        },
+        "expectedResult": "Logout process starts",
+        "assertions": ["Menu closes", "Loading indicator may appear", "No error message"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Session Ends",
+        "page": "/dashboard",
+        "action": "wait_for_navigation",
+        "expectedResult": "Session is terminated",
+        "assertions": ["Session cookie cleared", "Session data removed from backend", "User state cleared", "Active tenant context cleared"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Redirect to Login",
+        "page": "/login",
+        "action": "wait_for_navigation",
+        "expectedResult": "User redirected to login page",
+        "assertions": ["URL changes to /login", "Login form displays", "No authenticated content visible", "Previous session data not accessible"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Verify Logout Complete",
+        "page": "/login",
+        "action": "navigate_and_verify",
+        "selectors": {
+          "primary": "[data-testid='login-form']",
+          "fallback": "form.login"
+        },
+        "inputData": {"attemptedPage": "/dashboard"},
+        "expectedResult": "Direct access denied",
+        "assertions": ["Cannot access /dashboard", "Cannot access /contacts", "Redirected back to login", "Session is truly ended"]
+      }
+    ],
+    "successOutcome": {
+      "description": "User is securely logged out and session ended",
+      "finalState": "logged_out",
+      "finalPage": "/login"
+    },
+    "alternativePaths": [
+      {
+        "name": "Session Timeout Logout",
+        "trigger": "Session expires due to inactivity",
+        "outcome": "Automatic logout without user action"
+      },
+      {
+        "name": "Logout from Settings",
+        "trigger": "User logs out from settings page",
+        "outcome": "Same as main flow"
+      },
+      {
+        "name": "Multi-Tab Session Cleanup",
+        "trigger": "User logs out in one tab",
+        "outcome": "Other tabs also logged out"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Logout Request Fails",
+        "trigger": "Network error during logout",
+        "expectedBehavior": "Error message, retry available",
+        "errorSelector": "[data-testid='logout-error']",
+        "errorMessage": "Failed to logout. Please try again",
+        "recovery": "User retries logout or closes tab"
+      },
+      {
+        "name": "Session Already Expired",
+        "trigger": "User tries to logout after session expired",
+        "expectedBehavior": "Graceful handling",
+        "errorSelector": "[data-testid='session-expired']",
+        "errorMessage": "Session already ended",
+        "recovery": "Redirect to login"
+      },
+      {
+        "name": "Server Error",
+        "trigger": "Backend throws error during logout",
+        "expectedBehavior": "Error handled gracefully",
+        "errorSelector": "[data-testid='logout-server-error']",
+        "errorMessage": "An error occurred. Please close your browser",
+        "recovery": "Close browser tab and reopen"
+      },
+      {
+        "name": "Incomplete Cleanup",
+        "trigger": "Session data not fully cleared",
+        "expectedBehavior": "Security concern - prevent",
+        "errorSelector": "[data-testid='logout-cleanup-error']",
+        "errorMessage": "Session cleanup failed",
+        "recovery": "Manual cleanup on backend"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "User menu button",
+        "current": "button.profile-menu",
+        "recommendation": "Add data-testid='user-menu-button'",
+        "reason": "Specific menu button identifier"
+      },
+      {
+        "element": "Logout button",
+        "current": "a:has-text('Logout')",
+        "recommendation": "Add data-testid='logout-button'",
+        "reason": "Unique logout action identifier"
+      },
+      {
+        "element": "Login form",
+        "current": "form.login",
+        "recommendation": "Add data-testid='login-form'",
+        "reason": "Reliable login form identifier"
+      },
+      {
+        "element": "Menu dropdown",
+        "current": "button.profile-menu (implied)",
+        "recommendation": "Add data-testid='user-dropdown-menu'",
+        "reason": "Specific dropdown menu identifier"
+      },
+      {
+        "element": "Profile link",
+        "current": "a:has-text('Profile')",
+        "recommendation": "Add data-testid='user-profile-link'",
+        "reason": "Specific profile link identifier"
+      },
+      {
+        "element": "Settings link",
+        "current": "a:has-text('Settings')",
+        "recommendation": "Add data-testid='user-settings-link'",
+        "reason": "Specific settings link identifier"
+      }
+    ]
+  }
+}

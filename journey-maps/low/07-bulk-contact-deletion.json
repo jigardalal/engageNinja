@@ -1,0 +1,203 @@
+{
+  "journey": {
+    "id": "bulk-contact-deletion",
+    "name": "Bulk Delete Contacts",
+    "priority": "low",
+    "userType": "authenticated_admin",
+    "frequency": "rarely",
+    "businessImpact": "Contact management and data cleanup",
+    "preconditions": ["User is authenticated", "User has admin role", "Contacts selected for deletion"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Contacts",
+        "page": "/contacts",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-contacts']",
+          "fallback": "a:has-text('Contacts')"
+        },
+        "expectedResult": "Contacts list loads",
+        "assertions": ["URL is /contacts", "Contacts table visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Select Multiple Contacts",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='select-contact-{contactId}']",
+          "fallback": "input[type='checkbox']"
+        },
+        "inputData": {"contactIds": [1, 2, 3]},
+        "expectedResult": "Contacts selected",
+        "assertions": ["Checkboxes checked", "Selection count shows"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Select All Contacts",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='select-all-contacts']",
+          "fallback": "input[type='checkbox'][name='selectAll']"
+        },
+        "expectedResult": "All contacts selected",
+        "assertions": ["All checkboxes checked", "Total count displays"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Open Bulk Actions Menu",
+        "page": "/contacts",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='bulk-actions-menu']",
+          "fallback": "div.bulk-actions"
+        },
+        "expectedResult": "Bulk actions menu displays",
+        "assertions": ["Delete option visible", "Other bulk actions available"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Click Delete Action",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='bulk-delete-option']",
+          "fallback": "button:has-text('Delete')"
+        },
+        "expectedResult": "Confirmation dialog opens",
+        "assertions": ["Warning displays", "Contact count shows", "Confirm button visible"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Review Deletion Warning",
+        "page": "/contacts",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='deletion-warning']",
+          "fallback": "div.warning"
+        },
+        "expectedResult": "Consequences clearly shown",
+        "assertions": ["Number of contacts to delete shows", "Irreversible warning clear"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Type Confirmation Text",
+        "page": "/contacts",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='deletion-confirmation-text']",
+          "fallback": "input[placeholder*='confirm']"
+        },
+        "inputData": {"text": "DELETE", "type": "text"},
+        "expectedResult": "Confirmation text entered",
+        "assertions": ["Text displays in field"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Confirm Bulk Deletion",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='confirm-bulk-delete']",
+          "fallback": "button:has-text('Confirm Delete')"
+        },
+        "expectedResult": "Deletion process starts",
+        "assertions": ["Loading indicator shows", "Progress bar appears"]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Monitor Deletion Progress",
+        "page": "/contacts",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='deletion-progress']",
+          "fallback": "div.progress-bar"
+        },
+        "expectedResult": "Progress updates",
+        "assertions": ["Progress bar animates", "Contact count decreases", "Status message updates"]
+      },
+      {
+        "stepNumber": 10,
+        "name": "Deletion Complete",
+        "page": "/contacts",
+        "action": "wait_for_completion",
+        "expectedResult": "All selected contacts deleted",
+        "assertions": ["Success message displays", "Contacts removed from list", "Selection cleared"]
+      }
+    ],
+    "successOutcome": {
+      "description": "All selected contacts permanently deleted",
+      "finalState": "contacts_deleted",
+      "finalPage": "/contacts"
+    },
+    "alternativePaths": [
+      {
+        "name": "Cancel Deletion",
+        "trigger": "User clicks cancel during confirmation",
+        "outcome": "Dialog closes, contacts preserved"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "No Contacts Selected",
+        "trigger": "User tries to delete without selecting",
+        "expectedBehavior": "Disabled action",
+        "errorSelector": "[data-testid='delete-disabled']",
+        "errorMessage": "Select contacts to delete",
+        "recovery": "User selects contacts"
+      },
+      {
+        "name": "Wrong Confirmation Text",
+        "trigger": "User enters incorrect confirmation",
+        "expectedBehavior": "Button remains disabled",
+        "errorSelector": "[data-testid='confirm-text-error']",
+        "errorMessage": "Please type DELETE to confirm",
+        "recovery": "User enters correct text"
+      },
+      {
+        "name": "Deletion Failed",
+        "trigger": "Backend error during deletion",
+        "expectedBehavior": "Error message, contacts preserved",
+        "errorSelector": "[data-testid='deletion-error']",
+        "errorMessage": "Failed to delete some contacts",
+        "recovery": "User retries or contacts support"
+      },
+      {
+        "name": "Some Contacts Protected",
+        "trigger": "Contacts in active campaigns",
+        "expectedBehavior": "Partial deletion warning",
+        "errorSelector": "[data-testid='protected-contacts-warning']",
+        "errorMessage": "Some contacts are in active campaigns",
+        "recovery": "User selects different contacts or removes from campaigns"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Select all checkbox",
+        "current": "input[type='checkbox'][name='selectAll']",
+        "recommendation": "Add data-testid='select-all-contacts'",
+        "reason": "Specific select all identifier"
+      },
+      {
+        "element": "Bulk actions menu",
+        "current": "div.bulk-actions",
+        "recommendation": "Add data-testid='bulk-actions-menu'",
+        "reason": "Reliable bulk actions menu"
+      },
+      {
+        "element": "Delete option",
+        "current": "button:has-text('Delete')",
+        "recommendation": "Add data-testid='bulk-delete-option'",
+        "reason": "Unique bulk delete action"
+      },
+      {
+        "element": "Progress bar",
+        "current": "div.progress-bar",
+        "recommendation": "Add data-testid='deletion-progress'",
+        "reason": "Specific progress indicator"
+      }
+    ]
+  }
+}

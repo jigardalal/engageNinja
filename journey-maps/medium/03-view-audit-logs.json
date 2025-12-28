@@ -1,0 +1,206 @@
+{
+  "journey": {
+    "id": "view-audit-logs",
+    "name": "View Tenant Audit Logs",
+    "priority": "medium",
+    "userType": "authenticated_admin",
+    "frequency": "occasional",
+    "businessImpact": "Compliance and security auditing",
+    "preconditions": ["User is authenticated", "User has admin role"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Settings",
+        "page": "/settings",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-settings']",
+          "fallback": "a:has-text('Settings')"
+        },
+        "expectedResult": "Settings page loads",
+        "assertions": ["Page URL is /settings", "Settings tabs visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Click Audit Logs Tab",
+        "page": "/settings",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='settings-tab-audit']",
+          "fallback": "button:has-text('Audit')"
+        },
+        "expectedResult": "Audit logs page shows",
+        "assertions": ["Tab is active", "Logs table visible", "Filters available"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "View Audit Logs List",
+        "page": "/settings?tab=audit",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='audit-logs-table']",
+          "fallback": "table.audit-logs"
+        },
+        "expectedResult": "Audit logs display",
+        "assertions": ["Each log shows timestamp, user, action, resource type", "Entries ordered newest first", "Pagination or scroll loading available"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Filter by User",
+        "page": "/settings?tab=audit",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='audit-filter-user']",
+          "fallback": "select[name='user']"
+        },
+        "inputData": {"filterUser": "john@example.com"},
+        "expectedResult": "Logs filtered",
+        "assertions": ["Only logs from selected user show", "Filter shows applied"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Filter by Action Type",
+        "page": "/settings?tab=audit",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='audit-filter-action']",
+          "fallback": "select[name='action']"
+        },
+        "inputData": {"filterAction": "delete"},
+        "expectedResult": "Logs filtered by action",
+        "assertions": ["Only delete actions show", "Count updates"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Filter by Date Range",
+        "page": "/settings?tab=audit",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='audit-filter-date']",
+          "fallback": "input[type='date']"
+        },
+        "inputData": {"startDate": "2024-01-01", "endDate": "2024-01-31"},
+        "expectedResult": "Logs in date range show",
+        "assertions": ["Only logs from date range displayed"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "View Log Details",
+        "page": "/settings?tab=audit",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='audit-log-{logId}']",
+          "fallback": "tr.audit-row"
+        },
+        "inputData": {"logId": 456},
+        "expectedResult": "Log detail modal/panel opens",
+        "assertions": ["Full log information shows", "Changes shown in before/after format", "IP address and user agent visible"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Export Audit Logs",
+        "page": "/settings?tab=audit",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='export-audit-logs']",
+          "fallback": "button:has-text('Export')"
+        },
+        "expectedResult": "Export modal shows",
+        "assertions": ["Format options available", "Download starts"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Admin can view and audit complete tenant operations",
+      "finalState": "audit_logs_viewed",
+      "finalPage": "/settings?tab=audit"
+    },
+    "alternativePaths": [
+      {
+        "name": "Export as CSV",
+        "trigger": "User selects CSV format",
+        "outcome": "CSV file downloads with filtered audit logs"
+      },
+      {
+        "name": "Export as JSON",
+        "trigger": "User selects JSON format",
+        "outcome": "JSON file downloads with audit log data"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "No Logs Available",
+        "trigger": "No matching logs for filters",
+        "expectedBehavior": "Empty state shown",
+        "errorSelector": "[data-testid='audit-empty-state']",
+        "errorMessage": "No audit logs match your filters",
+        "recovery": "User adjusts filters"
+      },
+      {
+        "name": "Logs Loading Slow",
+        "trigger": "Large date range or many entries",
+        "expectedBehavior": "Loading indicator, pagination",
+        "errorSelector": "[data-testid='audit-loading']",
+        "errorMessage": "Loading logs...",
+        "recovery": "User narrows date range or uses filters"
+      },
+      {
+        "name": "Export Failed",
+        "trigger": "Export generation fails",
+        "expectedBehavior": "Error message shown",
+        "errorSelector": "[data-testid='audit-export-error']",
+        "errorMessage": "Failed to export logs",
+        "recovery": "User retries"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Settings nav",
+        "current": "a:has-text('Settings')",
+        "recommendation": "Add data-testid='nav-settings'",
+        "reason": "Specific settings navigation identifier"
+      },
+      {
+        "element": "Audit tab",
+        "current": "button:has-text('Audit')",
+        "recommendation": "Add data-testid='settings-tab-audit'",
+        "reason": "Unique audit tab identifier"
+      },
+      {
+        "element": "Logs table",
+        "current": "table.audit-logs",
+        "recommendation": "Add data-testid='audit-logs-table'",
+        "reason": "Reliable logs table identifier"
+      },
+      {
+        "element": "User filter",
+        "current": "select[name='user']",
+        "recommendation": "Add data-testid='audit-filter-user'",
+        "reason": "Specific user filter identifier"
+      },
+      {
+        "element": "Action filter",
+        "current": "select[name='action']",
+        "recommendation": "Add data-testid='audit-filter-action'",
+        "reason": "Specific action filter identifier"
+      },
+      {
+        "element": "Date filter",
+        "current": "input[type='date']",
+        "recommendation": "Add data-testid='audit-filter-date'",
+        "reason": "Specific date filter identifier"
+      },
+      {
+        "element": "Log row",
+        "current": "tr.audit-row",
+        "recommendation": "Add data-testid='audit-log-{logId}'",
+        "reason": "Unique identifier for each log entry"
+      },
+      {
+        "element": "Export button",
+        "current": "button:has-text('Export')",
+        "recommendation": "Add data-testid='export-audit-logs'",
+        "reason": "Unique export button identifier"
+      }
+    ]
+  }
+}

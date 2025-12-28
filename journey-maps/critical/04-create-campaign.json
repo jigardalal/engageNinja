@@ -1,0 +1,142 @@
+{
+  "journey": {
+    "id": "create-campaign",
+    "name": "Create Campaign",
+    "priority": "critical",
+    "userType": "authenticated_member_admin",
+    "frequency": "multiple_times_per_session",
+    "businessImpact": "Core product feature - primary value delivery",
+    "preconditions": [
+      "User is authenticated",
+      "User has active tenant",
+      "At least 1 contact exists"
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Campaigns",
+        "page": "/campaigns",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-campaigns']",
+          "fallback": "a:has-text('Campaigns')"
+        },
+        "expectedResult": "Campaigns page loads",
+        "assertions": ["URL is /campaigns", "Create Campaign button visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Click Create Campaign",
+        "page": "/campaigns",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='create-campaign-button']",
+          "fallback": "button:has-text('Create Campaign')"
+        },
+        "expectedResult": "Campaign creation form opens",
+        "assertions": ["URL is /campaigns/new", "Form visible"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Enter Campaign Name",
+        "page": "/campaigns/new",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='campaign-name']",
+          "fallback": "input[name='name']"
+        },
+        "inputData": {"name": "Summer Sale 2024", "type": "text"},
+        "expectedResult": "Campaign name entered",
+        "assertions": ["Name displays in field"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Select Channel",
+        "page": "/campaigns/new",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='campaign-channel-whatsapp']",
+          "fallback": "button:has-text('WhatsApp')"
+        },
+        "inputData": {"channel": "whatsapp"},
+        "expectedResult": "Channel selected",
+        "assertions": ["Channel shows active state"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Select Recipients",
+        "page": "/campaigns/new",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='campaign-contacts-selector']",
+          "fallback": "button:has-text('Select Contacts')"
+        },
+        "inputData": {"contactIds": [1, 2, 3]},
+        "expectedResult": "Contacts selected",
+        "assertions": ["Contact count displays"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Select Template",
+        "page": "/campaigns/new",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='campaign-template-selector']",
+          "fallback": "select[name='template']"
+        },
+        "inputData": {"templateId": 5},
+        "expectedResult": "Template selected",
+        "assertions": ["Template preview shows"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Submit Campaign",
+        "page": "/campaigns/new",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='campaign-submit']",
+          "fallback": "button:has-text('Send')"
+        },
+        "expectedResult": "Campaign sent/scheduled",
+        "assertions": ["URL changes to /campaigns/{id}", "Status shows Sending"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Campaign created and sending",
+      "finalState": "campaign_sending",
+      "finalPage": "/campaigns/{id}"
+    },
+    "errorCases": [
+      {
+        "name": "No Campaign Name",
+        "trigger": "Submit without name",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='campaign-error']",
+        "errorMessage": "Campaign name is required",
+        "recovery": "User enters name"
+      },
+      {
+        "name": "No Contacts Selected",
+        "trigger": "Submit without selecting contacts",
+        "expectedBehavior": "Validation error",
+        "errorMessage": "Please select at least one contact",
+        "recovery": "User selects contacts"
+      },
+      {
+        "name": "Quota Exceeded",
+        "trigger": "Campaign exceeds monthly quota",
+        "expectedBehavior": "Blocking error with upgrade prompt",
+        "errorMessage": "Campaign would exceed your quota",
+        "recovery": "User upgrades plan"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Campaign name input",
+        "current": "input[name='name']",
+        "recommendation": "Add data-testid='campaign-name'",
+        "reason": "Specific identifier"
+      }
+    ]
+  }
+}

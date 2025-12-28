@@ -1,0 +1,357 @@
+{
+  "journey": {
+    "id": "user-signup",
+    "name": "User Signup & Account Creation",
+    "priority": "critical",
+    "userType": "anonymous",
+    "frequency": "once_per_user",
+    "businessImpact": "Entry point to platform - directly affects conversion and user acquisition",
+    "preconditions": [
+      "User is not logged in",
+      "User is on home page or marketing pages"
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Signup Page",
+        "page": "/signup",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-signup-button']",
+          "fallback": "a:has-text('Sign Up')",
+          "recommendation": "Add data-testid='nav-signup-button' to navbar signup link"
+        },
+        "expectedResult": "User arrives at signup form page",
+        "assertions": [
+          "Page URL contains /signup",
+          "Signup form is visible",
+          "All form fields are present (first name, last name, company name, email, phone, password, confirm password)"
+        ]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Fill First Name",
+        "page": "/signup",
+        "action": "fill",
+        "selectors": {
+          "primary": "input[name='firstName']",
+          "fallback": "label:has-text('First Name') + input",
+          "recommendation": "Add data-testid='signup-first-name'"
+        },
+        "inputData": {
+          "firstName": "John",
+          "type": "text"
+        },
+        "expectedResult": "First name field value updates",
+        "assertions": [
+          "Input value is 'John'",
+          "No validation error appears"
+        ]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Fill Last Name",
+        "page": "/signup",
+        "action": "fill",
+        "selectors": {
+          "primary": "input[name='lastName']",
+          "fallback": "label:has-text('Last Name') + input",
+          "recommendation": "Add data-testid='signup-last-name'"
+        },
+        "inputData": {
+          "lastName": "Smith",
+          "type": "text"
+        },
+        "expectedResult": "Last name field value updates",
+        "assertions": [
+          "Input value is 'Smith'"
+        ]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Fill Company Name",
+        "page": "/signup",
+        "action": "fill",
+        "selectors": {
+          "primary": "input[name='companyName']",
+          "fallback": "label:has-text('Company') + input",
+          "recommendation": "Add data-testid='signup-company-name'"
+        },
+        "inputData": {
+          "companyName": "Acme Corp",
+          "type": "text"
+        },
+        "expectedResult": "Company name field value updates",
+        "assertions": [
+          "Input value is 'Acme Corp'"
+        ]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Fill Email Address",
+        "page": "/signup",
+        "action": "fill",
+        "selectors": {
+          "primary": "input[name='email'][type='email']",
+          "fallback": "label:has-text('Email') + input",
+          "recommendation": "Add data-testid='signup-email'"
+        },
+        "inputData": {
+          "email": "john@example.com",
+          "type": "email"
+        },
+        "expectedResult": "Email field value updates",
+        "assertions": [
+          "Input value contains valid email format"
+        ]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Fill Phone Number",
+        "page": "/signup",
+        "action": "fill",
+        "selectors": {
+          "primary": "input[name='phone']",
+          "fallback": "label:has-text('Phone') + input",
+          "recommendation": "Add data-testid='signup-phone'"
+        },
+        "inputData": {
+          "phone": "+1234567890",
+          "type": "tel"
+        },
+        "expectedResult": "Phone field value updates",
+        "assertions": [
+          "Input value is '+1234567890'"
+        ]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Fill Password",
+        "page": "/signup",
+        "action": "fill",
+        "selectors": {
+          "primary": "input[name='password'][type='password']",
+          "fallback": "label:has-text('Password') + input",
+          "recommendation": "Add data-testid='signup-password'"
+        },
+        "inputData": {
+          "password": "SecurePass123!",
+          "type": "password"
+        },
+        "expectedResult": "Password field is masked",
+        "assertions": [
+          "Input type is 'password'",
+          "Password strength indicator visible (if implemented)"
+        ]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Confirm Password",
+        "page": "/signup",
+        "action": "fill",
+        "selectors": {
+          "primary": "input[name='confirmPassword'][type='password']",
+          "fallback": "label:has-text('Confirm Password') + input",
+          "recommendation": "Add data-testid='signup-confirm-password'"
+        },
+        "inputData": {
+          "confirmPassword": "SecurePass123!",
+          "type": "password"
+        },
+        "expectedResult": "Confirm password field is masked",
+        "assertions": [
+          "Input type is 'password'"
+        ]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Accept Terms & Conditions",
+        "page": "/signup",
+        "action": "click",
+        "selectors": {
+          "primary": "input[type='checkbox'][name='acceptTerms']",
+          "fallback": "label:has-text('I agree to') + input",
+          "recommendation": "Add data-testid='signup-accept-terms' to checkbox"
+        },
+        "expectedResult": "Checkbox is checked",
+        "assertions": [
+          "Checkbox is checked",
+          "No validation error appears"
+        ]
+      },
+      {
+        "stepNumber": 10,
+        "name": "Complete ReCAPTCHA",
+        "page": "/signup",
+        "action": "interact",
+        "selectors": {
+          "primary": "iframe[src*='recaptcha']",
+          "fallback": "div.g_recaptcha",
+          "recommendation": "Ensure ReCAPTCHA is always present"
+        },
+        "expectedResult": "ReCAPTCHA token is obtained",
+        "assertions": [
+          "ReCAPTCHA iframe is visible",
+          "Submit button is enabled after completion"
+        ]
+      },
+      {
+        "stepNumber": 11,
+        "name": "Submit Signup Form",
+        "page": "/signup",
+        "action": "click",
+        "selectors": {
+          "primary": "button[type='submit']",
+          "fallback": "button:has-text('Create Account')",
+          "recommendation": "Add data-testid='signup-submit'"
+        },
+        "expectedResult": "Form submission initiated, loading state appears",
+        "assertions": [
+          "Submit button shows loading state",
+          "Button is disabled during submission"
+        ]
+      },
+      {
+        "stepNumber": 12,
+        "name": "Account Created Successfully",
+        "page": "/signup → /tenants or /dashboard",
+        "action": "wait_for_navigation",
+        "expectedResult": "User is redirected and authenticated",
+        "assertions": [
+          "Page URL changes to /tenants or /dashboard",
+          "User session is established"
+        ]
+      }
+    ],
+    "successOutcome": {
+      "description": "User account is created and first workspace is initialized",
+      "finalState": "authenticated_tenant_selected",
+      "finalPage": "/dashboard or /tenants"
+    },
+    "alternativePaths": [
+      {
+        "name": "Signup from Pricing Page",
+        "trigger": "User clicks 'Get Started' on pricing page",
+        "outcome": "User arrives at signup with plan context awareness"
+      },
+      {
+        "name": "Signup from Marketing CTAs",
+        "trigger": "User clicks any 'Sign Up' CTA on marketing pages",
+        "outcome": "User arrives at signup, may have referral/campaign tracking"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Empty First Name",
+        "trigger": "User tries to submit form without entering first name",
+        "expectedBehavior": "Validation error appears, form not submitted",
+        "errorSelector": "[data-testid='signup-error']",
+        "errorMessage": "First name is required",
+        "recovery": "User fills in first name and resubmits"
+      },
+      {
+        "name": "Empty Company Name",
+        "trigger": "User tries to submit without entering company name",
+        "expectedBehavior": "Validation error appears",
+        "errorMessage": "Company or workspace name is required",
+        "recovery": "User fills in company name"
+      },
+      {
+        "name": "Invalid Email Format",
+        "trigger": "User enters invalid email (e.g., 'notanemail')",
+        "expectedBehavior": "Validation error appears",
+        "errorSelector": "[data-testid='signup-email-error']",
+        "errorMessage": "Please enter a valid email address",
+        "recovery": "User corrects email format"
+      },
+      {
+        "name": "Password Too Short/Weak",
+        "trigger": "User enters password that doesn't meet requirements",
+        "expectedBehavior": "Password strength indicator shows, error message appears",
+        "errorSelector": "[data-testid='signup-password-error']",
+        "errorMessage": "Password must be at least 8 characters with uppercase, lowercase, number, and symbol",
+        "recovery": "User enters stronger password"
+      },
+      {
+        "name": "Passwords Don't Match",
+        "trigger": "User enters different values in password and confirm password",
+        "expectedBehavior": "Error appears when they blur confirm password field or submit",
+        "errorSelector": "[data-testid='signup-confirm-error']",
+        "errorMessage": "Passwords do not match",
+        "recovery": "User corrects confirm password field"
+      },
+      {
+        "name": "Email Already Exists",
+        "trigger": "User tries to signup with email already in system",
+        "expectedBehavior": "Backend returns error, error message displayed",
+        "errorSelector": "[data-testid='signup-email-exists-error']",
+        "errorMessage": "Email already registered. Please login or use a different email",
+        "recovery": "User can click 'Login' link or try different email"
+      },
+      {
+        "name": "Terms Not Accepted",
+        "trigger": "User tries to submit form without checking terms checkbox",
+        "expectedBehavior": "Error message appears",
+        "errorSelector": "[data-testid='signup-terms-error']",
+        "errorMessage": "You must accept the terms and conditions",
+        "recovery": "User checks the checkbox"
+      },
+      {
+        "name": "ReCAPTCHA Failed",
+        "trigger": "ReCAPTCHA verification fails",
+        "expectedBehavior": "Error message appears, user cannot submit",
+        "errorSelector": "[data-testid='recaptcha-error']",
+        "errorMessage": "Please verify that you are not a robot",
+        "recovery": "User retries ReCAPTCHA"
+      },
+      {
+        "name": "Network Error",
+        "trigger": "Network request fails during form submission",
+        "expectedBehavior": "User-friendly error message, form remains editable",
+        "errorSelector": "[data-testid='signup-network-error']",
+        "errorMessage": "Network error. Please check your connection and try again",
+        "recovery": "User retries submission"
+      },
+      {
+        "name": "Server Error",
+        "trigger": "Backend server error occurs",
+        "expectedBehavior": "Generic error message",
+        "errorSelector": "[data-testid='signup-server-error']",
+        "errorMessage": "Something went wrong. Please try again later",
+        "recovery": "User retries or contacts support"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Email input",
+        "current": "input[name='email']",
+        "recommendation": "Add data-testid='signup-email'",
+        "reason": "Ensures reliable test automation across updates"
+      },
+      {
+        "element": "Password input",
+        "current": "input[name='password']",
+        "recommendation": "Add data-testid='signup-password'",
+        "reason": "Specific selector for password field"
+      },
+      {
+        "element": "First name input",
+        "current": "input[name='firstName']",
+        "recommendation": "Add data-testid='signup-first-name'",
+        "reason": "Consistent naming convention"
+      },
+      {
+        "element": "Submit button",
+        "current": "button[type='submit']",
+        "recommendation": "Add data-testid='signup-submit'",
+        "reason": "Avoids ambiguity if multiple submit buttons exist"
+      },
+      {
+        "element": "Error messages",
+        "current": "Various inline error displays",
+        "recommendation": "Add data-testid='signup-error' to all error containers",
+        "reason": "Consistent error verification across all error types"
+      }
+    ]
+  }
+}

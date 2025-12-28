@@ -1,0 +1,184 @@
+{
+  "journey": {
+    "id": "plan-cancellation",
+    "name": "Cancel Subscription Plan",
+    "priority": "low",
+    "userType": "authenticated_account_owner",
+    "frequency": "rarely",
+    "businessImpact": "Churn management, retention",
+    "preconditions": ["User is authenticated", "User has active paid subscription"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Billing Settings",
+        "page": "/settings?tab=billing",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='settings-tab-billing']",
+          "fallback": "button:has-text('Billing')"
+        },
+        "expectedResult": "Billing settings page loads",
+        "assertions": ["Tab is active", "Current plan shows", "Management options visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "View Current Plan",
+        "page": "/settings?tab=billing",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='current-plan-card']",
+          "fallback": "div.plan-card"
+        },
+        "expectedResult": "Current plan details display",
+        "assertions": ["Plan name shows", "Renewal date visible", "Cancel option available"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Click Cancel Plan",
+        "page": "/settings?tab=billing",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='cancel-plan-button']",
+          "fallback": "button:has-text('Cancel')"
+        },
+        "expectedResult": "Cancellation flow starts",
+        "assertions": ["Cancellation dialog opens", "Reason selector visible"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Select Cancellation Reason",
+        "page": "/settings?tab=billing",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='cancellation-reason']",
+          "fallback": "select[name='reason']"
+        },
+        "inputData": {"reason": "too_expensive"},
+        "expectedResult": "Reason selected",
+        "assertions": ["Reason displays", "Follow-up options appear"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Add Cancellation Feedback",
+        "page": "/settings?tab=billing",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='cancellation-feedback']",
+          "fallback": "textarea[name='feedback']"
+        },
+        "inputData": {"feedback": "Looking for cheaper option", "type": "text"},
+        "expectedResult": "Feedback entered",
+        "assertions": ["Feedback displays"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Review Cancellation Impact",
+        "page": "/settings?tab=billing",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='cancellation-impact']",
+          "fallback": "div.impact-section"
+        },
+        "expectedResult": "Impact of cancellation shown",
+        "assertions": ["Final billing date shows", "Access ending date shows", "Data retention policy clear"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Review Retention Offer (Optional)",
+        "page": "/settings?tab=billing",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='retention-offer']",
+          "fallback": "div.offer-section"
+        },
+        "expectedResult": "Retention offer displays",
+        "assertions": ["Discount or features offered", "Offer terms clear", "Accept/Decline buttons visible"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Confirm Cancellation",
+        "page": "/settings?tab=billing",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='confirm-cancel-button']",
+          "fallback": "button:has-text('Cancel Plan')"
+        },
+        "expectedResult": "Cancellation confirmed",
+        "assertions": ["Loading shows", "Success message displays"]
+      },
+      {
+        "stepNumber": 9,
+        "name": "View Cancellation Confirmation",
+        "page": "/settings?tab=billing",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='cancellation-confirmation']",
+          "fallback": "div.confirmation"
+        },
+        "expectedResult": "Cancellation details displayed",
+        "assertions": ["Final date shows", "Confirmation email sent message", "Reactivation option available"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Subscription plan cancelled with access ending on specified date",
+      "finalState": "plan_cancelled",
+      "finalPage": "/settings?tab=billing"
+    },
+    "alternativePaths": [
+      {
+        "name": "Accept Retention Offer",
+        "trigger": "User clicks accept on retention offer",
+        "outcome": "Discount applied, cancellation cancelled"
+      },
+      {
+        "name": "Downgrade Instead",
+        "trigger": "User selects downgrade option",
+        "outcome": "Moves to plan downgrade flow instead"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "No Active Subscription",
+        "trigger": "User tries to cancel without active plan",
+        "expectedBehavior": "Error message",
+        "errorSelector": "[data-testid='no-subscription-error']",
+        "errorMessage": "No active subscription to cancel",
+        "recovery": "User reviews their billing"
+      },
+      {
+        "name": "Cancellation Failed",
+        "trigger": "Backend error during cancellation",
+        "expectedBehavior": "Error message, subscription preserved",
+        "errorSelector": "[data-testid='cancellation-error']",
+        "errorMessage": "Failed to cancel subscription",
+        "recovery": "User retries or contacts support"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Billing tab",
+        "current": "button:has-text('Billing')",
+        "recommendation": "Add data-testid='settings-tab-billing'",
+        "reason": "Specific billing tab"
+      },
+      {
+        "element": "Current plan card",
+        "current": "div.plan-card",
+        "recommendation": "Add data-testid='current-plan-card'",
+        "reason": "Reliable plan card"
+      },
+      {
+        "element": "Cancel button",
+        "current": "button:has-text('Cancel')",
+        "recommendation": "Add data-testid='cancel-plan-button'",
+        "reason": "Unique cancel button"
+      },
+      {
+        "element": "Reason selector",
+        "current": "select[name='reason']",
+        "recommendation": "Add data-testid='cancellation-reason'",
+        "reason": "Specific reason selector"
+      }
+    ]
+  }
+}

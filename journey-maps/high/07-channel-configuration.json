@@ -1,0 +1,283 @@
+{
+  "journey": {
+    "id": "channel-configuration",
+    "name": "Configure Communication Channels (WhatsApp/Email)",
+    "priority": "high",
+    "userType": "authenticated_admin",
+    "frequency": "once_per_channel_setup",
+    "businessImpact": "Critical for platform functionality - enables sending",
+    "preconditions": ["User is authenticated", "User has admin role"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Channel Settings",
+        "page": "/settings?tab=channels",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='settings-tab-channels']",
+          "fallback": "button:has-text('Channels')"
+        },
+        "expectedResult": "Channels settings page loads",
+        "assertions": ["Tab is active", "Channel options display", "Configuration cards show"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "View WhatsApp Configuration Status",
+        "page": "/settings?tab=channels",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='whatsapp-card']",
+          "fallback": "div.whatsapp-config"
+        },
+        "expectedResult": "WhatsApp card shows current status",
+        "assertions": ["Status indicator shows", "Phone number shows if connected", "Setup button shows if not connected", "Test button shows if connected"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Click Configure WhatsApp",
+        "page": "/settings?tab=channels",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='whatsapp-configure']",
+          "fallback": "button:has-text('Configure')"
+        },
+        "expectedResult": "WhatsApp setup modal opens",
+        "assertions": ["Setup instructions display", "API credential fields shown", "Integration steps numbered"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Enter WhatsApp API Credentials",
+        "page": "/settings?tab=channels",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='whatsapp-phone-id']",
+          "fallback": "input[name='phoneNumberId']"
+        },
+        "inputData": {"phoneNumberId": "123456789", "businessId": "987654321", "accessToken": "token..."},
+        "expectedResult": "Fields populate",
+        "assertions": ["Values display in inputs", "Sensitive token masked after entry"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Test WhatsApp Connection",
+        "page": "/settings?tab=channels",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='whatsapp-test']",
+          "fallback": "button:has-text('Test')"
+        },
+        "expectedResult": "Connection test runs",
+        "assertions": ["Loading indicator appears", "Success or error message shows", "Phone number confirmed if successful"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Save WhatsApp Configuration",
+        "page": "/settings?tab=channels",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='whatsapp-save']",
+          "fallback": "button:has-text('Save')"
+        },
+        "expectedResult": "Configuration saved",
+        "assertions": ["Modal closes", "WhatsApp card shows Connected", "Success notification appears"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Configure Email Integration",
+        "page": "/settings?tab=channels",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='email-configure']",
+          "fallback": "button:has-text('Configure')"
+        },
+        "expectedResult": "Email setup modal opens",
+        "assertions": ["Provider options shown", "Setup instructions display"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Select Email Provider",
+        "page": "/settings?tab=channels",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='email-provider-ses']",
+          "fallback": "button:has-text('SES')"
+        },
+        "inputData": {"provider": "ses"},
+        "expectedResult": "Provider selected",
+        "assertions": ["Provider shows as selected", "Provider-specific credentials requested"]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Enter Email Credentials",
+        "page": "/settings?tab=channels",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='email-access-key']",
+          "fallback": "input[name='accessKey']"
+        },
+        "inputData": {"accessKey": "AKIA...", "secretKey": "..."},
+        "expectedResult": "Credentials entered",
+        "assertions": ["Fields populate", "Secrets masked"]
+      },
+      {
+        "stepNumber": 10,
+        "name": "Configure Email Settings",
+        "page": "/settings?tab=channels",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='email-from-address']",
+          "fallback": "input[name='fromAddress']"
+        },
+        "inputData": {"fromAddress": "noreply@example.com", "fromName": "Company Name"},
+        "expectedResult": "Settings configured",
+        "assertions": ["From address displays", "From name displays"]
+      },
+      {
+        "stepNumber": 11,
+        "name": "Test Email Configuration",
+        "page": "/settings?tab=channels",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='email-test']",
+          "fallback": "button:has-text('Send Test')"
+        },
+        "expectedResult": "Test email sent",
+        "assertions": ["Success message shows", "Test email receives in inbox"]
+      },
+      {
+        "stepNumber": 12,
+        "name": "Save Email Configuration",
+        "page": "/settings?tab=channels",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='email-save']",
+          "fallback": "button:has-text('Save')"
+        },
+        "expectedResult": "Configuration saved",
+        "assertions": ["Modal closes", "Email card shows Connected", "Both channels now ready"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Both channels configured and operational",
+      "finalState": "channels_configured",
+      "finalPage": "/settings?tab=channels"
+    },
+    "alternativePaths": [
+      {
+        "name": "Reconfigure Existing Channel",
+        "trigger": "Admin needs to update credentials",
+        "outcome": "Edit existing configuration with same flow"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Invalid WhatsApp Credentials",
+        "trigger": "Phone ID or access token invalid",
+        "expectedBehavior": "Error message shown",
+        "errorSelector": "[data-testid='whatsapp-credentials-error']",
+        "errorMessage": "Invalid WhatsApp credentials",
+        "recovery": "User re-enters correct credentials"
+      },
+      {
+        "name": "Connection Test Failed",
+        "trigger": "API endpoint unreachable or credentials rejected",
+        "expectedBehavior": "Error message shown",
+        "errorSelector": "[data-testid='whatsapp-connection-error']",
+        "errorMessage": "Failed to connect to WhatsApp. Check credentials",
+        "recovery": "User verifies credentials and retries"
+      },
+      {
+        "name": "Email Provider Not Supported",
+        "trigger": "Selected provider not available",
+        "expectedBehavior": "Error message shown",
+        "errorSelector": "[data-testid='email-provider-error']",
+        "errorMessage": "Email provider not supported",
+        "recovery": "User selects different provider"
+      },
+      {
+        "name": "Invalid Email Sender Address",
+        "trigger": "From address not verified with provider",
+        "expectedBehavior": "Error message shown",
+        "errorSelector": "[data-testid='email-address-error']",
+        "errorMessage": "Email address not verified with provider",
+        "recovery": "User verifies address with provider and retries"
+      },
+      {
+        "name": "Rate Limits Exceeded",
+        "trigger": "Too many tests or configuration attempts",
+        "expectedBehavior": "Rate limit error shown",
+        "errorSelector": "[data-testid='rate-limit-error']",
+        "errorMessage": "Rate limit exceeded. Try again in 5 minutes",
+        "recovery": "User waits before retrying"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Channels tab",
+        "current": "button:has-text('Channels')",
+        "recommendation": "Add data-testid='settings-tab-channels'",
+        "reason": "Specific channels tab identifier"
+      },
+      {
+        "element": "WhatsApp card",
+        "current": "div.whatsapp-config",
+        "recommendation": "Add data-testid='whatsapp-card'",
+        "reason": "Reliable WhatsApp section identifier"
+      },
+      {
+        "element": "WhatsApp configure",
+        "current": "button:has-text('Configure')",
+        "recommendation": "Add data-testid='whatsapp-configure'",
+        "reason": "Unique WhatsApp config button"
+      },
+      {
+        "element": "WhatsApp phone ID input",
+        "current": "input[name='phoneNumberId']",
+        "recommendation": "Add data-testid='whatsapp-phone-id'",
+        "reason": "Specific input identifier"
+      },
+      {
+        "element": "WhatsApp test button",
+        "current": "button:has-text('Test')",
+        "recommendation": "Add data-testid='whatsapp-test'",
+        "reason": "Unique WhatsApp test button"
+      },
+      {
+        "element": "WhatsApp save button",
+        "current": "button:has-text('Save')",
+        "recommendation": "Add data-testid='whatsapp-save'",
+        "reason": "Unique WhatsApp save button"
+      },
+      {
+        "element": "Email configure button",
+        "current": "button:has-text('Configure')",
+        "recommendation": "Add data-testid='email-configure'",
+        "reason": "Unique Email config button"
+      },
+      {
+        "element": "Email provider buttons",
+        "current": "button:has-text('{provider}')",
+        "recommendation": "Add data-testid='email-provider-{provider}'",
+        "reason": "Identify each provider option"
+      },
+      {
+        "element": "Email access key input",
+        "current": "input[name='accessKey']",
+        "recommendation": "Add data-testid='email-access-key'",
+        "reason": "Specific email credentials input"
+      },
+      {
+        "element": "Email test button",
+        "current": "button:has-text('Send Test')",
+        "recommendation": "Add data-testid='email-test'",
+        "reason": "Unique email test button"
+      },
+      {
+        "element": "Email save button",
+        "current": "button:has-text('Save')",
+        "recommendation": "Add data-testid='email-save'",
+        "reason": "Unique email save button"
+      }
+    ]
+  }
+}

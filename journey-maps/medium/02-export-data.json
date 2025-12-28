@@ -1,0 +1,207 @@
+{
+  "journey": {
+    "id": "export-data",
+    "name": "Export Contacts & Campaign Data",
+    "priority": "medium",
+    "userType": "authenticated_member_admin",
+    "frequency": "monthly",
+    "businessImpact": "Data portability and reporting",
+    "preconditions": [
+      "User is authenticated",
+      "User has active tenant",
+      "Data exists to export"
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Contacts",
+        "page": "/contacts",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-contacts']",
+          "fallback": "a:has-text('Contacts')",
+          "recommendation": "Add data-testid='nav-contacts'"
+        },
+        "expectedResult": "Contacts list loads",
+        "assertions": [
+          "URL is /contacts",
+          "Contacts table visible",
+          "Export button visible"
+        ]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Click Export Button",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='export-contacts-button']",
+          "fallback": "button:has-text('Export')",
+          "recommendation": "Add data-testid='export-contacts-button'"
+        },
+        "expectedResult": "Export modal appears",
+        "assertions": [
+          "Modal shows export format options",
+          "Filter options available"
+        ]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Select Export Format",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='export-format-csv']",
+          "fallback": "button:has-text('CSV')",
+          "recommendation": "Add data-testid='export-format-{format}'"
+        },
+        "inputData": {
+          "format": "csv",
+          "type": "button"
+        },
+        "expectedResult": "Format selected",
+        "assertions": [
+          "Selected format highlighted",
+          "Format-specific options appear"
+        ]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Select Data Fields",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='export-field-phone']",
+          "fallback": "input[type='checkbox']",
+          "recommendation": "Add data-testid='export-field-{field}'"
+        },
+        "inputData": {
+          "fields": ["phone", "email", "name", "tags"],
+          "type": "checkboxes"
+        },
+        "expectedResult": "Fields selected",
+        "assertions": [
+          "Checkboxes show selected fields",
+          "Preview shows which columns will export"
+        ]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Apply Filters",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='export-filter-tag']",
+          "fallback": "select[name='filter']",
+          "recommendation": "Add data-testid='export-filter-{type}'"
+        },
+        "inputData": {
+          "filterBy": "tag",
+          "filterValue": "premium",
+          "type": "select"
+        },
+        "expectedResult": "Filters applied",
+        "assertions": [
+          "Filter shows applied",
+          "Preview updates with filtered data"
+        ]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Start Export",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='start-export-button']",
+          "fallback": "button:has-text('Export')",
+          "recommendation": "Add data-testid='start-export-button'"
+        },
+        "expectedResult": "Export begins",
+        "assertions": [
+          "Progress indicator appears",
+          "Export status shows"
+        ]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Download Exported File",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='download-export-button']",
+          "fallback": "a:has-text('Download')",
+          "recommendation": "Add data-testid='download-export-button'"
+        },
+        "expectedResult": "File download initiates",
+        "assertions": [
+          "Download triggered in browser",
+          "File appears in downloads",
+          "File name includes timestamp"
+        ]
+      }
+    ],
+    "successOutcome": {
+      "description": "Data exported in requested format and downloaded",
+      "finalState": "data_exported",
+      "finalPage": "/contacts"
+    },
+    "alternativePaths": [
+      {
+        "name": "Export Campaigns",
+        "trigger": "User on campaigns page",
+        "outcome": "Campaign data exported"
+      },
+      {
+        "name": "Export with Custom Filters",
+        "trigger": "User applies complex filters",
+        "outcome": "Filtered data exported"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Export Too Large",
+        "trigger": "Export exceeds size limit",
+        "expectedBehavior": "Error with suggestion",
+        "errorSelector": "[data-testid='export-size-error']",
+        "errorMessage": "Export too large. Please filter data",
+        "recovery": "User applies filters or splits export"
+      },
+      {
+        "name": "No Data to Export",
+        "trigger": "Filter results in 0 records",
+        "expectedBehavior": "Error message",
+        "errorSelector": "[data-testid='export-empty-error']",
+        "errorMessage": "No data matches your filters",
+        "recovery": "User adjusts filters"
+      },
+      {
+        "name": "Export Failed",
+        "trigger": "Backend export process fails",
+        "expectedBehavior": "Error message, retry",
+        "errorSelector": "[data-testid='export-error']",
+        "errorMessage": "Export failed. Please try again",
+        "recovery": "User retries export"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Export button",
+        "current": "button:has-text('Export')",
+        "recommendation": "Add data-testid='export-contacts-button'",
+        "reason": "Specific action identifier"
+      },
+      {
+        "element": "Format selectors",
+        "current": "button:has-text('{format}')",
+        "recommendation": "Add data-testid='export-format-{format}'",
+        "reason": "Multiple format options need individual IDs"
+      },
+      {
+        "element": "Field checkboxes",
+        "current": "input[type='checkbox']",
+        "recommendation": "Add data-testid='export-field-{field}'",
+        "reason": "Identify specific fields for selection"
+      }
+    ]
+  }
+}

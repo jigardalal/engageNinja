@@ -1,0 +1,198 @@
+{
+  "journey": {
+    "id": "view-contact-details",
+    "name": "View & Search Contact Details",
+    "priority": "high",
+    "userType": "authenticated_member_admin",
+    "frequency": "weekly",
+    "businessImpact": "Contact information access and audience understanding",
+    "preconditions": ["User is authenticated", "User has active tenant", "Contacts exist"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Contacts",
+        "page": "/contacts",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-contacts']",
+          "fallback": "a:has-text('Contacts')"
+        },
+        "expectedResult": "Contacts list loads",
+        "assertions": ["Page URL is /contacts", "Contacts table visible", "Search input available"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Search for Contact",
+        "page": "/contacts",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='contacts-search']",
+          "fallback": "input[placeholder*='Search']"
+        },
+        "inputData": {"searchTerm": "John", "type": "text"},
+        "expectedResult": "Results filtered by search term",
+        "assertions": ["Matching contacts display", "Non-matching contacts hidden", "Real-time filter applies"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Click Contact Row",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='contact-row-{contactId}']",
+          "fallback": "tr:has-text('{contactName')"
+        },
+        "inputData": {"contactId": 123},
+        "expectedResult": "Contact detail page opens",
+        "assertions": ["URL changes to /contacts/123", "Contact information loads", "All fields displayed"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "View Contact Profile",
+        "page": "/contacts/{id}",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='contact-profile-card']",
+          "fallback": "div.contact-info"
+        },
+        "expectedResult": "Full contact profile displays",
+        "assertions": ["Phone number visible", "Email visible if available", "Name visible", "Tags visible", "Status visible", "Creation date visible"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "View Contact Tags",
+        "page": "/contacts/{id}",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='contact-tags']",
+          "fallback": "div.tags-section"
+        },
+        "expectedResult": "Tags display",
+        "assertions": ["All tags show with colors", "Tag count accurate", "Each tag clickable"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "View Contact Message History",
+        "page": "/contacts/{id}",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='contact-messages-tab']",
+          "fallback": "button:has-text('Messages')"
+        },
+        "expectedResult": "Message history displays",
+        "assertions": ["All messages to contact show", "Newest messages first", "Each message shows date, status, content", "Message count accurate"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "View Campaign Participation",
+        "page": "/contacts/{id}",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='contact-campaigns-tab']",
+          "fallback": "button:has-text('Campaigns')"
+        },
+        "expectedResult": "Campaign participation displays",
+        "assertions": ["All campaigns contact received show", "Campaign name, date, status visible", "Campaign metrics show"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Export Contact Data",
+        "page": "/contacts/{id}",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='export-contact-button']",
+          "fallback": "button:has-text('Export')"
+        },
+        "expectedResult": "Contact data exported",
+        "assertions": ["Export options show", "Download triggers"]
+      }
+    ],
+    "successOutcome": {
+      "description": "User can view complete contact profile and history",
+      "finalState": "contact_details_viewed",
+      "finalPage": "/contacts/{id}"
+    },
+    "alternativePaths": [
+      {
+        "name": "Filter Contacts by Tag",
+        "trigger": "User clicks on tag from contact profile",
+        "outcome": "Returns to contacts list filtered by tag"
+      },
+      {
+        "name": "Edit Contact from Detail",
+        "trigger": "User clicks edit button on detail page",
+        "outcome": "Opens edit form as documented in edit-contact journey"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Contact Not Found",
+        "trigger": "Search returns no results",
+        "expectedBehavior": "Empty state shown",
+        "errorSelector": "[data-testid='contacts-empty-state']",
+        "errorMessage": "No contacts match your search",
+        "recovery": "User refines search term"
+      },
+      {
+        "name": "Contact Deleted",
+        "trigger": "Contact was deleted by another user",
+        "expectedBehavior": "Error message shown",
+        "errorSelector": "[data-testid='contact-deleted-error']",
+        "errorMessage": "This contact no longer exists",
+        "recovery": "User returns to contacts list"
+      },
+      {
+        "name": "Permission Denied",
+        "trigger": "User doesn't have access to view contact",
+        "expectedBehavior": "Access denied message",
+        "errorSelector": "[data-testid='contact-permission-error']",
+        "errorMessage": "You don't have permission to view this contact",
+        "recovery": "User contacts admin"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Search input",
+        "current": "input[placeholder*='Search']",
+        "recommendation": "Add data-testid='contacts-search'",
+        "reason": "Specific search field identifier"
+      },
+      {
+        "element": "Contact row",
+        "current": "tr:has-text('{contactName')",
+        "recommendation": "Add data-testid='contact-row-{contactId}'",
+        "reason": "Unique identifier for each contact row"
+      },
+      {
+        "element": "Profile card",
+        "current": "div.contact-info",
+        "recommendation": "Add data-testid='contact-profile-card'",
+        "reason": "Reliable profile section identifier"
+      },
+      {
+        "element": "Tags section",
+        "current": "div.tags-section",
+        "recommendation": "Add data-testid='contact-tags'",
+        "reason": "Specific tags display identifier"
+      },
+      {
+        "element": "Messages tab",
+        "current": "button:has-text('Messages')",
+        "recommendation": "Add data-testid='contact-messages-tab'",
+        "reason": "Unique messages tab identifier"
+      },
+      {
+        "element": "Campaigns tab",
+        "current": "button:has-text('Campaigns')",
+        "recommendation": "Add data-testid='contact-campaigns-tab'",
+        "reason": "Unique campaigns tab identifier"
+      },
+      {
+        "element": "Export button",
+        "current": "button:has-text('Export')",
+        "recommendation": "Add data-testid='export-contact-button'",
+        "reason": "Unique export button identifier"
+      }
+    ]
+  }
+}

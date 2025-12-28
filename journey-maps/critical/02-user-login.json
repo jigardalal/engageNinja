@@ -1,0 +1,159 @@
+{
+  "journey": {
+    "id": "user-login",
+    "name": "User Login & Authentication",
+    "priority": "critical",
+    "userType": "registered_not_authenticated",
+    "frequency": "multiple_per_session",
+    "businessImpact": "Core session management and security",
+    "preconditions": [
+      "User has account created",
+      "User is not currently logged in"
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Login Page",
+        "page": "/login",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-login-button']",
+          "fallback": "a:has-text('Login')",
+          "recommendation": "Add data-testid='nav-login-button'"
+        },
+        "expectedResult": "Login page loads",
+        "assertions": [
+          "URL is /login",
+          "Login form is visible",
+          "Email and password fields present",
+          "Sign Up link is visible"
+        ]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Enter Email",
+        "page": "/login",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='login-email']",
+          "fallback": "input[name='email'][type='email']",
+          "recommendation": "Add data-testid='login-email'"
+        },
+        "inputData": {
+          "email": "john@example.com",
+          "type": "email"
+        },
+        "expectedResult": "Email field populated",
+        "assertions": [
+          "Input value is correct",
+          "No validation error appears"
+        ]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Enter Password",
+        "page": "/login",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='login-password']",
+          "fallback": "input[name='password'][type='password']",
+          "recommendation": "Add data-testid='login-password'"
+        },
+        "inputData": {
+          "password": "SecurePass123!",
+          "type": "password"
+        },
+        "expectedResult": "Password field populated",
+        "assertions": [
+          "Input type is password",
+          "Password is masked"
+        ]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Submit Login Form",
+        "page": "/login",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='login-submit']",
+          "fallback": "button:has-text('Login')",
+          "recommendation": "Add data-testid='login-submit'"
+        },
+        "expectedResult": "Form submission starts",
+        "assertions": [
+          "Submit button shows loading state",
+          "Button is disabled"
+        ]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Redirect to Dashboard or Tenant Selection",
+        "page": "/login → /dashboard or /tenants",
+        "action": "wait_for_navigation",
+        "expectedResult": "User redirected based on account config",
+        "assertions": [
+          "URL changes appropriately",
+          "Session cookie is set",
+          "User data is available"
+        ]
+      }
+    ],
+    "successOutcome": {
+      "description": "User is authenticated and can access platform",
+      "finalState": "authenticated",
+      "finalPage": "/dashboard or /tenants"
+    },
+    "alternativePaths": [
+      {
+        "name": "Login with Multiple Workspaces",
+        "trigger": "User has access to multiple tenants",
+        "outcome": "Lands on tenant selection page"
+      },
+      {
+        "name": "Login as Platform Admin",
+        "trigger": "User has platform admin role",
+        "outcome": "Lands on admin dashboard"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Invalid Credentials",
+        "trigger": "Wrong email/password combination",
+        "expectedBehavior": "Generic error message",
+        "errorSelector": "[data-testid='login-error']",
+        "errorMessage": "Invalid email or password",
+        "recovery": "User retries or uses forgot password"
+      },
+      {
+        "name": "Empty Email",
+        "trigger": "Submit without email",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='login-email-error']",
+        "errorMessage": "Email is required",
+        "recovery": "User enters email"
+      },
+      {
+        "name": "Too Many Attempts",
+        "trigger": "Multiple failed login attempts",
+        "expectedBehavior": "Account temporarily locked",
+        "errorSelector": "[data-testid='login-rate-limit-error']",
+        "errorMessage": "Too many attempts. Try again in 15 minutes",
+        "recovery": "User waits or contacts support"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Email input",
+        "current": "input[name='email']",
+        "recommendation": "Add data-testid='login-email'",
+        "reason": "Specific, reliable selector"
+      },
+      {
+        "element": "Submit button",
+        "current": "button:has-text('Login')",
+        "recommendation": "Add data-testid='login-submit'",
+        "reason": "Avoid text changes breaking tests"
+      }
+    ]
+  }
+}

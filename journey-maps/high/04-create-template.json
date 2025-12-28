@@ -1,0 +1,289 @@
+{
+  "journey": {
+    "id": "create-template",
+    "name": "Create Message Template",
+    "priority": "high",
+    "userType": "authenticated_member_admin",
+    "frequency": "occasional",
+    "businessImpact": "Productivity - templates enable faster campaign creation",
+    "preconditions": ["User is authenticated", "User has active tenant"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Templates",
+        "page": "/templates",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-templates']",
+          "fallback": "a:has-text('Templates')"
+        },
+        "expectedResult": "Templates page loads",
+        "assertions": ["Page URL is /templates", "Template list displays", "Create Template button visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Click Create Template",
+        "page": "/templates",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='create-template-button']",
+          "fallback": "button:has-text('Create Template')"
+        },
+        "expectedResult": "Template creation form opens",
+        "assertions": ["URL changes to /templates/create", "Form shows all fields", "Template preview area visible"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Enter Template Name",
+        "page": "/templates/create",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='template-name']",
+          "fallback": "input[placeholder*='Template']"
+        },
+        "inputData": {"name": "Welcome Offer", "type": "text"},
+        "expectedResult": "Field value updates",
+        "assertions": ["Name displays in form", "Preview updates with name"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Select Channel",
+        "page": "/templates/create",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='template-channel-whatsapp']",
+          "fallback": "button:has-text('WhatsApp')",
+          "recommendation": "Add data-testid='template-channel-whatsapp', data-testid='template-channel-email'"
+        },
+        "inputData": {"channel": "whatsapp"},
+        "expectedResult": "Channel selected, form updates",
+        "assertions": ["Selected channel shows active state", "Channel-specific fields appear"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Write Template Body",
+        "page": "/templates/create",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='template-body']",
+          "fallback": "textarea[placeholder*='Message']"
+        },
+        "inputData": {"body": "Hi {{firstName}}, we have a special offer for you: {{offer}}", "type": "text"},
+        "expectedResult": "Text appears in editor",
+        "assertions": ["Message text displays in editor", "Character count shows", "Word count shows"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Add Variable Placeholder",
+        "page": "/templates/create",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='add-variable-button']",
+          "fallback": "button:has-text('Variables')"
+        },
+        "expectedResult": "Variable picker opens",
+        "assertions": ["Available variables list shows", "Variables can be selected/inserted"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Insert Variable",
+        "page": "/templates/create",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='variable-firstName']",
+          "fallback": "button:has-text('firstName')"
+        },
+        "inputData": {"selectedVar": "firstName"},
+        "expectedResult": "Variable inserted into template",
+        "assertions": ["Variable placeholder appears in template", "Template preview updates"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "View Template Preview",
+        "page": "/templates/create",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='template-preview']",
+          "fallback": "div.preview-pane"
+        },
+        "expectedResult": "Preview displays as recipients will see it",
+        "assertions": ["Message shows in channel-specific format", "Variables highlighted or shown", "Character count accurate"]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Personalize Sample Preview",
+        "page": "/templates/create",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='preview-sample-firstName']",
+          "fallback": "input[placeholder*='firstName']"
+        },
+        "inputData": {"sampleValues": {"firstName": "John", "offer": "50% Off"}},
+        "expectedResult": "Preview updates with sample data",
+        "assertions": ["Variables replace with sample values", "Preview shows final message format"]
+      },
+      {
+        "stepNumber": 10,
+        "name": "Set Template Category (Optional)",
+        "page": "/templates/create",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='template-category']",
+          "fallback": "select[name='category']"
+        },
+        "inputData": {"category": "promotional"},
+        "expectedResult": "Category selected",
+        "assertions": ["Category appears in dropdown as selected"]
+      },
+      {
+        "stepNumber": 11,
+        "name": "Save Template",
+        "page": "/templates/create",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='template-save']",
+          "fallback": "button:has-text('Save')"
+        },
+        "expectedResult": "Form submission starts",
+        "assertions": ["Save button shows loading state", "Form is disabled during save"]
+      },
+      {
+        "stepNumber": 12,
+        "name": "Template Created Successfully",
+        "page": "/templates/create",
+        "action": "wait_for_navigation",
+        "expectedResult": "Redirect to template list or detail page",
+        "assertions": ["URL changes to /templates", "New template appears in list", "Success message shows"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Template is created and available for campaigns",
+      "finalState": "template_created",
+      "finalPage": "/templates"
+    },
+    "alternativePaths": [
+      {
+        "name": "Create Template from Campaign",
+        "trigger": "User creating campaign clicks 'Save as Template'",
+        "outcome": "Current message saved as template with pre-filled body"
+      },
+      {
+        "name": "Duplicate Existing Template",
+        "trigger": "User clicks 'Duplicate' on existing template",
+        "outcome": "Creates new template as copy with pre-filled values"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Empty Template Name",
+        "trigger": "User tries to save without entering name",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='template-name-error']",
+        "errorMessage": "Template name is required",
+        "recovery": "User enters template name"
+      },
+      {
+        "name": "Empty Template Body",
+        "trigger": "User tries to save without message text",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='template-body-error']",
+        "errorMessage": "Template message cannot be empty",
+        "recovery": "User enters message text"
+      },
+      {
+        "name": "Invalid Variables",
+        "trigger": "Template contains undefined variables",
+        "expectedBehavior": "Warning shown",
+        "errorSelector": "[data-testid='template-variables-warning']",
+        "errorMessage": "Some variables may not resolve for all contacts",
+        "recovery": "User confirms or fixes variables"
+      },
+      {
+        "name": "Template Too Long",
+        "trigger": "WhatsApp template exceeds character limit",
+        "expectedBehavior": "Warning appears, shows limit",
+        "errorSelector": "[data-testid='template-length-warning']",
+        "errorMessage": "WhatsApp messages limited to 4,096 characters",
+        "recovery": "User reduces message length"
+      },
+      {
+        "name": "Network Error",
+        "trigger": "Network fails during save",
+        "expectedBehavior": "Error message, form preserved",
+        "errorSelector": "[data-testid='template-save-error']",
+        "errorMessage": "Failed to save template. Please try again",
+        "recovery": "User retries save"
+      },
+      {
+        "name": "Duplicate Name",
+        "trigger": "Template name already exists",
+        "expectedBehavior": "Warning shown",
+        "errorSelector": "[data-testid='template-duplicate-error']",
+        "errorMessage": "A template with this name already exists",
+        "recovery": "User uses different name"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Templates nav",
+        "current": "a:has-text('Templates')",
+        "recommendation": "Add data-testid='nav-templates'",
+        "reason": "Specific identifier for navigation"
+      },
+      {
+        "element": "Create template button",
+        "current": "button:has-text('Create Template')",
+        "recommendation": "Add data-testid='create-template-button'",
+        "reason": "Unique button identifier"
+      },
+      {
+        "element": "Template name input",
+        "current": "input[placeholder*='Template']",
+        "recommendation": "Add data-testid='template-name'",
+        "reason": "Specific identifier for name field"
+      },
+      {
+        "element": "Channel selector",
+        "current": "button:has-text('WhatsApp')",
+        "recommendation": "Add data-testid='template-channel-{channel}'",
+        "reason": "Differentiate between channel options"
+      },
+      {
+        "element": "Template body",
+        "current": "textarea[placeholder*='Message']",
+        "recommendation": "Add data-testid='template-body'",
+        "reason": "Specific identifier for message body"
+      },
+      {
+        "element": "Add variable button",
+        "current": "button:has-text('Variables')",
+        "recommendation": "Add data-testid='add-variable-button'",
+        "reason": "Unique variable button identifier"
+      },
+      {
+        "element": "Variable items",
+        "current": "button:has-text('{varName')",
+        "recommendation": "Add data-testid='variable-{varName}'",
+        "reason": "Unique identifier for each variable"
+      },
+      {
+        "element": "Template preview",
+        "current": "div.preview-pane",
+        "recommendation": "Add data-testid='template-preview'",
+        "reason": "Reliable preview section identifier"
+      },
+      {
+        "element": "Category select",
+        "current": "select[name='category']",
+        "recommendation": "Add data-testid='template-category'",
+        "reason": "Specific category dropdown identifier"
+      },
+      {
+        "element": "Save button",
+        "current": "button:has-text('Save')",
+        "recommendation": "Add data-testid='template-save'",
+        "reason": "Unique save button identifier"
+      }
+    ]
+  }
+}

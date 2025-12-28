@@ -1,0 +1,121 @@
+{
+  "journey": {
+    "id": "add-contact",
+    "name": "Add Contact (Single & Bulk Import)",
+    "priority": "critical",
+    "userType": "authenticated_member_admin",
+    "frequency": "frequent",
+    "businessImpact": "Contact management - foundation for campaigns",
+    "preconditions": ["User is authenticated", "User has active tenant"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Contacts",
+        "page": "/contacts",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-contacts']",
+          "fallback": "a:has-text('Contacts')"
+        },
+        "expectedResult": "Contacts page loads",
+        "assertions": ["URL is /contacts", "Add Contact button visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Click Add Contact",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='add-contact-button']",
+          "fallback": "button:has-text('Add Contact')"
+        },
+        "expectedResult": "Contact form opens",
+        "assertions": ["Modal visible", "Form fields present"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Fill Phone Number",
+        "page": "/contacts",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='contact-phone']",
+          "fallback": "input[name='phone']"
+        },
+        "inputData": {"phone": "+1234567890", "type": "tel"},
+        "expectedResult": "Phone populated",
+        "assertions": ["Phone field has value"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Save Contact",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='contact-submit']",
+          "fallback": "button:has-text('Save')"
+        },
+        "expectedResult": "Contact saved",
+        "assertions": ["Contact appears in list", "Modal closes"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Click Import Contacts",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='import-contacts-button']",
+          "fallback": "button:has-text('Import')"
+        },
+        "expectedResult": "Import modal opens",
+        "assertions": ["File input visible"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Select CSV File",
+        "page": "/contacts",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='csv-file-input']",
+          "fallback": "input[type='file']"
+        },
+        "inputData": {"file": "contacts.csv"},
+        "expectedResult": "File selected",
+        "assertions": ["File name appears"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Start Import",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='import-submit']",
+          "fallback": "button:has-text('Import')"
+        },
+        "expectedResult": "Import begins",
+        "assertions": ["Progress shows", "Contacts added"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Contact(s) added to workspace",
+      "finalState": "contacts_added",
+      "finalPage": "/contacts"
+    },
+    "errorCases": [
+      {
+        "name": "Missing Phone",
+        "trigger": "Save without phone",
+        "expectedBehavior": "Validation error",
+        "errorMessage": "Phone is required",
+        "recovery": "User enters phone"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Phone input",
+        "current": "input[name='phone']",
+        "recommendation": "Add data-testid='contact-phone'",
+        "reason": "Specific identifier"
+      }
+    ]
+  }
+}

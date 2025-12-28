@@ -1,0 +1,259 @@
+{
+  "journey": {
+    "id": "edit-campaign-draft",
+    "name": "Edit Campaign (Draft State)",
+    "priority": "high",
+    "userType": "authenticated_member_admin",
+    "frequency": "occasional",
+    "businessImpact": "Allows campaign refinement before sending",
+    "preconditions": ["User is authenticated", "Campaign exists in draft state"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Campaigns",
+        "page": "/campaigns",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-campaigns']",
+          "fallback": "a:has-text('Campaigns')"
+        },
+        "expectedResult": "Campaigns list loads",
+        "assertions": ["Page URL is /campaigns", "Campaign list shows"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Locate Draft Campaign",
+        "page": "/campaigns",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='campaign-status-draft']",
+          "fallback": "span:has-text('Draft')"
+        },
+        "expectedResult": "Draft campaigns visible",
+        "assertions": ["Draft badge shows on campaigns", "Edit action available on draft campaigns"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Click Edit Button",
+        "page": "/campaigns",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='campaign-edit-{campaignId}']",
+          "fallback": "button:has-text('Edit')"
+        },
+        "inputData": {"campaignId": 123},
+        "expectedResult": "Campaign edit form opens",
+        "assertions": ["URL changes to /campaigns/{id}/edit", "Current values pre-populated", "All fields editable"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Edit Campaign Name",
+        "page": "/campaigns/{id}/edit",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='campaign-name']",
+          "fallback": "input[name='name']"
+        },
+        "inputData": {"name": "Summer Sale - Updated", "type": "text"},
+        "expectedResult": "Field updates",
+        "assertions": ["New name displays"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Edit Message Content",
+        "page": "/campaigns/{id}/edit",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='campaign-message']",
+          "fallback": "textarea[name='message']"
+        },
+        "inputData": {"message": "Updated message text...", "type": "text"},
+        "expectedResult": "Message updates",
+        "assertions": ["New text displays", "Preview updates"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Edit Recipients",
+        "page": "/campaigns/{id}/edit",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='campaign-recipients']",
+          "fallback": "button:has-text('Contacts')"
+        },
+        "inputData": {"recipients": [1, 2, 3, 4, 5]},
+        "expectedResult": "Recipients updated",
+        "assertions": ["Recipient count updates", "Preview shows new count"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Modify Schedule",
+        "page": "/campaigns/{id}/edit",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='campaign-schedule-date']",
+          "fallback": "input[type='datetime-local']"
+        },
+        "inputData": {"scheduledTime": "2024-07-15 14:00"},
+        "expectedResult": "Schedule updates",
+        "assertions": ["New date/time displays", "Schedule shows in form"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Preview Updated Campaign",
+        "page": "/campaigns/{id}/edit",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='campaign-preview']",
+          "fallback": "button:has-text('Preview')"
+        },
+        "expectedResult": "Preview modal opens",
+        "assertions": ["Updated message shows", "Updated recipient count shows", "New schedule shows"]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Save Draft Changes",
+        "page": "/campaigns/{id}/edit",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='campaign-save-draft']",
+          "fallback": "button:has-text('Save')"
+        },
+        "expectedResult": "Changes saved",
+        "assertions": ["Success message shows", "Redirects to campaign detail page", "Changes persist when reopening"]
+      },
+      {
+        "stepNumber": 10,
+        "name": "Send Campaign or Schedule",
+        "page": "/campaigns/{id}/edit",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='campaign-send']",
+          "fallback": "button:has-text('Send')"
+        },
+        "expectedResult": "Campaign sent/scheduled",
+        "assertions": ["Status changes from Draft to Sending/Scheduled", "Campaign can no longer be edited", "Messages begin sending"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Campaign changes are saved and ready for sending",
+      "finalState": "campaign_draft_updated",
+      "finalPage": "/campaigns/{id}"
+    },
+    "alternativePaths": [
+      {
+        "name": "Save and Send Immediately",
+        "trigger": "User clicks Send Now after changes",
+        "outcome": "Changes saved and campaign immediately starts sending"
+      },
+      {
+        "name": "Save and Schedule Later",
+        "trigger": "User clicks Schedule after changes",
+        "outcome": "Changes saved and campaign scheduled for future time"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "No Changes Made",
+        "trigger": "User clicks save without modifying anything",
+        "expectedBehavior": "Optional - no-op or confirmation",
+        "errorSelector": "[data-testid='campaign-no-changes']",
+        "errorMessage": "No changes to save",
+        "recovery": "User makes changes or closes form"
+      },
+      {
+        "name": "Invalid Message",
+        "trigger": "User removes all message content",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='campaign-message-error']",
+        "errorMessage": "Message cannot be empty",
+        "recovery": "User enters message"
+      },
+      {
+        "name": "No Recipients",
+        "trigger": "User removes all recipients",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='campaign-recipients-error']",
+        "errorMessage": "Please select at least one recipient",
+        "recovery": "User selects recipients"
+      },
+      {
+        "name": "Network Error During Save",
+        "trigger": "Network fails",
+        "expectedBehavior": "Error message, form preserved",
+        "errorSelector": "[data-testid='campaign-save-error']",
+        "errorMessage": "Failed to save changes",
+        "recovery": "User retries save"
+      },
+      {
+        "name": "Campaign No Longer Draft",
+        "trigger": "Campaign status changed (e.g., sent by another user)",
+        "expectedBehavior": "Error, redirect to view mode",
+        "errorSelector": "[data-testid='campaign-status-changed-error']",
+        "errorMessage": "This campaign can no longer be edited",
+        "recovery": "User views campaign in read-only mode"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Campaigns nav",
+        "current": "a:has-text('Campaigns')",
+        "recommendation": "Add data-testid='nav-campaigns'",
+        "reason": "Specific navigation identifier"
+      },
+      {
+        "element": "Draft status badge",
+        "current": "span:has-text('Draft')",
+        "recommendation": "Add data-testid='campaign-status-draft'",
+        "reason": "Unique draft status identifier"
+      },
+      {
+        "element": "Edit button",
+        "current": "button:has-text('Edit')",
+        "recommendation": "Add data-testid='campaign-edit-{campaignId}'",
+        "reason": "Unique edit button per campaign"
+      },
+      {
+        "element": "Campaign name input",
+        "current": "input[name='name']",
+        "recommendation": "Add data-testid='campaign-name'",
+        "reason": "Specific campaign name field"
+      },
+      {
+        "element": "Message input",
+        "current": "textarea[name='message']",
+        "recommendation": "Add data-testid='campaign-message'",
+        "reason": "Specific message body field"
+      },
+      {
+        "element": "Recipients selector",
+        "current": "button:has-text('Contacts')",
+        "recommendation": "Add data-testid='campaign-recipients'",
+        "reason": "Unique recipients selector"
+      },
+      {
+        "element": "Schedule date input",
+        "current": "input[type='datetime-local']",
+        "recommendation": "Add data-testid='campaign-schedule-date'",
+        "reason": "Specific schedule input"
+      },
+      {
+        "element": "Preview button",
+        "current": "button:has-text('Preview')",
+        "recommendation": "Add data-testid='campaign-preview'",
+        "reason": "Unique preview button"
+      },
+      {
+        "element": "Save draft button",
+        "current": "button:has-text('Save')",
+        "recommendation": "Add data-testid='campaign-save-draft'",
+        "reason": "Unique save draft button"
+      },
+      {
+        "element": "Send button",
+        "current": "button:has-text('Send')",
+        "recommendation": "Add data-testid='campaign-send'",
+        "reason": "Unique send button"
+      }
+    ]
+  }
+}

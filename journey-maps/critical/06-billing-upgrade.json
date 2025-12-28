@@ -1,0 +1,93 @@
+{
+  "journey": {
+    "id": "billing-upgrade",
+    "name": "Plan Upgrade & Billing",
+    "priority": "critical",
+    "userType": "authenticated_admin",
+    "frequency": "once_per_plan_change",
+    "businessImpact": "Revenue generation and feature access",
+    "preconditions": ["User is authenticated", "User is admin"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Billing",
+        "page": "/settings?tab=billing",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='billing-tab']",
+          "fallback": "button:has-text('Billing')"
+        },
+        "expectedResult": "Billing page loads",
+        "assertions": ["Current plan shows", "Upgrade button visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Click Upgrade Plan",
+        "page": "/settings?tab=billing",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='upgrade-plan-starter']",
+          "fallback": "button:has-text('Upgrade')"
+        },
+        "inputData": {"selectedPlan": "starter"},
+        "expectedResult": "Checkout page loads",
+        "assertions": ["Payment form visible", "Plan summary shows"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Enter Card Details",
+        "page": "/checkout",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='stripe-card-element']",
+          "fallback": "div#card-element"
+        },
+        "inputData": {"card": "4242424242424242", "exp": "12/25", "cvc": "123"},
+        "expectedResult": "Card details entered",
+        "assertions": ["Form ready for submission"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Submit Payment",
+        "page": "/checkout",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='pay-button']",
+          "fallback": "button:has-text('Subscribe')"
+        },
+        "expectedResult": "Payment processes",
+        "assertions": ["Loading state shows"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Success",
+        "page": "/billing/success",
+        "action": "wait_for_navigation",
+        "expectedResult": "Redirect to success page",
+        "assertions": ["URL is /billing/success", "Success message shows"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Plan upgraded and new features available",
+      "finalState": "plan_upgraded",
+      "finalPage": "/billing/success"
+    },
+    "errorCases": [
+      {
+        "name": "Card Declined",
+        "trigger": "Invalid card or insufficient funds",
+        "expectedBehavior": "Error message",
+        "errorMessage": "Your card was declined",
+        "recovery": "User tries different card"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Pay button",
+        "current": "button:has-text('Subscribe')",
+        "recommendation": "Add data-testid='pay-button'",
+        "reason": "Specific identifier"
+      }
+    ]
+  }
+}

@@ -1,0 +1,231 @@
+{
+  "journey": {
+    "id": "manage-tags",
+    "name": "Create & Manage Contact Tags",
+    "priority": "medium",
+    "userType": "authenticated_member_admin",
+    "frequency": "monthly",
+    "businessImpact": "Contact organization and segmentation",
+    "preconditions": [
+      "User is authenticated",
+      "User has active tenant"
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Tags",
+        "page": "/tags",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-tags']",
+          "fallback": "a:has-text('Tags')",
+          "recommendation": "Add data-testid='nav-tags'"
+        },
+        "expectedResult": "Tags management page loads",
+        "assertions": [
+          "URL is /tags",
+          "Existing tags list displays",
+          "Create Tag button visible"
+        ]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Click Create Tag",
+        "page": "/tags",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='create-tag-button']",
+          "fallback": "button:has-text('Create')",
+          "recommendation": "Add data-testid='create-tag-button'"
+        },
+        "expectedResult": "Tag creation form opens",
+        "assertions": [
+          "Form visible",
+          "Name input shown",
+          "Color picker available"
+        ]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Enter Tag Name",
+        "page": "/tags",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='tag-name']",
+          "fallback": "input[name='name']",
+          "recommendation": "Add data-testid='tag-name'"
+        },
+        "inputData": {
+          "name": "Premium Customers",
+          "type": "text"
+        },
+        "expectedResult": "Tag name entered",
+        "assertions": [
+          "Name displays in input"
+        ]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Choose Tag Color",
+        "page": "/tags",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='tag-color-picker']",
+          "fallback": "div.color-picker",
+          "recommendation": "Add data-testid='tag-color-picker'"
+        },
+        "inputData": {
+          "color": "#FF5733",
+          "type": "color"
+        },
+        "expectedResult": "Color selected",
+        "assertions": [
+          "Color swatch shows selected color",
+          "Preview shows colored tag"
+        ]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Save Tag",
+        "page": "/tags",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='tag-save']",
+          "fallback": "button:has-text('Save')",
+          "recommendation": "Add data-testid='tag-save'"
+        },
+        "expectedResult": "Tag created",
+        "assertions": [
+          "Form closes",
+          "New tag appears in list",
+          "Success message shows"
+        ]
+      },
+      {
+        "stepNumber": 6,
+        "name": "View Tags List",
+        "page": "/tags",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='tags-list']",
+          "fallback": "div.tags-container",
+          "recommendation": "Add data-testid='tags-list'"
+        },
+        "expectedResult": "All tags display",
+        "assertions": [
+          "Each tag shows name",
+          "Color displays",
+          "Member count shows",
+          "Usage count shows"
+        ]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Edit Tag",
+        "page": "/tags",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='tag-edit-{tagId}']",
+          "fallback": "button:has-text('Edit')",
+          "recommendation": "Add data-testid='tag-edit-{tagId}'"
+        },
+        "expectedResult": "Edit form opens",
+        "assertions": [
+          "Current values pre-populated",
+          "Form is editable"
+        ]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Delete Tag",
+        "page": "/tags",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='tag-delete-{tagId}']",
+          "fallback": "button:has-text('Delete')",
+          "recommendation": "Add data-testid='tag-delete-{tagId}'"
+        },
+        "expectedResult": "Confirmation dialog appears",
+        "assertions": [
+          "Confirmation message shows",
+          "Confirm/Cancel buttons visible"
+        ]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Confirm Tag Deletion",
+        "page": "/tags",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='confirm-delete']",
+          "fallback": "button:has-text('Delete')",
+          "recommendation": "Add data-testid='confirm-delete'"
+        },
+        "expectedResult": "Tag deleted",
+        "assertions": [
+          "Tag removed from list",
+          "Tag removed from affected contacts",
+          "Success message shows"
+        ]
+      }
+    ],
+    "successOutcome": {
+      "description": "Tags are created and available for segmentation",
+      "finalState": "tags_managed",
+      "finalPage": "/tags"
+    },
+    "alternativePaths": [
+      {
+        "name": "Bulk Tag Assignment",
+        "trigger": "User assigns tag to multiple contacts",
+        "outcome": "Contacts batch tagged"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Empty Tag Name",
+        "trigger": "User tries to save without name",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='tag-error']",
+        "errorMessage": "Tag name is required",
+        "recovery": "User enters name"
+      },
+      {
+        "name": "Duplicate Tag Name",
+        "trigger": "Tag name already exists",
+        "expectedBehavior": "Error message",
+        "errorSelector": "[data-testid='tag-error']",
+        "errorMessage": "Tag name already exists",
+        "recovery": "User uses different name"
+      },
+      {
+        "name": "Tag In Use",
+        "trigger": "Delete tag with contacts",
+        "expectedBehavior": "Error or confirmation",
+        "errorSelector": "[data-testid='tag-in-use-error']",
+        "errorMessage": "This tag is used by X contacts",
+        "recovery": "User removes tag from contacts first"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Tag name input",
+        "current": "input[name='name']",
+        "recommendation": "Add data-testid='tag-name'",
+        "reason": "Specific, testable identifier"
+      },
+      {
+        "element": "Save button",
+        "current": "button:has-text('Save')",
+        "recommendation": "Add data-testid='tag-save'",
+        "reason": "Avoid text changes"
+      },
+      {
+        "element": "Tag items",
+        "current": "div.tag-item",
+        "recommendation": "Add data-testid='tag-item-{tagId}'",
+        "reason": "Easy identification and interaction"
+      }
+    ]
+  }
+}

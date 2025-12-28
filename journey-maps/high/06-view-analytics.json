@@ -1,0 +1,221 @@
+{
+  "journey": {
+    "id": "view-analytics",
+    "name": "View Analytics & Usage Dashboard",
+    "priority": "high",
+    "userType": "authenticated_admin",
+    "frequency": "weekly",
+    "businessImpact": "Business intelligence and ROI tracking",
+    "preconditions": ["User is authenticated", "User has admin role", "Campaigns exist"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Usage/Analytics",
+        "page": "/analytics",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-analytics']",
+          "fallback": "a:has-text('Analytics')"
+        },
+        "expectedResult": "Analytics page loads",
+        "assertions": ["Page URL is /analytics", "Analytics dashboard displays"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "View Current Usage Summary",
+        "page": "/analytics",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='usage-summary']",
+          "fallback": "div.usage-summary"
+        },
+        "expectedResult": "Usage metrics display",
+        "assertions": ["WhatsApp messages this month shows", "Email messages this month shows", "Contacts used shows", "Percentage of quota shows"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "View Usage Charts",
+        "page": "/analytics",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='usage-chart']",
+          "fallback": "canvas, svg.chart"
+        },
+        "expectedResult": "Charts display usage trends",
+        "assertions": ["Daily/weekly trend line appears", "Multiple channels shown", "Legend shows channels", "Hovering shows data values"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "View Campaign Performance",
+        "page": "/analytics",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='campaign-performance-table']",
+          "fallback": "table.campaigns"
+        },
+        "expectedResult": "Campaign list with metrics displays",
+        "assertions": ["Campaign names show", "Delivery rates show", "Read rates show", "Sortable by metric"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Filter by Date Range",
+        "page": "/analytics",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='date-range-picker']",
+          "fallback": "input[type='date']"
+        },
+        "inputData": {"startDate": "2024-01-01", "endDate": "2024-01-31"},
+        "expectedResult": "Charts and data update",
+        "assertions": ["Date inputs show selected dates", "Charts update with new range", "Metrics recalculate"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "View Channel Breakdown",
+        "page": "/analytics",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='channel-breakdown']",
+          "fallback": "div.channel-stats"
+        },
+        "expectedResult": "Channel-specific metrics display",
+        "assertions": ["WhatsApp metrics separate", "Email metrics separate", "Comparison available", "Volume and performance shown"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Download Analytics Report",
+        "page": "/analytics",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='download-analytics-button']",
+          "fallback": "button:has-text('Download')"
+        },
+        "expectedResult": "Download options appear",
+        "assertions": ["Format options shown", "Download initiates"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "View Usage Projection",
+        "page": "/analytics",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='usage-projection']",
+          "fallback": "div.projection"
+        },
+        "expectedResult": "Projection displays",
+        "assertions": ["End-of-month projection shows", "Warning if will exceed quota", "Suggestion to upgrade if needed"]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Compare with Previous Period",
+        "page": "/analytics",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='compare-period-toggle']",
+          "fallback": "button:has-text('Compare')"
+        },
+        "expectedResult": "Comparison view enables",
+        "assertions": ["Previous period data shows", "Percentage change indicators appear", "Trend arrows show up/down"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Admin has clear visibility into usage and performance",
+      "finalState": "analytics_viewed",
+      "finalPage": "/analytics"
+    },
+    "alternativePaths": [
+      {
+        "name": "Export to CSV",
+        "trigger": "User clicks download and selects CSV",
+        "outcome": "CSV file downloads with analytics data"
+      },
+      {
+        "name": "Export to PDF",
+        "trigger": "User clicks download and selects PDF",
+        "outcome": "PDF report generates and downloads"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Data Not Loading",
+        "trigger": "Analytics backend slow to respond",
+        "expectedBehavior": "Loading spinner, retry available",
+        "errorSelector": "[data-testid='analytics-loading']",
+        "errorMessage": "Loading analytics...",
+        "recovery": "Auto-retry or user clicks refresh"
+      },
+      {
+        "name": "Insufficient Data",
+        "trigger": "No campaigns in selected date range",
+        "expectedBehavior": "Empty state with helpful message",
+        "errorSelector": "[data-testid='analytics-empty']",
+        "errorMessage": "No campaigns in this period",
+        "recovery": "User changes date range"
+      },
+      {
+        "name": "Export Failed",
+        "trigger": "Report generation fails",
+        "expectedBehavior": "Error message, retry available",
+        "errorSelector": "[data-testid='analytics-export-error']",
+        "errorMessage": "Failed to generate report",
+        "recovery": "User retries"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Analytics nav",
+        "current": "a:has-text('Analytics')",
+        "recommendation": "Add data-testid='nav-analytics'",
+        "reason": "Specific navigation identifier"
+      },
+      {
+        "element": "Usage summary",
+        "current": "div.usage-summary",
+        "recommendation": "Add data-testid='usage-summary'",
+        "reason": "Reliable usage summary identifier"
+      },
+      {
+        "element": "Charts",
+        "current": "canvas, svg.chart",
+        "recommendation": "Add data-testid='usage-chart'",
+        "reason": "Unique chart identifier"
+      },
+      {
+        "element": "Campaign table",
+        "current": "table.campaigns",
+        "recommendation": "Add data-testid='campaign-performance-table'",
+        "reason": "Specific campaign table identifier"
+      },
+      {
+        "element": "Date picker",
+        "current": "input[type='date']",
+        "recommendation": "Add data-testid='date-range-picker'",
+        "reason": "Specific date range selector"
+      },
+      {
+        "element": "Channel breakdown",
+        "current": "div.channel-stats",
+        "recommendation": "Add data-testid='channel-breakdown'",
+        "reason": "Reliable channel stats identifier"
+      },
+      {
+        "element": "Download button",
+        "current": "button:has-text('Download')",
+        "recommendation": "Add data-testid='download-analytics-button'",
+        "reason": "Unique download button identifier"
+      },
+      {
+        "element": "Projection",
+        "current": "div.projection",
+        "recommendation": "Add data-testid='usage-projection'",
+        "reason": "Specific projection identifier"
+      },
+      {
+        "element": "Compare toggle",
+        "current": "button:has-text('Compare')",
+        "recommendation": "Add data-testid='compare-period-toggle'",
+        "reason": "Unique compare button identifier"
+      }
+    ]
+  }
+}

@@ -1,0 +1,284 @@
+{
+  "journey": {
+    "id": "invite-team-member",
+    "name": "Invite Team Member & Manage Roles",
+    "priority": "high",
+    "userType": "authenticated_admin",
+    "frequency": "occasional",
+    "businessImpact": "Team collaboration and multi-user access",
+    "preconditions": ["User is authenticated", "User has admin role", "Team page accessible"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Team Settings",
+        "page": "/team",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-team']",
+          "fallback": "a:has-text('Team')"
+        },
+        "expectedResult": "Team management page loads",
+        "assertions": ["Page URL is /team", "Team members list visible", "Invite Member button visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Click Invite Member Button",
+        "page": "/team",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='invite-member-button']",
+          "fallback": "button:has-text('Invite')"
+        },
+        "expectedResult": "Invite modal opens",
+        "assertions": ["Modal displays", "Email input field visible", "Role selector visible", "Send button visible"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Enter Member Email",
+        "page": "/team",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='invite-email']",
+          "fallback": "input[placeholder*='Email']"
+        },
+        "inputData": {"email": "team@example.com", "type": "email"},
+        "expectedResult": "Email field populated",
+        "assertions": ["Email displays in input field", "Field validates email format"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Select Member Role",
+        "page": "/team",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='invite-role']",
+          "fallback": "select[name='role']"
+        },
+        "inputData": {"role": "member"},
+        "expectedResult": "Role selected",
+        "assertions": ["Role dropdown shows selected value", "Role description shows"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Review Permissions",
+        "page": "/team",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='role-permissions']",
+          "fallback": "div.permissions-info"
+        },
+        "expectedResult": "Permissions display for selected role",
+        "assertions": ["Permissions listed for role", "Restrictions shown"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Send Invitation",
+        "page": "/team",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='send-invite-button']",
+          "fallback": "button:has-text('Send')"
+        },
+        "expectedResult": "Invitation sent",
+        "assertions": ["Modal closes or shows success", "Invitation email sent to recipient", "Member appears in list with Pending status"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "View Team Members List",
+        "page": "/team",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='team-members-list']",
+          "fallback": "table.members"
+        },
+        "expectedResult": "All team members display",
+        "assertions": ["Member name/email shows", "Member role shows", "Member status shows", "Join date shows", "Action buttons visible"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Change Member Role",
+        "page": "/team",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='member-role-{userId}']",
+          "fallback": "select[name='role-{userId}']"
+        },
+        "inputData": {"userId": 123, "newRole": "admin"},
+        "expectedResult": "Role dropdown opens",
+        "assertions": ["Available roles display", "Current role highlighted"]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Confirm Role Change",
+        "page": "/team",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='role-option-admin']",
+          "fallback": "option:has-text('admin')"
+        },
+        "expectedResult": "Role selection submitted",
+        "assertions": ["Role updates in list", "Confirmation appears"]
+      },
+      {
+        "stepNumber": 10,
+        "name": "Remove Team Member",
+        "page": "/team",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='member-remove-{userId}']",
+          "fallback": "button:has-text('Remove')"
+        },
+        "inputData": {"userId": 123},
+        "expectedResult": "Confirmation dialog appears",
+        "assertions": ["Confirmation message shows", "Confirm and Cancel buttons visible", "Warning about data access"]
+      },
+      {
+        "stepNumber": 11,
+        "name": "Confirm Member Removal",
+        "page": "/team",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='confirm-remove-button']",
+          "fallback": "button:has-text('Confirm')"
+        },
+        "expectedResult": "Member removed",
+        "assertions": ["Member disappears from list", "Success message shows", "Member loses access to workspace"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Team members are invited and can join with appropriate roles",
+      "finalState": "team_member_invited",
+      "finalPage": "/team"
+    },
+    "alternativePaths": [
+      {
+        "name": "Invite Multiple Members at Once",
+        "trigger": "Admin wants to bulk invite",
+        "outcome": "CSV upload or multiple email fields"
+      },
+      {
+        "name": "Resend Invitation",
+        "trigger": "Invitation expires or member didn't receive",
+        "outcome": "Resend button available on pending members"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Invalid Email Format",
+        "trigger": "User enters invalid email address",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='invite-email-error']",
+        "errorMessage": "Please enter a valid email address",
+        "recovery": "User corrects email"
+      },
+      {
+        "name": "User Already Member",
+        "trigger": "Email is already a team member",
+        "expectedBehavior": "Error or confirmation to re-invite",
+        "errorSelector": "[data-testid='invite-already-member-error']",
+        "errorMessage": "This user is already a team member",
+        "recovery": "User tries different email or skips"
+      },
+      {
+        "name": "User Already Invited",
+        "trigger": "Invitation already sent to this email",
+        "expectedBehavior": "Warning shown",
+        "errorSelector": "[data-testid='invite-already-sent-error']",
+        "errorMessage": "Invitation already sent. You can resend it",
+        "recovery": "User resends or cancels"
+      },
+      {
+        "name": "Email Send Failed",
+        "trigger": "Email service fails",
+        "expectedBehavior": "Error shown, user can retry",
+        "errorSelector": "[data-testid='invite-email-send-error']",
+        "errorMessage": "Failed to send invitation email. Please try again",
+        "recovery": "User retries sending"
+      },
+      {
+        "name": "Insufficient Permissions",
+        "trigger": "User without admin role tries to invite",
+        "expectedBehavior": "Access denied",
+        "errorSelector": "[data-testid='invite-permission-error']",
+        "errorMessage": "Only admins can invite team members",
+        "recovery": "User contacts workspace admin"
+      },
+      {
+        "name": "Team Limit Exceeded",
+        "trigger": "Workspace team limit reached",
+        "expectedBehavior": "Error with upgrade prompt",
+        "errorSelector": "[data-testid='team-limit-exceeded-error']",
+        "errorMessage": "Team member limit reached. Upgrade to add more",
+        "recovery": "User upgrades plan"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Team nav",
+        "current": "a:has-text('Team')",
+        "recommendation": "Add data-testid='nav-team'",
+        "reason": "Specific navigation link identifier"
+      },
+      {
+        "element": "Invite button",
+        "current": "button:has-text('Invite')",
+        "recommendation": "Add data-testid='invite-member-button'",
+        "reason": "Unique invite button identifier"
+      },
+      {
+        "element": "Invite email input",
+        "current": "input[placeholder*='Email']",
+        "recommendation": "Add data-testid='invite-email'",
+        "reason": "Specific email input identifier"
+      },
+      {
+        "element": "Invite role select",
+        "current": "select[name='role']",
+        "recommendation": "Add data-testid='invite-role'",
+        "reason": "Specific role selector identifier"
+      },
+      {
+        "element": "Send invite button",
+        "current": "button:has-text('Send')",
+        "recommendation": "Add data-testid='send-invite-button'",
+        "reason": "Unique send button identifier"
+      },
+      {
+        "element": "Members list",
+        "current": "table.members",
+        "recommendation": "Add data-testid='team-members-list'",
+        "reason": "Reliable members list identifier"
+      },
+      {
+        "element": "Member row",
+        "current": "tr (implied by table)",
+        "recommendation": "Add data-testid='member-row-{userId}'",
+        "reason": "Unique identifier for each member row"
+      },
+      {
+        "element": "Member role selector",
+        "current": "select[name='role-{userId}']",
+        "recommendation": "Add data-testid='member-role-{userId}'",
+        "reason": "Role selector per member"
+      },
+      {
+        "element": "Remove button",
+        "current": "button:has-text('Remove')",
+        "recommendation": "Add data-testid='member-remove-{userId}'",
+        "reason": "Unique remove button per member"
+      },
+      {
+        "element": "Confirm remove",
+        "current": "button:has-text('Confirm')",
+        "recommendation": "Add data-testid='confirm-remove-button'",
+        "reason": "Unique confirmation button identifier"
+      },
+      {
+        "element": "Role permissions info",
+        "current": "div.permissions-info",
+        "recommendation": "Add data-testid='role-permissions'",
+        "reason": "Reliable permissions section identifier"
+      }
+    ]
+  }
+}

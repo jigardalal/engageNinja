@@ -1,0 +1,159 @@
+{
+  "journey": {
+    "id": "platform-admin-settings",
+    "name": "Access Platform Admin Settings",
+    "priority": "low",
+    "userType": "authenticated_platform_admin",
+    "frequency": "rarely",
+    "businessImpact": "Platform administration and configuration",
+    "preconditions": ["User is authenticated", "User has platform_admin role"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to User Menu",
+        "page": "/dashboard",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='user-menu-button']",
+          "fallback": "button.profile-menu"
+        },
+        "expectedResult": "User menu opens",
+        "assertions": ["Menu displays", "Admin options visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Click Admin Console",
+        "page": "/dashboard",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='admin-console-link']",
+          "fallback": "a:has-text('Admin')"
+        },
+        "expectedResult": "Admin console opens",
+        "assertions": ["URL changes to /admin", "Admin dashboard loads"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "View Admin Dashboard",
+        "page": "/admin",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='admin-dashboard']",
+          "fallback": "div.admin-main"
+        },
+        "expectedResult": "Admin dashboard displays",
+        "assertions": ["Admin sections visible", "Statistics show"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Access Tenant Management",
+        "page": "/admin",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='admin-nav-tenants']",
+          "fallback": "a:has-text('Tenants')"
+        },
+        "expectedResult": "Tenant management page opens",
+        "assertions": ["Tenant list displays", "Management options visible"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "View Tenant Details",
+        "page": "/admin/tenants",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='tenant-row-{tenantId}']",
+          "fallback": "tr:has-text('{tenantName')"
+        },
+        "inputData": {"tenantId": 1},
+        "expectedResult": "Tenant detail page opens",
+        "assertions": ["Tenant info shows", "Subscription shows", "Usage shows"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Access Global Settings",
+        "page": "/admin",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='admin-nav-settings']",
+          "fallback": "a:has-text('Settings')"
+        },
+        "expectedResult": "Global settings page opens",
+        "assertions": ["Configuration options visible"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "View System Configuration",
+        "page": "/admin/settings",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='system-config-section']",
+          "fallback": "div.config-section"
+        },
+        "expectedResult": "System configuration displays",
+        "assertions": ["Settings visible", "Edit options available"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Access Audit Logs",
+        "page": "/admin",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='admin-nav-audit']",
+          "fallback": "a:has-text('Audit')"
+        },
+        "expectedResult": "Audit logs page opens",
+        "assertions": ["Platform-wide audit logs show", "Filtering available"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Platform admin can access administrative settings and management tools",
+      "finalState": "admin_console_accessed",
+      "finalPage": "/admin"
+    },
+    "errorCases": [
+      {
+        "name": "Insufficient Permissions",
+        "trigger": "User doesn't have platform_admin role",
+        "expectedBehavior": "Access denied",
+        "errorSelector": "[data-testid='admin-permission-error']",
+        "errorMessage": "You don't have permission to access admin console",
+        "recovery": "Contact platform owner"
+      },
+      {
+        "name": "Admin Console Unavailable",
+        "trigger": "Admin features disabled",
+        "expectedBehavior": "Not available message",
+        "errorSelector": "[data-testid='admin-unavailable']",
+        "errorMessage": "Admin console is currently unavailable",
+        "recovery": "Try again later"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Admin console link",
+        "current": "a:has-text('Admin')",
+        "recommendation": "Add data-testid='admin-console-link'",
+        "reason": "Specific admin link"
+      },
+      {
+        "element": "Admin dashboard",
+        "current": "div.admin-main",
+        "recommendation": "Add data-testid='admin-dashboard'",
+        "reason": "Reliable admin dashboard"
+      },
+      {
+        "element": "Tenants nav",
+        "current": "a:has-text('Tenants')",
+        "recommendation": "Add data-testid='admin-nav-tenants'",
+        "reason": "Specific tenants navigation"
+      },
+      {
+        "element": "Tenant row",
+        "current": "tr:has-text('{tenantName')",
+        "recommendation": "Add data-testid='tenant-row-{tenantId}'",
+        "reason": "Unique tenant row"
+      }
+    ]
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "journey": {
+    "id": "notification-preferences",
+    "name": "Configure Notification Preferences",
+    "priority": "low",
+    "userType": "authenticated_any_role",
+    "frequency": "rarely",
+    "businessImpact": "User communication preferences",
+    "preconditions": ["User is authenticated"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Notification Settings",
+        "page": "/settings?tab=notifications",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='settings-tab-notifications']",
+          "fallback": "button:has-text('Notifications')"
+        },
+        "expectedResult": "Notifications settings page loads",
+        "assertions": ["Tab is active", "Notification options visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "View Email Notification Categories",
+        "page": "/settings?tab=notifications",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='email-notifications-section']",
+          "fallback": "div.email-section"
+        },
+        "expectedResult": "Email notification options display",
+        "assertions": ["Categories list shows", "Toggle switches visible"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Toggle Campaign Notifications",
+        "page": "/settings?tab=notifications",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='notify-campaign-sent']",
+          "fallback": "input[type='checkbox'][name='campaign_sent']"
+        },
+        "expectedResult": "Toggle switches",
+        "assertions": ["Toggle state changes", "Save triggered"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Toggle Message Delivery Notifications",
+        "page": "/settings?tab=notifications",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='notify-delivery-updates']",
+          "fallback": "input[type='checkbox'][name='delivery_updates']"
+        },
+        "expectedResult": "Toggle switches",
+        "assertions": ["Toggle state changes"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Toggle Weekly Digest",
+        "page": "/settings?tab=notifications",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='notify-weekly-digest']",
+          "fallback": "input[type='checkbox'][name='weekly_digest']"
+        },
+        "expectedResult": "Toggle switches",
+        "assertions": ["Toggle state changes"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Set Quiet Hours (Optional)",
+        "page": "/settings?tab=notifications",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='quiet-hours-section']",
+          "fallback": "div.quiet-hours"
+        },
+        "expectedResult": "Quiet hours options display",
+        "assertions": ["Time pickers visible"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Set Quiet Start Time",
+        "page": "/settings?tab=notifications",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='quiet-start-time']",
+          "fallback": "input[type='time']"
+        },
+        "inputData": {"time": "22:00"},
+        "expectedResult": "Start time set",
+        "assertions": ["Time displays in field"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Set Quiet End Time",
+        "page": "/settings?tab=notifications",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='quiet-end-time']",
+          "fallback": "input[type='time']"
+        },
+        "inputData": {"time": "08:00"},
+        "expectedResult": "End time set",
+        "assertions": ["Time displays in field"]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Save Preferences",
+        "page": "/settings?tab=notifications",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='save-preferences-button']",
+          "fallback": "button:has-text('Save')"
+        },
+        "expectedResult": "Preferences saved",
+        "assertions": ["Success message shows", "Settings persist"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Notification preferences configured according to user preferences",
+      "finalState": "preferences_saved",
+      "finalPage": "/settings?tab=notifications"
+    },
+    "alternativePaths": [
+      {
+        "name": "Reset to Defaults",
+        "trigger": "User clicks reset button",
+        "outcome": "All preferences reset to defaults"
+      },
+      {
+        "name": "Mute All Notifications",
+        "trigger": "User clicks 'Mute All'",
+        "outcome": "All notifications disabled"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Invalid Quiet Hours",
+        "trigger": "Start time after end time",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='quiet-hours-error']",
+        "errorMessage": "Start time must be before end time",
+        "recovery": "User adjusts times"
+      },
+      {
+        "name": "Save Failed",
+        "trigger": "Network error during save",
+        "expectedBehavior": "Error message",
+        "errorSelector": "[data-testid='save-error']",
+        "errorMessage": "Failed to save preferences",
+        "recovery": "User retries save"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Notifications tab",
+        "current": "button:has-text('Notifications')",
+        "recommendation": "Add data-testid='settings-tab-notifications'",
+        "reason": "Specific notifications tab"
+      },
+      {
+        "element": "Email section",
+        "current": "div.email-section",
+        "recommendation": "Add data-testid='email-notifications-section'",
+        "reason": "Reliable email notifications section"
+      },
+      {
+        "element": "Campaign toggle",
+        "current": "input[type='checkbox'][name='campaign_sent']",
+        "recommendation": "Add data-testid='notify-campaign-sent'",
+        "reason": "Specific campaign notification"
+      },
+      {
+        "element": "Quiet hours section",
+        "current": "div.quiet-hours",
+        "recommendation": "Add data-testid='quiet-hours-section'",
+        "reason": "Specific quiet hours section"
+      }
+    ]
+  }
+}

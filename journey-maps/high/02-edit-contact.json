@@ -1,0 +1,289 @@
+{
+  "journey": {
+    "id": "edit-contact",
+    "name": "Edit Contact Information",
+    "priority": "high",
+    "userType": "authenticated_member_admin",
+    "frequency": "occasional",
+    "businessImpact": "Data management and audience quality",
+    "preconditions": ["User is authenticated", "User has active tenant", "Contact exists"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Contacts",
+        "page": "/contacts",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='nav-contacts']",
+          "fallback": "a:has-text('Contacts')"
+        },
+        "expectedResult": "Contacts list page loads",
+        "assertions": ["URL is /contacts", "Contacts table visible", "Add Contact button visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Search or Locate Contact",
+        "page": "/contacts",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='contacts-search']",
+          "fallback": "input[placeholder*='Search']",
+          "recommendation": "Add data-testid='contacts-search'"
+        },
+        "inputData": {"searchTerm": "John Doe", "type": "text"},
+        "expectedResult": "Contacts filtered by search",
+        "assertions": ["Search results show matching contacts", "Contact list updates immediately", "Exact contact appears in results"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Click Contact to View Details",
+        "page": "/contacts",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='contact-row-{contactId}']",
+          "fallback": "tr:has-text('{contactName'})",
+          "recommendation": "Add data-testid='contact-row-{contactId}'"
+        },
+        "inputData": {"contactId": 123},
+        "expectedResult": "Contact detail page opens",
+        "assertions": ["URL changes to /contacts/123", "Contact details load", "All fields populated with current values"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "View Contact Information",
+        "page": "/contacts/{id}",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='contact-detail-card']",
+          "fallback": "div.contact-info"
+        },
+        "expectedResult": "All contact information displays",
+        "assertions": ["Phone number displays", "Email displays if available", "Name displays", "Tags display", "Creation date shows", "Last message date shows"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Click Edit Button",
+        "page": "/contacts/{id}",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='contact-edit-button']",
+          "fallback": "button:has-text('Edit')",
+          "recommendation": "Add data-testid='contact-edit-button'"
+        },
+        "expectedResult": "Contact edit form opens",
+        "assertions": ["Edit form is visible", "All fields are editable", "Current values pre-populated"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Edit Contact Name",
+        "page": "/contacts/{id}",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='contact-name']",
+          "fallback": "input[name='name']",
+          "recommendation": "Add data-testid='contact-name'"
+        },
+        "inputData": {"name": "John Updated", "type": "text"},
+        "expectedResult": "Field value updates",
+        "assertions": ["New value appears in field", "Form marks as modified"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Edit Contact Phone",
+        "page": "/contacts/{id}",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='contact-phone']",
+          "fallback": "input[name='phone']",
+          "recommendation": "Add data-testid='contact-phone'"
+        },
+        "inputData": {"phone": "+1234567891", "type": "tel"},
+        "expectedResult": "Field value updates",
+        "assertions": ["New phone displays in field", "Phone format validated"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Edit Contact Email (Optional)",
+        "page": "/contacts/{id}",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='contact-email']",
+          "fallback": "input[name='email']",
+          "recommendation": "Add data-testid='contact-email'"
+        },
+        "inputData": {"email": "john.updated@example.com", "type": "email"},
+        "expectedResult": "Email field updates",
+        "assertions": ["New email displays in field", "Email format validated"]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Update Contact Tags",
+        "page": "/contacts/{id}",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='contact-tags']",
+          "fallback": "input[placeholder*='Tags']",
+          "recommendation": "Add data-testid='contact-tags'"
+        },
+        "inputData": {"tags": ["vip", "verified"]},
+        "expectedResult": "Tags are updated",
+        "assertions": ["New tags display with visual indicator", "Previous tags removed if applicable"]
+      },
+      {
+        "stepNumber": 10,
+        "name": "Save Changes",
+        "page": "/contacts/{id}",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='contact-save']",
+          "fallback": "button:has-text('Save')",
+          "recommendation": "Add data-testid='contact-save'"
+        },
+        "expectedResult": "Form submission starts",
+        "assertions": ["Save button shows loading state", "Form is disabled during save"]
+      },
+      {
+        "stepNumber": 11,
+        "name": "Contact Updated Successfully",
+        "page": "/contacts/{id}",
+        "action": "wait_for_navigation",
+        "expectedResult": "Contact detail page updates with new values",
+        "assertions": ["Contact fields show updated values", "Success message displays", "Form returns to view mode"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Contact information is updated and changes are visible",
+      "finalState": "contact_updated",
+      "finalPage": "/contacts/{id}"
+    },
+    "alternativePaths": [
+      {
+        "name": "Edit from Inline Action",
+        "trigger": "User clicks edit icon in contact row on list",
+        "outcome": "Inline edit form appears with similar update flow"
+      },
+      {
+        "name": "Bulk Edit Tags",
+        "trigger": "User selects multiple contacts and edits tags",
+        "outcome": "Tags updated for all selected contacts"
+      },
+      {
+        "name": "Mark Contact Inactive",
+        "trigger": "User wants to disable contact",
+        "outcome": "Contact marked inactive, excluded from campaigns"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Invalid Phone Format",
+        "trigger": "User enters invalid phone number",
+        "expectedBehavior": "Validation error appears",
+        "errorSelector": "[data-testid='contact-phone-error']",
+        "errorMessage": "Please enter a valid phone number",
+        "recovery": "User corrects phone format"
+      },
+      {
+        "name": "Invalid Email Format",
+        "trigger": "User enters invalid email",
+        "expectedBehavior": "Validation error appears",
+        "errorSelector": "[data-testid='contact-email-error']",
+        "errorMessage": "Please enter a valid email address",
+        "recovery": "User corrects email"
+      },
+      {
+        "name": "Duplicate Phone",
+        "trigger": "User tries to save with phone that already exists",
+        "expectedBehavior": "Conflict warning shown",
+        "errorSelector": "[data-testid='contact-phone-duplicate-error']",
+        "errorMessage": "This phone number is already associated with another contact",
+        "recovery": "User confirms to merge or chooses different number"
+      },
+      {
+        "name": "Network Error During Save",
+        "trigger": "Network fails during save",
+        "expectedBehavior": "Error message, form state preserved",
+        "errorSelector": "[data-testid='contact-save-error']",
+        "errorMessage": "Failed to save contact. Please try again",
+        "recovery": "User retries save"
+      },
+      {
+        "name": "Contact Deleted",
+        "trigger": "Contact was deleted by another user while editing",
+        "expectedBehavior": "Error message shown",
+        "errorSelector": "[data-testid='contact-deleted-error']",
+        "errorMessage": "This contact has been deleted",
+        "recovery": "User returns to contacts list"
+      },
+      {
+        "name": "Insufficient Permissions",
+        "trigger": "User's role changed during editing",
+        "expectedBehavior": "Edit form disabled",
+        "errorSelector": "[data-testid='contact-permission-error']",
+        "errorMessage": "You don't have permission to edit this contact",
+        "recovery": "User contacts admin"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Contacts nav",
+        "current": "a:has-text('Contacts')",
+        "recommendation": "Add data-testid='nav-contacts'",
+        "reason": "Specific identifier for navigation link"
+      },
+      {
+        "element": "Search input",
+        "current": "input[placeholder*='Search']",
+        "recommendation": "Add data-testid='contacts-search'",
+        "reason": "Easy identification of search field"
+      },
+      {
+        "element": "Contact row",
+        "current": "tr:has-text('{contactName')",
+        "recommendation": "Add data-testid='contact-row-{contactId}'",
+        "reason": "Unique identification for each contact row"
+      },
+      {
+        "element": "Contact detail card",
+        "current": "div.contact-info",
+        "recommendation": "Add data-testid='contact-detail-card'",
+        "reason": "Reliable selector for contact details section"
+      },
+      {
+        "element": "Edit button",
+        "current": "button:has-text('Edit')",
+        "recommendation": "Add data-testid='contact-edit-button'",
+        "reason": "Specific edit button identifier"
+      },
+      {
+        "element": "Contact name input",
+        "current": "input[name='name']",
+        "recommendation": "Add data-testid='contact-name'",
+        "reason": "Specific identifier for name field"
+      },
+      {
+        "element": "Contact phone input",
+        "current": "input[name='phone']",
+        "recommendation": "Add data-testid='contact-phone'",
+        "reason": "Specific identifier for phone field"
+      },
+      {
+        "element": "Contact email input",
+        "current": "input[name='email']",
+        "recommendation": "Add data-testid='contact-email'",
+        "reason": "Specific identifier for email field"
+      },
+      {
+        "element": "Contact tags input",
+        "current": "input[placeholder*='Tags']",
+        "recommendation": "Add data-testid='contact-tags'",
+        "reason": "Specific identifier for tags field"
+      },
+      {
+        "element": "Save button",
+        "current": "button:has-text('Save')",
+        "recommendation": "Add data-testid='contact-save'",
+        "reason": "Unique save button identifier"
+      }
+    ]
+  }
+}

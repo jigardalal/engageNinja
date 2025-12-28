@@ -1,0 +1,166 @@
+{
+  "journey": {
+    "id": "account-deletion",
+    "name": "Delete Account & Data",
+    "priority": "low",
+    "userType": "authenticated_account_owner",
+    "frequency": "rarely",
+    "businessImpact": "Churn-related, data privacy compliance",
+    "preconditions": ["User is authenticated", "User is account owner", "No active subscriptions or cancellation required"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Account Settings",
+        "page": "/settings?tab=account",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='settings-tab-account']",
+          "fallback": "button:has-text('Account')"
+        },
+        "expectedResult": "Account settings page loads",
+        "assertions": ["Tab is active", "Account options visible", "Danger zone section visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Locate Delete Account Section",
+        "page": "/settings?tab=account",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='delete-account-section']",
+          "fallback": "div.danger-zone"
+        },
+        "expectedResult": "Delete account section displays",
+        "assertions": ["Warning message shows", "Delete button visible", "Requires confirmation warning shown"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Click Delete Account Button",
+        "page": "/settings?tab=account",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='delete-account-button']",
+          "fallback": "button:has-text('Delete Account')"
+        },
+        "expectedResult": "Confirmation dialog opens",
+        "assertions": ["Warning message displays", "Confirmation required", "Cancel and Confirm buttons visible"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Review Deletion Consequences",
+        "page": "/settings?tab=account",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='deletion-warning']",
+          "fallback": "div.warning-message"
+        },
+        "expectedResult": "Consequences clearly displayed",
+        "assertions": ["Data loss warning shows", "Irreversible message clear", "All associated data will be deleted"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Enter Email Confirmation",
+        "page": "/settings?tab=account",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='deletion-email-confirmation']",
+          "fallback": "input[type='email']"
+        },
+        "inputData": {"email": "user@example.com", "type": "email"},
+        "expectedResult": "Email field populated",
+        "assertions": ["Email displays in field", "Must match account email"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Confirm Deletion",
+        "page": "/settings?tab=account",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='confirm-deletion-button']",
+          "fallback": "button:has-text('Confirm Delete')"
+        },
+        "expectedResult": "Deletion process starts",
+        "assertions": ["Loading indicator appears", "No errors shown", "Deletion processing"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Account Deletion Complete",
+        "page": "/login",
+        "action": "wait_for_navigation",
+        "expectedResult": "User logged out and account deleted",
+        "assertions": ["Redirected to login page", "All data removed", "Account no longer exists"]
+      }
+    ],
+    "successOutcome": {
+      "description": "User account and all associated data permanently deleted",
+      "finalState": "account_deleted",
+      "finalPage": "/login"
+    },
+    "alternativePaths": [
+      {
+        "name": "Cancel Deletion",
+        "trigger": "User clicks Cancel button",
+        "outcome": "Returns to settings, account intact"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "Active Subscription",
+        "trigger": "User tries to delete with active plan",
+        "expectedBehavior": "Error preventing deletion",
+        "errorSelector": "[data-testid='subscription-active-error']",
+        "errorMessage": "Cancel subscription before deleting account",
+        "recovery": "User cancels subscription first"
+      },
+      {
+        "name": "Email Mismatch",
+        "trigger": "User enters wrong email",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='email-mismatch-error']",
+        "errorMessage": "Email does not match account email",
+        "recovery": "User enters correct email"
+      },
+      {
+        "name": "Not Account Owner",
+        "trigger": "Team member tries to delete account",
+        "expectedBehavior": "Access denied",
+        "errorSelector": "[data-testid='owner-only-error']",
+        "errorMessage": "Only account owner can delete",
+        "recovery": "Contact account owner"
+      },
+      {
+        "name": "Deletion Failed",
+        "trigger": "Backend error during deletion",
+        "expectedBehavior": "Error message, account preserved",
+        "errorSelector": "[data-testid='deletion-error']",
+        "errorMessage": "Failed to delete account",
+        "recovery": "User retries or contacts support"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Account tab",
+        "current": "button:has-text('Account')",
+        "recommendation": "Add data-testid='settings-tab-account'",
+        "reason": "Specific account settings tab"
+      },
+      {
+        "element": "Delete section",
+        "current": "div.danger-zone",
+        "recommendation": "Add data-testid='delete-account-section'",
+        "reason": "Reliable danger zone identifier"
+      },
+      {
+        "element": "Delete button",
+        "current": "button:has-text('Delete Account')",
+        "recommendation": "Add data-testid='delete-account-button'",
+        "reason": "Unique delete button"
+      },
+      {
+        "element": "Deletion warning",
+        "current": "div.warning-message",
+        "recommendation": "Add data-testid='deletion-warning'",
+        "reason": "Specific warning message"
+      }
+    ]
+  }
+}

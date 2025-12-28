@@ -1,0 +1,213 @@
+{
+  "journey": {
+    "id": "api-key-management",
+    "name": "Generate & Manage API Keys",
+    "priority": "low",
+    "userType": "authenticated_admin",
+    "frequency": "rarely",
+    "businessImpact": "Integration and automation enablement",
+    "preconditions": ["User is authenticated", "User has admin role"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to API Settings",
+        "page": "/settings?tab=integrations",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='settings-tab-integrations']",
+          "fallback": "button:has-text('Integrations')"
+        },
+        "expectedResult": "Integrations settings page loads",
+        "assertions": ["Tab is active", "API section visible"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Click API Keys Section",
+        "page": "/settings?tab=integrations",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='api-keys-section']",
+          "fallback": "button:has-text('API Keys')"
+        },
+        "expectedResult": "API Keys management page opens",
+        "assertions": ["Existing keys display", "Generate button visible"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Click Generate Key",
+        "page": "/settings?tab=integrations",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='generate-api-key-button']",
+          "fallback": "button:has-text('Generate')"
+        },
+        "expectedResult": "Key generation dialog opens",
+        "assertions": ["Key name field visible", "Scopes selector visible", "Generate button visible"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Enter Key Name",
+        "page": "/settings?tab=integrations",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='api-key-name']",
+          "fallback": "input[placeholder*='Key Name']"
+        },
+        "inputData": {"name": "My Integration Key", "type": "text"},
+        "expectedResult": "Key name entered",
+        "assertions": ["Name displays in field"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Select Key Scopes",
+        "page": "/settings?tab=integrations",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='api-scopes-selector']",
+          "fallback": "div.scopes-picker"
+        },
+        "expectedResult": "Scopes selection opens",
+        "assertions": ["Available scopes list shows", "Checkboxes visible"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Select Required Scopes",
+        "page": "/settings?tab=integrations",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='scope-{scopeName}']",
+          "fallback": "label:has-text('{scopeName')"
+        },
+        "inputData": {"scopes": ["contacts.read", "campaigns.read", "campaigns.send"]},
+        "expectedResult": "Scopes selected",
+        "assertions": ["Checkboxes checked", "Selected scopes show"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "Set Expiration Date (Optional)",
+        "page": "/settings?tab=integrations",
+        "action": "fill",
+        "selectors": {
+          "primary": "[data-testid='api-key-expiration']",
+          "fallback": "input[type='date']"
+        },
+        "inputData": {"expirationDate": "2025-12-31"},
+        "expectedResult": "Expiration date set",
+        "assertions": ["Date displays in field"]
+      },
+      {
+        "stepNumber": 8,
+        "name": "Generate Key",
+        "page": "/settings?tab=integrations",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='generate-key-submit']",
+          "fallback": "button:has-text('Generate Key')"
+        },
+        "expectedResult": "Key generated",
+        "assertions": ["Loading shows", "Key displays once"]
+      },
+      {
+        "stepNumber": 9,
+        "name": "Copy API Key",
+        "page": "/settings?tab=integrations",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='copy-api-key']",
+          "fallback": "button:has-text('Copy')"
+        },
+        "expectedResult": "Key copied to clipboard",
+        "assertions": ["Copy confirmation shows", "Key copied"]
+      },
+      {
+        "stepNumber": 10,
+        "name": "Save Key Securely",
+        "page": "/settings?tab=integrations",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='api-key-display']",
+          "fallback": "div.key-display"
+        },
+        "expectedResult": "Key saved for use",
+        "assertions": ["Key only shown once", "Cannot be retrieved later"]
+      }
+    ],
+    "successOutcome": {
+      "description": "API key generated and available for integrations",
+      "finalState": "api_key_generated",
+      "finalPage": "/settings?tab=integrations"
+    },
+    "alternativePaths": [
+      {
+        "name": "Revoke Existing Key",
+        "trigger": "User clicks revoke on existing key",
+        "outcome": "Key immediately disabled"
+      },
+      {
+        "name": "Regenerate Expired Key",
+        "trigger": "User generates new key after expiration",
+        "outcome": "New key with same scopes"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "No Scopes Selected",
+        "trigger": "User tries to generate without scopes",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='scopes-required-error']",
+        "errorMessage": "At least one scope required",
+        "recovery": "User selects scopes"
+      },
+      {
+        "name": "Invalid Expiration Date",
+        "trigger": "User sets expiration in past",
+        "expectedBehavior": "Validation error",
+        "errorSelector": "[data-testid='expiration-invalid-error']",
+        "errorMessage": "Expiration must be in future",
+        "recovery": "User sets future date"
+      },
+      {
+        "name": "Key Name Duplicate",
+        "trigger": "Name already exists",
+        "expectedBehavior": "Warning shown",
+        "errorSelector": "[data-testid='key-name-exists-error']",
+        "errorMessage": "Key name already in use",
+        "recovery": "User uses different name"
+      },
+      {
+        "name": "Generation Failed",
+        "trigger": "Backend error",
+        "expectedBehavior": "Error message",
+        "errorSelector": "[data-testid='key-generation-error']",
+        "errorMessage": "Failed to generate key",
+        "recovery": "User retries"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Integrations tab",
+        "current": "button:has-text('Integrations')",
+        "recommendation": "Add data-testid='settings-tab-integrations'",
+        "reason": "Specific integrations tab"
+      },
+      {
+        "element": "API keys section",
+        "current": "button:has-text('API Keys')",
+        "recommendation": "Add data-testid='api-keys-section'",
+        "reason": "Specific API keys section"
+      },
+      {
+        "element": "Generate button",
+        "current": "button:has-text('Generate')",
+        "recommendation": "Add data-testid='generate-api-key-button'",
+        "reason": "Unique generate button"
+      },
+      {
+        "element": "Key name input",
+        "current": "input[placeholder*='Key Name']",
+        "recommendation": "Add data-testid='api-key-name'",
+        "reason": "Specific key name field"
+      }
+    ]
+  }
+}

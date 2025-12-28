@@ -1,0 +1,97 @@
+{
+  "journey": {
+    "id": "tenant-selection",
+    "name": "Tenant/Workspace Selection",
+    "priority": "critical",
+    "userType": "authenticated_multi_tenant",
+    "frequency": "once_per_login",
+    "businessImpact": "Multi-tenant access enablement",
+    "preconditions": [
+      "User is authenticated",
+      "User has access to 2+ tenants"
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Redirect to Tenant Selection",
+        "page": "/tenants",
+        "action": "navigate",
+        "expectedResult": "Tenant selection page loads",
+        "assertions": [
+          "URL is /tenants",
+          "All available tenants display"
+        ]
+      },
+      {
+        "stepNumber": 2,
+        "name": "View Tenant Cards",
+        "page": "/tenants",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='tenant-card-{tenantId}']",
+          "fallback": "div.tenant-option",
+          "recommendation": "Add data-testid='tenant-card-{tenantId}'"
+        },
+        "expectedResult": "All tenant cards display with information",
+        "assertions": [
+          "Tenant name shows",
+          "User role shows",
+          "Plan tier shows"
+        ]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Select Workspace",
+        "page": "/tenants",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='tenant-select-{tenantId}']",
+          "fallback": "div.tenant-option",
+          "recommendation": "Add data-testid='tenant-select-{tenantId}'"
+        },
+        "inputData": {
+          "tenantId": 123
+        },
+        "expectedResult": "Tenant selected and active",
+        "assertions": [
+          "Selected tenant shows active state",
+          "Loading indicator appears"
+        ]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Redirect to Dashboard",
+        "page": "/tenants → /dashboard",
+        "action": "wait_for_navigation",
+        "expectedResult": "Tenant context set and dashboard loads",
+        "assertions": [
+          "URL changes to /dashboard",
+          "Dashboard shows selected workspace data"
+        ]
+      }
+    ],
+    "successOutcome": {
+      "description": "User has selected workspace and can access it",
+      "finalState": "tenant_selected",
+      "finalPage": "/dashboard"
+    },
+    "errorCases": [
+      {
+        "name": "No Accessible Tenants",
+        "trigger": "User has no accessible tenants",
+        "expectedBehavior": "Error message with guidance",
+        "errorSelector": "[data-testid='no-tenants-error']",
+        "errorMessage": "You don't have access to any workspaces",
+        "recovery": "User creates new workspace or contacts admin"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Tenant cards",
+        "current": "div.tenant-option",
+        "recommendation": "Add data-testid='tenant-card-{tenantId}'",
+        "reason": "Easy identification and selection"
+      }
+    ]
+  }
+}

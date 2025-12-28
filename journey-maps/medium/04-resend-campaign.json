@@ -1,0 +1,207 @@
+{
+  "journey": {
+    "id": "resend-campaign",
+    "name": "Resend Campaign to Failed Recipients",
+    "priority": "medium",
+    "userType": "authenticated_member_admin",
+    "frequency": "occasional",
+    "businessImpact": "Message reliability and delivery completeness",
+    "preconditions": ["User is authenticated", "Campaign exists with failed messages"],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "name": "Navigate to Campaign Detail",
+        "page": "/campaigns/{id}",
+        "action": "navigate",
+        "selectors": {
+          "primary": "[data-testid='campaign-row-{campaignId}']",
+          "fallback": "tr:has-text('{campaignName')"
+        },
+        "inputData": {"campaignId": 123},
+        "expectedResult": "Campaign detail page loads",
+        "assertions": ["URL is /campaigns/{id}", "Campaign details show", "Stats display"]
+      },
+      {
+        "stepNumber": 2,
+        "name": "Review Failed Messages",
+        "page": "/campaigns/{id}",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='failed-messages-section']",
+          "fallback": "div.failed-messages"
+        },
+        "expectedResult": "Failed messages display",
+        "assertions": ["Failed count shows", "Failed messages listed", "Failure reasons visible"]
+      },
+      {
+        "stepNumber": 3,
+        "name": "Click Resend Failed",
+        "page": "/campaigns/{id}",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='resend-failed-button']",
+          "fallback": "button:has-text('Resend Failed')"
+        },
+        "expectedResult": "Resend confirmation dialog opens",
+        "assertions": ["Dialog shows number of failed messages", "Confirms which contacts will receive resend", "Resend button visible"]
+      },
+      {
+        "stepNumber": 4,
+        "name": "Review Resend Summary",
+        "page": "/campaigns/{id}",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='resend-summary']",
+          "fallback": "div.summary"
+        },
+        "expectedResult": "Summary displays",
+        "assertions": ["Number of recipients shows", "Message content shows", "Resend time shows", "Confirm button available"]
+      },
+      {
+        "stepNumber": 5,
+        "name": "Confirm Resend",
+        "page": "/campaigns/{id}",
+        "action": "click",
+        "selectors": {
+          "primary": "[data-testid='confirm-resend']",
+          "fallback": "button:has-text('Confirm')"
+        },
+        "expectedResult": "Resend starts",
+        "assertions": ["Dialog closes", "Loading indicator appears", "Progress shows"]
+      },
+      {
+        "stepNumber": 6,
+        "name": "Monitor Resend Progress",
+        "page": "/campaigns/{id}",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='resend-progress']",
+          "fallback": "div.progress"
+        },
+        "expectedResult": "Progress updates",
+        "assertions": ["Progress bar shows", "Messages update from Resending to Sent/Delivered", "Failed count decreases"]
+      },
+      {
+        "stepNumber": 7,
+        "name": "View Resend Complete",
+        "page": "/campaigns/{id}",
+        "action": "view",
+        "selectors": {
+          "primary": "[data-testid='resend-complete-message']",
+          "fallback": "div.success-message"
+        },
+        "expectedResult": "Resend completion message shows",
+        "assertions": ["Messages resent successfully message", "Remaining failed count shows", "Updated stats show"]
+      }
+    ],
+    "successOutcome": {
+      "description": "Failed messages are resent and delivery improved",
+      "finalState": "campaign_resend_complete",
+      "finalPage": "/campaigns/{id}"
+    },
+    "alternativePaths": [
+      {
+        "name": "Resend to New Audience",
+        "trigger": "User clicks 'Resend to New Audience' button",
+        "outcome": "Campaign creation form opens with message pre-filled"
+      },
+      {
+        "name": "Select New Recipients",
+        "trigger": "User selects different audience for resend",
+        "outcome": "New campaign created with same message but different recipients"
+      }
+    ],
+    "errorCases": [
+      {
+        "name": "No Failed Messages",
+        "trigger": "User clicks resend but no failures",
+        "expectedBehavior": "Error message shown",
+        "errorSelector": "[data-testid='no-failed-messages-error']",
+        "errorMessage": "No failed messages to resend",
+        "recovery": "User views other campaign actions"
+      },
+      {
+        "name": "All Resends Succeed Immediately",
+        "trigger": "All failed messages succeed on retry",
+        "expectedBehavior": "Success message shown",
+        "errorSelector": "[data-testid='resend-all-success']",
+        "errorMessage": "All messages resent successfully!",
+        "recovery": "N/A - success"
+      },
+      {
+        "name": "Some Resends Still Fail",
+        "trigger": "Resend attempted but some fail again",
+        "expectedBehavior": "Partial success message shown",
+        "errorSelector": "[data-testid='resend-partial-success']",
+        "errorMessage": "X messages sent, Y still failed",
+        "recovery": "User can try again or investigate reason"
+      },
+      {
+        "name": "Network Error During Resend",
+        "trigger": "Network fails during resend",
+        "expectedBehavior": "Error message shown",
+        "errorSelector": "[data-testid='resend-network-error']",
+        "errorMessage": "Resend failed. Please try again",
+        "recovery": "User retries resend"
+      },
+      {
+        "name": "Campaign No Longer Available",
+        "trigger": "Campaign deleted by another user",
+        "expectedBehavior": "Error message shown",
+        "errorSelector": "[data-testid='campaign-not-found-error']",
+        "errorMessage": "Campaign no longer available",
+        "recovery": "User returns to campaigns list"
+      }
+    ],
+    "selectorImprovements": [
+      {
+        "element": "Campaign detail header",
+        "current": "h1 (implied)",
+        "recommendation": "Add data-testid='campaign-detail-header'",
+        "reason": "Specific detail header identifier"
+      },
+      {
+        "element": "Failed messages section",
+        "current": "div.failed-messages",
+        "recommendation": "Add data-testid='failed-messages-section'",
+        "reason": "Reliable failed messages section identifier"
+      },
+      {
+        "element": "Resend failed button",
+        "current": "button:has-text('Resend Failed')",
+        "recommendation": "Add data-testid='resend-failed-button'",
+        "reason": "Unique resend button identifier"
+      },
+      {
+        "element": "Resend summary",
+        "current": "div.summary",
+        "recommendation": "Add data-testid='resend-summary'",
+        "reason": "Specific resend summary identifier"
+      },
+      {
+        "element": "Confirm resend button",
+        "current": "button:has-text('Confirm')",
+        "recommendation": "Add data-testid='confirm-resend'",
+        "reason": "Unique confirm button identifier"
+      },
+      {
+        "element": "Progress indicator",
+        "current": "div.progress",
+        "recommendation": "Add data-testid='resend-progress'",
+        "reason": "Specific progress indicator identifier"
+      },
+      {
+        "element": "Completion message",
+        "current": "div.success-message",
+        "recommendation": "Add data-testid='resend-complete-message'",
+        "reason": "Specific completion message identifier"
+      },
+      {
+        "element": "Resend new audience button",
+        "current": "button:has-text('New Audience')",
+        "recommendation": "Add data-testid='resend-to-new-audience'",
+        "reason": "Unique new audience button identifier"
+      }
+    ]
+  }
+}
