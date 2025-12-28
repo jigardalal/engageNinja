@@ -1,34 +1,107 @@
 # EngageNinja AWS Infrastructure Setup Guide
 
-**Deployment Date:** December 19, 2025  
-**Status:** ✅ Production-Ready Infrastructure Deployed  
-**AWS Account ID:** 433088583514  
-**Region:** us-east-1  
+**Deployment Date:** December 19, 2025
+**Status:** ✅ Production-Ready Infrastructure Deployed
+**AWS Account ID:** 433088583514
+**Region:** us-east-1
 **Environment:** dev
 
 ---
 
 ## 📋 Table of Contents
 
-1. [AWS Credentials](#aws-credentials)
-2. [Infrastructure Overview](#infrastructure-overview)
-3. [SQS Queue Configuration](#sqs-queue-configuration)
-4. [SNS Topic Configuration](#sns-topic-configuration)
-5. [Node.js Environment Variables](#nodejs-environment-variables)
-6. [Next Steps](#next-steps)
-7. [Troubleshooting](#troubleshooting)
+1. [Prerequisites & Setup](#prerequisites--setup)
+2. [AWS Credentials Configuration](#aws-credentials-configuration)
+3. [Infrastructure Overview](#infrastructure-overview)
+4. [Step-by-Step Deployment](#step-by-step-deployment)
+5. [SQS Queue Configuration](#sqs-queue-configuration)
+6. [SNS Topic Configuration](#sns-topic-configuration)
+7. [Node.js Environment Variables](#nodejs-environment-variables)
+8. [Next Steps](#next-steps)
+9. [Troubleshooting](#troubleshooting)
+10. [Production Migration](#production-migration-checklist)
 
 ---
 
-## AWS Credentials
+## Prerequisites & Setup
 
-### IAM User
+### 1. Install Terraform
+
+```bash
+# macOS
+brew install terraform
+
+# Linux
+curl -fsSL https://apt.terraform.io/apt.gpg | sudo apt-key add -
+sudo apt-add-repository "deb https://apt.terraform.io $(lsb_release -cs) main"
+sudo apt-get update && sudo apt-get install terraform
+
+# Verify installation
+terraform version
+```
+
+### 2. Install AWS CLI (Optional but Recommended)
+
+```bash
+pip install awscli
+aws --version
+```
+
+---
+
+## AWS Credentials Configuration
+
+### Option A: AWS Credentials File (Recommended for local development)
+
+```bash
+# Create ~/.aws/credentials file
+mkdir -p ~/.aws
+
+cat > ~/.aws/credentials << EOF
+[default]
+aws_access_key_id = YOUR_ACCESS_KEY_ID
+aws_secret_access_key = YOUR_SECRET_ACCESS_KEY
+
+[engageninja]
+aws_access_key_id = YOUR_ACCESS_KEY_ID
+aws_secret_access_key = YOUR_SECRET_ACCESS_KEY
+EOF
+
+chmod 600 ~/.aws/credentials
+
+# Create ~/.aws/config file
+cat > ~/.aws/config << EOF
+[default]
+region = us-east-1
+
+[profile engageninja]
+region = us-east-1
+EOF
+```
+
+### Option B: Environment Variables
+
+```bash
+export AWS_ACCESS_KEY_ID="your_access_key"
+export AWS_SECRET_ACCESS_KEY="your_secret_key"
+export AWS_REGION="us-east-1"
+```
+
+### Option C: AWS SSO (for production)
+
+```bash
+aws sso login --profile engageninja
+```
+
+---
+
+### EngageNinja IAM User
 
 - **Username:** `engageninja-app-dev`
 - **Access Key ID:** `[REDACTED]`
 - **Secret Access Key:** `[REDACTED]`
 
-⚠️ **SECURITY WARNING:** Store these credentials securely:
+⚠️ **SECURITY WARNING:** Store credentials securely:
 - Never commit to git
 - Use AWS Secrets Manager or environment variables
 - Rotate keys every 90 days in production
@@ -70,6 +143,135 @@ Worker Process (poll events & update DB)
     ↓
 Database (update message status)
 ```
+
+---
+
+## Step-by-Step Deployment
+
+### Step 1: Create terraform.tfvars File
+
+```bash
+# Copy the example file
+cp terraform.tfvars.example terraform.tfvars
+
+# Edit with your values
+nano terraform.tfvars
+```
+
+**Example terraform.tfvars:**
+```hcl
+aws_region  = "us-east-1"
+environment = "dev"
+project_name = "engageninja"
+iam_user_name = "engageninja-app"
+sqs_message_retention_seconds = 1209600
+sqs_visibility_timeout_seconds = 300
+ses_configuration_set_name = "engageninja-email-events"
+enable_cloudwatch_logs = true
+log_retention_days = 30
+
+tags = {
+  Environment = "dev"
+  Team        = "Backend"
+  Project     = "EngageNinja"
+}
+```
+
+### Step 2: Initialize Terraform
+
+```bash
+# Initialize working directory (downloads AWS provider)
+terraform init
+
+# Expected output:
+# Terraform has been successfully configured!
+```
+
+### Step 3: Plan Infrastructure Changes
+
+```bash
+# Create and review the execution plan
+terraform plan -out=tfplan
+
+# This will show:
+# - Resources to be created (SQS queues, SNS topics, etc.)
+# - IAM user and policies
+# - CloudWatch alarms and logs
+```
+
+**Sample output:**
+```
+Plan: 23 to add, 0 to change, 0 to destroy.
+```
+
+### Step 4: Apply Infrastructure
+
+```bash
+# Apply the plan (create all resources)
+terraform apply tfplan
+
+# OR apply without saving a plan
+terraform apply
+
+# Type "yes" to confirm
+```
+
+**This will:**
+- Create 3 SQS queues (outbound, SMS events, email events, DLQ)
+- Create 2 SNS topics (SMS events, email events)
+- Create SNS→SQS subscriptions
+- Create SES configuration set
+- Create IAM user and attach policies
+- Generate AWS access keys
+- Set up CloudWatch logs and alarms
+
+### Step 5: Retrieve Outputs (Credentials & Configuration)
+
+```bash
+# Show all outputs
+terraform output
+
+# Show specific sensitive output (credentials)
+terraform output -json sensitive_credentials
+
+# Save credentials to a file (for your .env)
+terraform output -json sensitive_credentials > credentials.json
+
+# Parse individual values
+terraform output iam_access_key_id
+terraform output -raw iam_secret_access_key
+```
+
+**Sample output:**
+```
+application_configuration = {
+  AWS_REGION = "us-east-1"
+  AWS_ACCESS_KEY_ID = "AKIA..."
+  SQS_MESSAGES_URL = "https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-messages-dev"
+  SQS_SMS_EVENTS_URL = "https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-sms-events-dev"
+  SQS_EMAIL_EVENTS_URL = "https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-email-events-dev"
+  SNS_SMS_EVENTS_TOPIC_ARN = "arn:aws:sns:us-east-1:123456789012:engageninja-sms-events-dev"
+  SNS_EMAIL_EVENTS_TOPIC_ARN = "arn:aws:sns:us-east-1:123456789012:engageninja-email-events-dev"
+  SES_CONFIGURATION_SET = "engageninja-email-events"
+  CLOUDWATCH_LOG_GROUP = "/aws/engageninja/dev/app"
+}
+```
+
+### Step 6: Cleanup (Destroy Infrastructure)
+
+If you need to remove all resources:
+
+```bash
+# Review what will be destroyed
+terraform plan -destroy
+
+# Destroy all resources
+terraform destroy
+
+# Type "yes" to confirm
+```
+
+⚠️ **Warning:** This deletes all SQS queues, SNS topics, and IAM users. Any messages in the queues will be lost.
 
 ---
 
@@ -443,10 +645,82 @@ aws logs tail /aws/engageninja/dev/app --follow --region us-east-1
 
 ---
 
+## Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   EngageNinja Node.js App                   │
+│                     (ECS Fargate)                           │
+└──────────┬──────────────────────────────────────────────────┘
+           │
+       Uses AWS SDK with credentials (from IAM User)
+           │
+    ┌──────┴──────┐
+    │             │
+    v             v
+┌─────────┐   ┌──────────┐
+│   SQS   │   │   SNS    │
+│ Queues  │   │  Topics  │
+└────┬────┘   └────┬─────┘
+     │             │
+     │    ┌────────┴────────┐
+     │    │                 │
+     v    v                 v
+  ┌──────┐  ┌──────┐  ┌──────────────┐
+  │ SES  │  │ SMS  │  │  Webhooks    │
+  │Email │  │Voice │  │ (Callbacks)  │
+  └──────┘  └──────┘  └──────────────┘
+```
+
+---
+
+## Security Best Practices
+
+1. **Never commit credentials** to version control
+2. **Rotate IAM access keys** every 90 days
+3. **Use Secrets Manager** for sensitive data in production
+4. **Enable CloudTrail** to audit API calls
+5. **Restrict queue access** to specific VPC/security groups
+6. **Encrypt SNS topics** at rest (enabled by default)
+7. **Use HTTPS** for all SQS and SNS connections
+
+---
+
+## Testing the Setup
+
+### Test SQS
+
+```bash
+# Send a test message to outbound queue
+aws sqs send-message \
+  --queue-url https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-messages-dev \
+  --message-body '{"type":"test","message":"Hello"}' \
+  --region us-east-1
+
+# Receive messages
+aws sqs receive-message \
+  --queue-url https://sqs.us-east-1.amazonaws.com/123456789012/engageninja-messages-dev \
+  --region us-east-1
+```
+
+### Test SES
+
+```bash
+# Send a test email
+aws ses send-email \
+  --from noreply@yourdomain.com \
+  --to recipient@example.com \
+  --subject "Test Email" \
+  --text "This is a test email from EngageNinja" \
+  --region us-east-1
+```
+
+---
+
 ## Production Migration Checklist
 
 - [ ] Request SES production access
-- [ ] Coordinate with your SMS/WhatsApp provider (e.g., Twilio) for production access (10DLC/TFN/TFN)
+- [ ] Coordinate with SMS/WhatsApp provider (Twilio) for production access (10DLC/TFN)
 - [ ] Verify production domain in SES
 - [ ] Rotate IAM access keys
 - [ ] Move to AWS Secrets Manager or IAM roles
@@ -461,6 +735,8 @@ aws logs tail /aws/engageninja/dev/app --follow --region us-east-1
 
 ## Support & Documentation
 
+- **Terraform docs:** https://www.terraform.io/docs/
+- **AWS CLI docs:** https://docs.aws.amazon.com/cli/
 - **AWS SQS:** https://docs.aws.amazon.com/sqs/
 - **AWS SNS:** https://docs.aws.amazon.com/sns/
 - **AWS SES:** https://docs.aws.amazon.com/ses/
@@ -469,5 +745,5 @@ aws logs tail /aws/engageninja/dev/app --follow --region us-east-1
 
 ---
 
-**Deployment completed:** December 19, 2025  
-**Last updated:** December 19, 2025
+**Deployment completed:** December 19, 2025
+**Last updated:** December 28, 2025

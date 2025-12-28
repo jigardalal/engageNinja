@@ -1,6 +1,6 @@
-# Backend Testing Suite
+# Testing Suite
 
-Comprehensive testing infrastructure for EngageNinja backend, organized by test category.
+Comprehensive testing infrastructure for EngageNinja, covering backend unit/integration tests and UI automation.
 
 ## Directory Structure
 
@@ -307,5 +307,132 @@ For test-related issues:
 
 ---
 
-**Last Updated**: 2025-12-16
+## UI Automation Testing
+
+### Ports
+- Frontend: http://localhost:3173
+- Backend: http://localhost:5173
+
+### Quick Test Scripts
+
+Manual/ad-hoc scripts for quick API checks against the dev servers:
+
+- `test-backend-health.js` – checks /health and login flow
+- `test-basic.js` – health check only
+- `test-5173-correct.js` / `test-5173-cors.js` – login/CORS against backend 5173
+- `test-login.js`, `test-login-verify.js`, `test-login-response.js`, `test-login-verbose.js`, `test-auth-manual.js` – login helpers
+- `test-campaign-create.js`, `test-endpoint-exists.js`, `test-settings-api.js` – CRUD/API spot checks
+- `test-cors-login.js` – proxy/CORS via frontend
+- `test-webhooks.js`, `test-webhook-integration.js` – webhook endpoints
+- `test-metrics-api.js` – campaign metrics
+
+**Preferred flow**: use `test-backend-health.js` for quick sanity; others are legacy/debug helpers.
+
+**Run scripts**: From `scripts/manual-tests` directory:
+```bash
+cd scripts/manual-tests
+node test-backend-health.js
+```
+
+---
+
+## UI E2E Test Coverage Report
+
+### New Tests Added
+
+#### 1. settings-whatsapp-connect.js
+Tests the WhatsApp connection dialog in Settings to catch UI rendering bugs.
+
+**What it tests:**
+- ✓ Connect button is visible in dialog footer (catches missing footer buttons)
+- ✓ Dialog renders all required input fields
+- ✓ Text colors follow theme CSS variables (not hardcoded)
+- ✓ Form labels are visible and properly styled
+- ✓ Cancel button works and closes dialog
+- ✓ Access Token field displays correctly
+- ✓ Phone Number ID field displays correctly
+
+**Bug it caught:**
+- Missing Connect button in dialog footer due to Dialog component not handling footer prop
+
+**Run:** `node scripts/ui/settings-whatsapp-connect.js`
+
+---
+
+#### 2. templates-view-preview.js
+Tests the complete template view and preview functionality to catch template display bugs.
+
+**What it tests:**
+- ✓ View button on templates list navigates to detail page
+- ✓ Template detail page displays all data (name, status, language, category)
+- ✓ Status badge displays with proper contrast (catches green-on-green issue)
+- ✓ WhatsApp preview displays template content (not blank)
+- ✓ Text colors use CSS variables for theme compatibility
+- ✓ Back button navigates correctly
+- ✓ Template metadata is visible and readable
+
+**Bugs it catches:**
+- View button not working/route not defined
+- Template detail page showing blank preview
+- Status badge with poor contrast (green text on green background)
+- Template content not displaying in preview
+- Hardcoded text colors instead of theme variables
+
+**Run:** `node scripts/ui/templates-view-preview.js`
+
+---
+
+### All Existing UI Tests
+
+1. **smoke.js** - Basic app functionality smoke test
+2. **contacts-crud.js** - Contact management operations
+3. **whatsapp-campaign.js** - WhatsApp campaign creation flow
+4. **email-campaign.js** - Email campaign creation flow
+5. **settings-templates.js** - Basic template settings
+6. **settings-connect-email.js** - Email provider connection
+7. **campaign-mapping-persistence.js** - Campaign variable mapping
+8. **campaign-archive-filter.js** - Campaign filtering/archiving
+9. **campaign-resend-duplicate.js** - Campaign resend operations
+10. **contacts-bulk-tags.js** - Bulk tag operations
+11. **campaign-button-vars.js** - Campaign button variables
+12. **campaign-metrics-card.js** - Campaign metrics display
+13. **settings-whatsapp-connect.js** - WhatsApp dialog UI validation
+14. **templates-view-preview.js** - Template view and preview functionality
+
+### Test Architecture
+
+All tests use **Puppeteer Core** for browser automation:
+- Open headless Chrome/Chromium
+- Simulate user interactions (clicks, typing, navigation)
+- Verify UI elements render correctly
+- Take screenshots on failure for debugging
+- Check CSS styling and computed values
+- Verify navigation and routing
+
+### Run UI Tests
+
+```bash
+# Test WhatsApp dialog
+node scripts/ui/settings-whatsapp-connect.js
+
+# Test template view/preview
+node scripts/ui/templates-view-preview.js
+
+# Run all UI tests
+node scripts/ui/run-all.js
+```
+
+### Environment Variables
+```bash
+BASE_URL=http://localhost:3173
+TEST_EMAIL=admin@engageninja.local
+TEST_PASSWORD=AdminPassword123
+CHROME_PATH=/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome  # macOS
+# or
+CHROME_PATH=/usr/bin/google-chrome  # Linux
+```
+
+---
+
+**Last Updated**: 2025-12-28
 **Status**: Phases 1-3 Complete (50% progress)
