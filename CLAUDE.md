@@ -8,6 +8,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Stack**: React 18 + Vite (frontend), Express.js + PostgreSQL (backend), Stripe for billing, Claude API for AI features.
 
+## Documentation Structure
+
+All project documentation is organized in `/docs/` directory. **Key files to read:**
+
+- **README.md** (root) - Project overview, quick start, and API reference
+- **docs/DESIGN.md** - Design system, components, and styling
+- **docs/DATABASE.md** - Database schema, migrations, and relationships
+- **docs/BACKEND_SCRIPTS.md** - Setup and maintenance scripts (db-init, db-seed)
+- **docs/TESTING.md** - Testing infrastructure and test categories
+- **docs/README.md** - Full documentation index and navigation
+
+**Current Status**: See **CURRENT_STATUS.md** (root) for latest configuration and project status.
+
 ## Build, Lint, and Test Commands
 
 ### Development

@@ -1,8 +1,0 @@
-{
-  "_instructions": "Configuration for harness. Do not modify port numbers.",
-  "ports": {
-    "frontend": 5173,
-    "backend": 3000
-  },
-  "environment": "development"
-}
