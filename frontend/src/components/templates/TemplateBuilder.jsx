@@ -7,7 +7,8 @@ import {
   Button,
   Input,
   Label,
-  Alert
+  Alert,
+  Select
 } from '../ui'
 
 /**
@@ -66,7 +67,7 @@ const TemplateBuilder = ({ components, onChange, disabled = false }) => {
             {/* Header Type */}
             <div>
               <Label htmlFor="headerType">Header Type</Label>
-              <select
+              <Select
                 id="headerType"
                 value={components.HEADER?.format || 'TEXT'}
                 onChange={(e) =>
@@ -75,14 +76,13 @@ const TemplateBuilder = ({ components, onChange, disabled = false }) => {
                     format: e.target.value
                   })
                 }
-                className="w-full border border-gray-300 rounded-md p-2 mt-1"
                 disabled={disabled}
               >
                 <option value="TEXT">📝 Text</option>
                 <option value="IMAGE">🖼️ Image</option>
                 <option value="VIDEO">🎥 Video</option>
                 <option value="DOCUMENT">📄 Document</option>
-              </select>
+              </Select>
             </div>
 
             {/* Header Text (only for TEXT type) */}
@@ -277,7 +277,7 @@ const TemplateBuilder = ({ components, onChange, disabled = false }) => {
                       <Label htmlFor={`btnType-${index}`} className="text-sm">
                         Type
                       </Label>
-                      <select
+                      <Select
                         id={`btnType-${index}`}
                         value={button.type || 'QUICK_REPLY'}
                         onChange={(e) => {
@@ -285,13 +285,12 @@ const TemplateBuilder = ({ components, onChange, disabled = false }) => {
                           newButtons[index] = { ...button, type: e.target.value }
                           updateComponent('BUTTONS', { buttons: newButtons })
                         }}
-                        className="w-full border border-gray-300 rounded-md p-2 text-sm mt-1"
                         disabled={disabled}
                       >
                         <option value="QUICK_REPLY">💬 Quick Reply</option>
                         <option value="URL">🔗 Website URL</option>
                         <option value="PHONE_NUMBER">📞 Phone Number</option>
-                      </select>
+                      </Select>
                     </div>
 
                     {/* Button Text */}

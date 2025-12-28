@@ -13,6 +13,7 @@ import {
   CardContent,
   PrimaryAction,
   DataTable,
+  Select,
   toast
 } from '../../components/ui'
 
@@ -188,14 +189,13 @@ export const AdminTagsPage = () => {
           const draft = drafts[tag.id] || { name: tag.name, status: tag.status || 'active' }
           return (
             <div className="flex items-center gap-2">
-              <select
+              <Select
                 value={draft.status}
                 onChange={(e) => updateDraft(tag.id, { status: e.target.value })}
-                className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-sm"
               >
                 <option value="active">Active</option>
                 <option value="archived">Archived</option>
-              </select>
+              </Select>
               <Badge className={`${statusBadge(draft.status)} text-xs font-semibold`}>
                 {draft.status}
               </Badge>

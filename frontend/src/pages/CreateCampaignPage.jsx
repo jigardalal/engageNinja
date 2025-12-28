@@ -15,6 +15,7 @@ import {
   Badge,
   LoadingState,
   ErrorState,
+  Select,
   toast
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
@@ -693,11 +694,10 @@ export default function CreateCampaignPage() {
                 <Label>Template *</Label>
                 {templates.length > 0 ? (
                   <>
-                    <select
+                    <Select
                       name="template_id"
                       value={formData.template_id}
                       onChange={handleTemplateChange}
-                      className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                     >
                       <option value="">Select a template</option>
                       {templates.map((template) => (
@@ -708,7 +708,7 @@ export default function CreateCampaignPage() {
                             : ''}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                     <p className="text-sm text-[var(--text-muted)]">
                       Templates synced from your WhatsApp Business account
                     </p>
@@ -763,16 +763,15 @@ export default function CreateCampaignPage() {
                                   <div key={variable} className="space-y-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-3">
                                     <div className="flex items-center justify-between gap-2">
                                       <Label className="text-sm font-semibold">{variable}</Label>
-                                      <select
+                                      <Select
                                         value={source}
                                         onChange={(e) => handleTemplateVariableSourceChange(variable, e.target.value)}
-                                        className="rounded-md border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-xs text-[var(--text)]"
                                       >
                                         <option value="custom">Custom value</option>
                                         <option value="contact.name">Contact name</option>
                                         <option value="contact.email">Contact email</option>
                                         <option value="contact.phone">Contact phone</option>
-                                      </select>
+                                      </Select>
                                     </div>
                                     {source !== 'custom' ? (
                                       <p className="text-xs text-[var(--text-muted)]">

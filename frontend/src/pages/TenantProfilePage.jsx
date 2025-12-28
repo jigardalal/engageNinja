@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AppShell from '../components/layout/AppShell';
 import PageHeader from '../components/layout/PageHeader';
-import { Card, Input, Button, Alert, Badge, toast } from '../components/ui';
+import { Card, Input, Button, Alert, Badge, Select, toast } from '../components/ui';
 import { Building } from 'lucide-react';
 import TenantFormField from '../components/TenantFormField';
 import { useAuth } from '../context/AuthContext';
@@ -433,10 +433,9 @@ export default function TenantProfilePage({ embedded = false } = {}) {
               <label className="text-sm font-medium text-[var(--text)]">
                 Business Type <span className="text-red-500">*</span>
               </label>
-              <select
+              <Select
                 value={businessInfo.business_type || ''}
                 onChange={(e) => setBusinessInfo(prev => ({ ...prev, business_type: e.target.value }))}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-[var(--text)] text-sm"
                 required
               >
                 <option value="">Select business type</option>
@@ -446,7 +445,7 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                 <option value="corporation">Corporation</option>
                 <option value="non_profit">Non-Profit</option>
                 <option value="government">Government</option>
-              </select>
+              </Select>
             </div>
 
             <TenantFormField
@@ -829,11 +828,10 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                   <span className="required-badge">Required</span>
                 </div>
                 <p className="text-xs text-[var(--text-muted)]">Choose the plan for this tenant.</p>
-                <select
+                <Select
                   id="tenant-plan"
                   value={form.plan_id || ''}
                   onChange={(e) => handleChange('plan_id', e.target.value)}
-                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-[var(--text)] text-sm"
                   required
                 >
                   <option value="" disabled>Select a plan</option>
@@ -843,7 +841,7 @@ export default function TenantProfilePage({ embedded = false } = {}) {
                   {planOptions.map(option => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <TenantFormField
                 id="tenant-legal-name"

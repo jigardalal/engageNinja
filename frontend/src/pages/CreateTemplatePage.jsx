@@ -15,6 +15,7 @@ import {
   Label,
   Alert,
   LoadingState,
+  Select,
   toast
 } from '../components/ui'
 import { SecondaryAction } from '../components/ui/ActionButtons'
@@ -226,13 +227,12 @@ export const CreateTemplatePage = () => {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <Label htmlFor="language">Language</Label>
-                    <select
+                    <Select
                       id="language"
                       value={templateData.language}
                       onChange={(e) =>
                         setTemplateData({ ...templateData, language: e.target.value })
                       }
-                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                       disabled={loading}
                     >
                       <option value="en">English</option>
@@ -243,23 +243,22 @@ export const CreateTemplatePage = () => {
                       <option value="it">Italian</option>
                       <option value="ja">Japanese</option>
                       <option value="zh">Chinese</option>
-                    </select>
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="category">Category</Label>
-                    <select
+                    <Select
                       id="category"
                       value={templateData.category}
                       onChange={(e) =>
                         setTemplateData({ ...templateData, category: e.target.value })
                       }
-                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                       disabled={loading}
                     >
                       <option value="MARKETING">Marketing</option>
                       <option value="UTILITY">Utility</option>
                       <option value="AUTHENTICATION">Authentication</option>
-                    </select>
+                    </Select>
                   </div>
                 </div>
               </CardContent>

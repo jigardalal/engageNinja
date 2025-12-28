@@ -10,7 +10,8 @@ import {
   CardDescription,
   Button,
   Label,
-  Input
+  Input,
+  Select
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
 import { MessageSquare, Phone, CalendarCheck, Users } from 'lucide-react'
@@ -78,13 +79,13 @@ export default function ContactPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Role</Label>
-                    <select className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2">
+                    <Select>
                       <option>Role</option>
                       <option>Agency</option>
                       <option>Operations</option>
                       <option>Growth</option>
                       <option>Other</option>
-                    </select>
+                    </Select>
                   </div>
                 </div>
                 <div className="space-y-2">

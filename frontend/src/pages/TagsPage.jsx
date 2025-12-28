@@ -12,7 +12,8 @@ import {
   CardDescription,
   CardContent,
   ErrorState,
-  DataTable
+  DataTable,
+  Select
 } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { Tag, Filter, ArrowUpDown } from 'lucide-react'
@@ -190,15 +191,14 @@ export default function TagsPage({ embedded = false } = {}) {
           const draft = drafts[tag.id] || { name: tag.name, status: tag.status || 'active' }
           return (
             <div className="flex items-center gap-2">
-              <select
+              <Select
                 value={draft.status}
                 onChange={(e) => updateDraft(tag.id, { status: e.target.value })}
-                className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
                 disabled={!canManage}
               >
                 <option value="active">Active</option>
                 <option value="archived">Archived</option>
-              </select>
+              </Select>
               <Badge className={`${statusBadgeClass(draft.status)} text-xs font-semibold`}>
                 {draft.status}
               </Badge>

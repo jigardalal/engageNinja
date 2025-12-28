@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Papa from 'papaparse';
-import { toast } from './ui';
+import { toast, Select } from './ui';
 
 /**
  * CSV Import Modal Component
@@ -287,16 +287,15 @@ export const CSVImportModal = ({ isOpen, onClose, onImportComplete }) => {
               {csvColumns.map(csvCol => (
                 <div key={csvCol} className="grid grid-cols-2 gap-4 items-center">
                   <div className="bg-gray-100 px-3 py-2 rounded">{csvCol}</div>
-                  <select
+                  <Select
                     value={columnMapping[csvCol] || ''}
                     onChange={(e) => updateMapping(csvCol, e.target.value)}
-                    className="input-field"
                   >
                     <option value="">-- Skip --</option>
                     {expectedFields.map(field => (
                       <option key={field} value={field}>{field}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               ))}
               <button

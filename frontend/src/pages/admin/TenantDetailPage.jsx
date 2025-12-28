@@ -18,6 +18,7 @@ import {
   EmptyState,
   PrimaryAction,
   SecondaryAction,
+  Select,
   toast
 } from '../../components/ui'
 import TenantEditForm from './TenantEditForm'
@@ -272,17 +273,16 @@ export const TenantDetailPage = () => {
               <div>
                 <label className="text-xs font-semibold text-[var(--text-muted)]">Status</label>
                 <div className="flex flex-wrap gap-2 items-center">
-                  <select
+                  <Select
                     value={newStatus}
                     onChange={(e) => setNewStatus(e.target.value)}
-                    className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
                   >
                     {statusOptions.map((status) => (
                       <option key={status} value={status}>
                         {status}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                   <Badge className={`${statusBadge(tenant.status)} text-xs font-semibold`}>{tenant.status}</Badge>
                   <Button onClick={handleStatusChange} disabled={updating || newStatus === tenant.status}>
                     {updating ? 'Saving...' : 'Save status'}

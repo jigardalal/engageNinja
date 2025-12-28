@@ -20,7 +20,8 @@ import {
   PrimaryAction,
   SecondaryAction,
   Checkbox,
-  DataTable
+  DataTable,
+  Select
 } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
 
@@ -193,8 +194,7 @@ export const AdminDashboard = () => {
         cell: ({ row }) => {
           const tenant = row.original
           return (
-            <select
-              className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-xs"
+            <Select
               value={tenant.status || 'active'}
               onChange={(e) => handleStatusChange(tenant.id, e.target.value)}
               disabled={updatingTenantId === tenant.id}
@@ -206,7 +206,7 @@ export const AdminDashboard = () => {
                     {option.label}
                   </option>
                 ))}
-            </select>
+            </Select>
           )
         }
       },

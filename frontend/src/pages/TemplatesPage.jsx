@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogFooter,
   DataTable,
+  Select,
   toast
 } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -387,24 +388,22 @@ export const TemplatesPage = ({ embedded = false } = {}) => {
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-1">
                   <label className="block text-xs font-semibold tracking-wide text-[var(--text-muted)]">Status</label>
-                  <select
+                  <Select
                     value={filters.status}
                     onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                   >
                     <option value="">All statuses</option>
                     <option value="APPROVED">Approved</option>
                     <option value="PENDING">Pending</option>
                     <option value="REJECTED">Rejected</option>
                     <option value="PAUSED">Paused</option>
-                  </select>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <label className="block text-xs font-semibold tracking-wide text-[var(--text-muted)]">Language</label>
-                  <select
+                  <Select
                     value={filters.language}
                     onChange={(e) => setFilters({ ...filters, language: e.target.value })}
-                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                   >
                     <option value="">All languages</option>
                     <option value="en">English</option>
@@ -415,20 +414,19 @@ export const TemplatesPage = ({ embedded = false } = {}) => {
                     <option value="it">Italian</option>
                     <option value="ja">Japanese</option>
                     <option value="zh">Chinese</option>
-                  </select>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <label className="block text-xs font-semibold tracking-wide text-[var(--text-muted)]">Category</label>
-                  <select
+                  <Select
                     value={filters.category}
                     onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                   >
                     <option value="">All categories</option>
                     <option value="MARKETING">Marketing</option>
                     <option value="UTILITY">Utility</option>
                     <option value="AUTHENTICATION">Authentication</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
 

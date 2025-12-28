@@ -11,6 +11,7 @@ import {
   Input,
   Label,
   Alert,
+  Select,
   toast
 } from '../components/ui'
 import { User, KeyRound } from 'lucide-react'
@@ -225,16 +226,15 @@ export default function ProfilePage() {
               </div>
               <div className="space-y-2">
                 <Label>Timezone</Label>
-                <select
+                <Select
                   value={profile.timezone}
                   onChange={(e) => setProfile((prev) => ({ ...prev, timezone: e.target.value }))}
-                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-[var(--text)] text-sm"
                 >
                   <option value="">Select a timezone</option>
                   {timezoneOptions.map((tz) => (
                     <option key={tz} value={tz}>{tz}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <Button type="submit" disabled={savingProfile}>
                 {savingProfile ? 'Saving...' : 'Save changes'}

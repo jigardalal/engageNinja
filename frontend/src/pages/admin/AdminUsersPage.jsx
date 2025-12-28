@@ -9,6 +9,7 @@ import {
   PrimaryAction,
   DataTable,
   Dialog,
+  Select,
   toast
 } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
@@ -174,12 +175,11 @@ export const AdminUsersPage = () => {
           const baseRole = user.role_global || 'none'
           return (
             <div className="flex flex-wrap items-center gap-2">
-              <select
+              <Select
                 value={currentRole}
                 onChange={(e) =>
                   setRoleUpdates((prev) => ({ ...prev, [user.id]: e.target.value }))
                 }
-                className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-sm"
                 disabled={isProtectedRole}
               >
                 {platformRoles.map((role) => (
@@ -187,7 +187,7 @@ export const AdminUsersPage = () => {
                     {role}
                   </option>
                 ))}
-              </select>
+              </Select>
               <Badge className={`${badgeGlass} text-primary-700`}>
                 {baseRole}
               </Badge>

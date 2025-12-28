@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Button, toast } from '../components/ui';
+import { Button, toast, Select } from '../components/ui';
 import { Dialog } from '../components/ui/Dialog';
 import { Input } from '../components/ui/Input';
 import { Alert } from '../components/ui/Alert';
@@ -297,16 +297,15 @@ export const TeamPage = ({ embedded = false } = {}) => {
           const member = row.original;
           if (canManageMembers && member.role !== 'owner') {
             return (
-              <select
+              <Select
                 value={member.role}
                 onChange={(e) => handleChangeRole(member.id ?? member.user_id, e.target.value)}
-                className={`${selectClassName} text-sm`}
               >
                 <option value="viewer">Viewer</option>
                 <option value="member">Member</option>
                 <option value="admin">Admin</option>
                 <option value="owner">Owner</option>
-              </select>
+              </Select>
             );
           }
           return (
@@ -432,17 +431,16 @@ export const TeamPage = ({ embedded = false } = {}) => {
               <label className="block text-sm font-medium text-[var(--text)] mb-1">
                 Role
               </label>
-              <select
+              <Select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
                 disabled={inviting}
-                className={`${selectClassName} w-full`}
               >
                 <option value="viewer">Viewer - Read-only access</option>
                 <option value="member">Member - Can send campaigns & create contacts</option>
                 <option value="admin">Admin - Can manage team & configure channels</option>
                 <option value="owner">Owner - Full tenant control</option>
-              </select>
+              </Select>
             </div>
 
             <div className="flex gap-3 justify-end pt-4">

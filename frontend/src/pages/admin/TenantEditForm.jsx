@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { Alert } from '../../components/ui/Alert'
-import { toast } from '../../components/ui'
+import { toast, Select } from '../../components/ui'
 import {
   Card,
   CardHeader,
@@ -279,17 +279,16 @@ export const TenantEditForm = ({
                     <label htmlFor="tenant-plan" className="text-sm font-semibold text-[var(--text)]">Plan</label>
                     <span className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">Required</span>
                   </div>
-                  <select
+                  <Select
                     id="tenant-plan"
                     value={form.planId}
                     onChange={(e) => handleChange('planId', e.target.value)}
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-[var(--text)] text-sm shadow-sm"
                   >
                     <option value="" disabled>Select a plan</option>
                     {planOptions.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

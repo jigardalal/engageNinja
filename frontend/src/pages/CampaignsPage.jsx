@@ -18,6 +18,7 @@ import {
   ErrorState,
   DataTable,
   Alert,
+  Select,
   toast
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
@@ -357,7 +358,7 @@ export default function CampaignsPage() {
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="status">Status</Label>
-                    <select
+                    <Select
                       id="status"
                       value={statusFilter}
                       onChange={(e) => {
@@ -368,14 +369,13 @@ export default function CampaignsPage() {
                         }
                         setPagination(prev => ({ ...prev, offset: 0 }))
                       }}
-                      className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-[var(--text)] h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                     >
                       <option value="">All Status</option>
                       <option value="draft">Draft</option>
                       <option value="sending">Sending</option>
                       <option value="sent">Sent</option>
                       <option value="archived">Archived</option>
-                    </select>
+                    </Select>
                   </div>
                   <div className="flex items-center gap-2">
                     <input

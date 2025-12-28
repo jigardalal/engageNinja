@@ -16,6 +16,7 @@ import {
   Dialog,
   LoadingState,
   ErrorState,
+  Select,
   toast
 } from '../components/ui';
 import TemplatesPage from './TemplatesPage';
@@ -1362,15 +1363,14 @@ export default function SettingsPage() {
 
           <div className="space-y-2">
             <Label>Provider *</Label>
-            <select
+            <Select
               value={emailForm.provider}
               onChange={(e) => setEmailForm({ ...emailForm, provider: e.target.value })}
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               disabled={useStoredEmail}
             >
               <option value="ses">AWS SES</option>
               <option value="brevo">Brevo</option>
-            </select>
+            </Select>
           </div>
 
           {emailForm.provider === 'ses' && (
@@ -1401,17 +1401,16 @@ export default function SettingsPage() {
 
               <div className="space-y-2">
                 <Label>AWS Region *</Label>
-                <select
+                <Select
                   value={emailForm.region}
                   onChange={(e) => setEmailForm({ ...emailForm, region: e.target.value })}
-                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                 >
                   <option value="us-east-1">us-east-1</option>
                   <option value="us-west-2">us-west-2</option>
                   <option value="eu-west-1">eu-west-1</option>
                   <option value="eu-central-1">eu-central-1</option>
                   <option value="us-east-2">us-east-2</option>
-                </select>
+                </Select>
               </div>
             </>
           )}

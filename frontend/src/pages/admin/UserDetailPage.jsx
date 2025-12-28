@@ -23,7 +23,8 @@ import {
   ErrorState,
   EmptyState,
   PrimaryAction,
-  SecondaryAction
+  SecondaryAction,
+  Select
 } from '../../components/ui'
 import { Dialog, DialogContent, DialogFooter } from '../../components/ui'
 
@@ -268,10 +269,9 @@ export const UserDetailPage = () => {
               <div className="space-y-2 text-sm">
                 <p className="text-[var(--text-muted)]">Platform role</p>
                 <div className="flex gap-2">
-                  <select
+                  <Select
                     value={platformRole}
                     onChange={(e) => setPlatformRole(e.target.value)}
-                    className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-sm"
                     disabled={isProtectedAdmin}
                   >
                     {['none', 'platform_support', 'platform_admin', 'system_admin'].map((role) => (
@@ -279,7 +279,7 @@ export const UserDetailPage = () => {
                         {role}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                   <Button onClick={handleUpdatePlatformRole} disabled={updating || isProtectedAdmin}>
                     Save role
                   </Button>
@@ -326,17 +326,16 @@ export const UserDetailPage = () => {
                             <p className="text-xs text-[var(--text-muted)]">{tenant.tenant_id}</p>
                           </TableCell>
                           <TableCell>
-                            <select
+                            <Select
                               value={tenant.role || 'member'}
                               onChange={(e) => handleChangeTenantRole(tenant.tenant_id, e.target.value)}
-                              className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-sm"
                             >
                               {tenantRoles.map((role) => (
                                 <option key={role} value={role}>
                                   {role}
                                 </option>
                               ))}
-                            </select>
+                            </Select>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-2">
@@ -367,10 +366,9 @@ export const UserDetailPage = () => {
             />
             <div>
               <label className="text-xs font-semibold text-[var(--text-muted)]">Tenant</label>
-              <select
+              <Select
                 value={selectedTenantId}
                 onChange={(e) => setSelectedTenantId(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2"
               >
                 <option value="">Select tenant</option>
                 {tenantOptions.map((tenantOption) => (
@@ -378,21 +376,20 @@ export const UserDetailPage = () => {
                     {tenantOption.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="text-xs font-semibold text-[var(--text-muted)]">Role</label>
-              <select
+              <Select
                 value={assignRole}
                 onChange={(e) => setAssignRole(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2"
               >
                 {tenantRoles.map((role) => (
                   <option key={role} value={role}>
                     {role}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </form>
         </DialogContent>
