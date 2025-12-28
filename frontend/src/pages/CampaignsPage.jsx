@@ -4,17 +4,9 @@ import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 import {
   Button,
-  Input,
-  Label,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   Badge,
   Dialog,
   EmptyState,
-  LoadingState,
   ErrorState,
   DataTable,
   Alert,
@@ -26,7 +18,7 @@ import {
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
 import PageHeader from '../components/layout/PageHeader'
-import { Sparkles, Archive, Megaphone, Activity, BarChart3, Eye, Clock, Users, ArrowUpDown } from 'lucide-react'
+import { Sparkles, Archive, Megaphone, Activity, Eye, Clock, Users } from 'lucide-react'
 
 export default function CampaignsPage() {
   const { activeTenant } = useAuth()
@@ -37,7 +29,6 @@ export default function CampaignsPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [hideArchived, setHideArchived] = useState(true)
-  const [pagination, setPagination] = useState({ limit: 50, offset: 0, total: 0 })
   const [selectedIds, setSelectedIds] = useState([])
   const [selectAll, setSelectAll] = useState(false)
   const [showArchiveModal, setShowArchiveModal] = useState(false)
@@ -50,15 +41,15 @@ export default function CampaignsPage() {
     fetchCampaigns()
     setSelectedIds([])
     setSelectAll(false)
-  }, [activeTenant, search, statusFilter, hideArchived, pagination.offset])
+  }, [activeTenant, search, statusFilter, hideArchived])
 
   const fetchCampaigns = async () => {
     setLoading(true)
     setError(null)
     try {
       const params = new URLSearchParams({
-        limit: pagination.limit,
-        offset: pagination.offset
+        limit: 500,
+        offset: 0
       })
 
       if (search) params.append('search', search)
@@ -77,7 +68,6 @@ export default function CampaignsPage() {
 
       if (data.status === 'success') {
         setCampaigns(data.data)
-        setPagination(data.pagination)
       } else {
         setError(data.message || 'Failed to fetch campaigns')
       }
@@ -112,16 +102,6 @@ export default function CampaignsPage() {
       hour: '2-digit',
       minute: '2-digit'
     })
-  }
-
-  const handleNextPage = () => {
-    const newOffset = pagination.offset + pagination.limit
-    if (newOffset < pagination.total) setPagination(prev => ({ ...prev, offset: newOffset }))
-  }
-
-  const handlePrevPage = () => {
-    const newOffset = Math.max(0, pagination.offset - pagination.limit)
-    setPagination(prev => ({ ...prev, offset: newOffset }))
   }
 
   const toggleSelect = (id) => {
@@ -202,9 +182,6 @@ export default function CampaignsPage() {
   const lastSentLabel = campaignStats.latest ? formatDate(campaignStats.latest.sent_at) : 'No sends yet'
   const readRate = campaignStats.delivered > 0 ? Math.round((campaignStats.read / campaignStats.delivered) * 100) : 0
   const activeCampaignsCount = campaigns.length - (campaignStats.statusCounts.archived || 0)
-  const workspaceRangeLabel = pagination.total
-    ? `Showing ${pagination.offset + 1} - ${Math.min(pagination.offset + pagination.limit, pagination.total)} of ${pagination.total} campaigns`
-    : 'No campaigns to show yet'
   const insightStatuses = [
     { key: 'draft', label: 'Draft', variant: 'neutral' },
     { key: 'sending', label: 'Sending', variant: 'primary' },
@@ -376,115 +353,80 @@ export default function CampaignsPage() {
 
           <SectionDivider />
 
-          {/* Full-width table */}
-          <Card variant="glass" className="space-y-6">
-              <CardHeader className="flex flex-col gap-3">
-                <div>
-                  <CardTitle className="text-h3 md:text-h2">Campaign workspace</CardTitle>
-                  <CardDescription className="text-body">Filter, review, and act on your campaigns before sending.</CardDescription>
+          {/* Campaign table with built-in pagination */}
+          {error ? (
+            <div className="p-6 rounded-lg border border-[var(--border)] bg-[var(--card)]">
+              <ErrorState
+                title="Unable to load campaigns"
+                description={error}
+                onRetry={fetchCampaigns}
+                retryLabel="Retry"
+              />
+            </div>
+          ) : loading ? (
+            <div className="p-6 rounded-lg border border-[var(--border)] bg-[var(--card)]">
+              <SkeletonTable rows={5} columns={7} />
+            </div>
+          ) : campaigns.length === 0 ? (
+            <div className="p-6 rounded-lg border border-[var(--border)] bg-[var(--card)]">
+              <EmptyState
+                icon={Sparkles}
+                title="No campaigns yet"
+                description="Create your first message to see insights and engagement."
+                action={
+                  <PrimaryAction onClick={handleCreateCampaign}>Create campaign</PrimaryAction>
+                }
+                className="mt-3"
+              />
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={campaigns}
+              rowActions={rowActions}
+              enableSearch={true}
+              searchPlaceholder="Search campaigns..."
+              enableColumnToggle={true}
+              enableSelection={false}
+              title="All Campaigns"
+              description="Review, manage, and act on your campaigns."
+              emptyIcon={Sparkles}
+              emptyTitle="No campaigns"
+              emptyDescription="Create a campaign to get started."
+              customFilterUI={
+                <div className="flex items-center gap-3">
+                  <Select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setStatusFilter(value)
+                      if (value === 'archived') {
+                        setHideArchived(false)
+                      }
+                    }}
+                    className="text-sm"
+                  >
+                    <option value="">All Status</option>
+                    <option value="draft">Draft</option>
+                    <option value="sending">Sending</option>
+                    <option value="sent">Sent</option>
+                    <option value="archived">Archived</option>
+                  </Select>
+                  <label className="flex items-center gap-2 text-sm whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={hideArchived}
+                      onChange={(e) => {
+                        setHideArchived(e.target.checked)
+                      }}
+                      className="h-4 w-4"
+                    />
+                    <span>Hide archived</span>
+                  </label>
                 </div>
-                <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                  {workspaceRangeLabel}
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-0 p-0">
-                {error ? (
-                  <div className="p-6">
-                    <ErrorState
-                      title="Unable to load campaigns"
-                      description={error}
-                      onRetry={fetchCampaigns}
-                      retryLabel="Retry"
-                    />
-                  </div>
-                ) : loading ? (
-                  <div className="p-6">
-                    <SkeletonTable rows={5} columns={7} />
-                  </div>
-                ) : campaigns.length === 0 ? (
-                  <div className="p-6">
-                    <EmptyState
-                      icon={Sparkles}
-                      title="No campaigns yet"
-                      description="Create your first message to see insights and engagement."
-                      action={
-                        <PrimaryAction onClick={handleCreateCampaign}>Create campaign</PrimaryAction>
-                      }
-                      className="mt-3"
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <DataTable
-                      columns={columns}
-                      data={campaigns}
-                      rowActions={rowActions}
-                      enableSearch={true}
-                      searchPlaceholder="Search campaigns..."
-                      enableColumnToggle={true}
-                      enableSelection={false}
-                      hidePagination={true}
-                      title="Campaigns"
-                      description="Manage your campaigns with pagination controls below."
-                      emptyIcon={Sparkles}
-                      emptyTitle="No campaigns"
-                      emptyDescription="Create a campaign to get started."
-                      customFilterUI={
-                        <div className="flex items-center gap-3">
-                          <Select
-                            value={statusFilter}
-                            onChange={(e) => {
-                              const value = e.target.value
-                              setStatusFilter(value)
-                              if (value === 'archived') {
-                                setHideArchived(false)
-                              }
-                              setPagination(prev => ({ ...prev, offset: 0 }))
-                            }}
-                            className="text-sm"
-                          >
-                            <option value="">All Status</option>
-                            <option value="draft">Draft</option>
-                            <option value="sending">Sending</option>
-                            <option value="sent">Sent</option>
-                            <option value="archived">Archived</option>
-                          </Select>
-                          <label className="flex items-center gap-2 text-sm whitespace-nowrap">
-                            <input
-                              type="checkbox"
-                              checked={hideArchived}
-                              onChange={(e) => {
-                                setHideArchived(e.target.checked)
-                                setPagination(prev => ({ ...prev, offset: 0 }))
-                              }}
-                              className="h-4 w-4"
-                            />
-                            <span>Hide archived</span>
-                          </label>
-                        </div>
-                      }
-                    />
-                    <div className="flex items-center justify-between px-6 py-4 text-sm text-[var(--text-muted)] border-t border-[var(--border)] bg-[var(--card)] rounded-b-2xl">
-                      <div>{workspaceRangeLabel}</div>
-                      <div className="flex gap-2">
-                        <SecondaryAction
-                          onClick={handlePrevPage}
-                          disabled={pagination.offset === 0}
-                        >
-                          Previous
-                        </SecondaryAction>
-                        <SecondaryAction
-                          onClick={handleNextPage}
-                          disabled={pagination.offset + pagination.limit >= pagination.total}
-                        >
-                          Next
-                        </SecondaryAction>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+              }
+            />
+          )}
         </div>
       </div>
 
