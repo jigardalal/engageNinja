@@ -20,6 +20,8 @@ import {
   Alert,
   SkeletonTable,
   Select,
+  StatRow,
+  SectionDivider,
   toast
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
@@ -332,9 +334,50 @@ export default function CampaignsPage() {
           }
         />
 
-        <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
-          <div className="space-y-6">
-            <Card variant="glass" className="space-y-5">
+        <div className="space-y-6">
+          {/* Top stats bar */}
+          <StatRow
+            stats={[
+              {
+                label: 'Active',
+                value: campaigns.length - (campaignStats.statusCounts.archived || 0),
+                icon: Activity
+              },
+              {
+                label: 'Total Contacts',
+                value: (campaignStats.audience || 0).toLocaleString(),
+                icon: Users
+              },
+              {
+                label: 'Read Rate',
+                value: `${readRate}%`,
+                icon: Eye
+              },
+              {
+                label: 'Last Send',
+                value: lastSentLabel === 'No sends yet' ? '-' : new Date(campaignStats.latest.sent_at).toLocaleDateString(),
+                icon: Clock
+              }
+            ]}
+            className="mb-6"
+          />
+
+          {/* Status breakdown */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-caption uppercase tracking-[0.15em] text-[var(--text-muted)]">
+              Status:
+            </span>
+            {insightStatuses.map(({ key, label, variant }) => (
+              <Badge key={key} variant={variant}>
+                {label}: {campaignStats.statusCounts[key] || 0}
+              </Badge>
+            ))}
+          </div>
+
+          <SectionDivider />
+
+          {/* Full-width table */}
+          <Card variant="glass" className="space-y-5">
               <CardHeader className="flex flex-col gap-3">
                 <div>
                   <CardTitle className="text-xl md:text-2xl">Campaign workspace</CardTitle>
@@ -451,66 +494,6 @@ export default function CampaignsPage() {
                 )}
               </CardContent>
             </Card>
-          </div>
-          <Card variant="glass" className="space-y-4">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-primary-500" />
-                <CardTitle className="text-lg">Insights</CardTitle>
-              </div>
-              <CardDescription>KPIs grounded in the latest sends.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="grid gap-3">
-                <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/80 px-4 py-3 shadow-inner dark:bg-slate-900/70">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-500/10 text-primary-500">
-                    <Activity className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Active</p>
-                    <p className="text-2xl font-semibold text-[var(--text)]">{activeCampaignsCount}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/80 px-4 py-3 shadow-inner dark:bg-slate-900/70">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-500/10 text-primary-500">
-                    <Users className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Contacts</p>
-                    <p className="text-2xl font-semibold text-[var(--text)]">{(campaignStats.audience || 0).toLocaleString()}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/80 px-4 py-3 shadow-inner dark:bg-slate-900/70">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-500/10 text-primary-500">
-                    <Eye className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Read rate</p>
-                    <p className="text-2xl font-semibold text-[var(--text)]">{readRate}%</p>
-                    <p className="text-xs text-[var(--text-muted)]">of delivered</p>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Status breakdown</p>
-                <div className="flex flex-wrap gap-2">
-                  {insightStatuses.map(({ key, label, variant }) => (
-                    <Badge key={key} variant={variant}>
-                      {label}: {campaignStats.statusCounts[key] || 0}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-white/20 bg-white/80 p-4 shadow-inner dark:bg-slate-900/70">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-primary-500" />
-                  <span className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">Last send</span>
-                </div>
-                <p className="text-lg font-semibold text-[var(--text)]">{lastSentLabel}</p>
-                <p className="text-xs text-[var(--text-muted)]">Read rate {readRate}% of delivered</p>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
 
