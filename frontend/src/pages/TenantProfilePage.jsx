@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AppShell from '../components/layout/AppShell';
 import PageHeader from '../components/layout/PageHeader';
 import { Card, Input, Button, Alert, Badge, Select, toast } from '../components/ui';
-import { Building } from 'lucide-react';
+import { Building, ChevronDown } from 'lucide-react';
 import TenantFormField from '../components/TenantFormField';
 import { useAuth } from '../context/AuthContext';
 import { timezoneOptions } from '../data/timezones';
@@ -78,6 +78,7 @@ export default function TenantProfilePage({ embedded = false } = {}) {
   const [businessInfoError, setBusinessInfoError] = useState('');
   const [savingBusinessInfo, setSavingBusinessInfo] = useState(false);
   const [loadingBusinessInfo, setLoadingBusinessInfo] = useState(false);
+  const [businessInfoExpanded, setBusinessInfoExpanded] = useState(false);
 
   // 10DLC State
   const [brands, setBrands] = useState([]);
@@ -799,14 +800,11 @@ export default function TenantProfilePage({ embedded = false } = {}) {
           const currentPlanMissing = form.plan_id && !planOptions.some((p) => p.value === form.plan_id);
         return (
           <>
-          <Card variant="glass" className="space-y-6">
-          <form onSubmit={handleSave} className="space-y-6 p-6">
-          <div className="space-y-3 rounded-lg border border-[var(--border)] bg-black/5 p-4">
-            <div className="flex items-baseline justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold text-[var(--text)]">Basics</p>
-                <p className="text-xs text-[var(--text-muted)]">Name and contact emails shown to your team and customers.</p>
-              </div>
+          <form onSubmit={handleSave} className="space-y-8">
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-[var(--text)]">Basics</h2>
+              <p className="text-sm text-[var(--text-muted)]">Name and contact emails shown to your team and customers.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -873,10 +871,10 @@ export default function TenantProfilePage({ embedded = false } = {}) {
             </div>
           </div>
 
-          <div className="space-y-3 rounded-lg border border-[var(--border)] bg-black/5 p-4">
+          <div className="space-y-4 border-t border-[var(--border)] pt-8">
             <div>
-              <p className="text-sm font-semibold text-[var(--text)]">Address</p>
-              <p className="text-xs text-[var(--text-muted)]">Used for receipts and location-aware features.</p>
+              <h2 className="text-lg font-semibold text-[var(--text)]">Address</h2>
+              <p className="text-sm text-[var(--text-muted)]">Used for receipts and location-aware features.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <TenantFormField
@@ -936,7 +934,7 @@ export default function TenantProfilePage({ embedded = false } = {}) {
             </div>
           </div>
 
-          <div className="space-y-3 rounded-lg border border-[var(--border)] bg-black/5 p-4">
+          <div className="space-y-4 border-t border-[var(--border)] pt-8">
             <TenantFormField
               id="tenant-timezone"
               label="Timezone"
@@ -953,85 +951,101 @@ export default function TenantProfilePage({ embedded = false } = {}) {
             </TenantFormField>
           </div>
 
-              <div className="flex justify-end">
-                <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
-              </div>
-          </form>
-          </Card>
-
-        {/* BUSINESS INFORMATION SECTION */}
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow p-6 space-y-6">
-          <div>
-            <h2 className="text-xl font-semibold text-[var(--text)]">Business Information</h2>
-            <p className="text-sm text-[var(--text-muted)]">Complete for 10DLC registration</p>
+          <div className="flex justify-end pt-8 border-t border-[var(--border)]">
+            <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
           </div>
+          </form>
 
-          {loadingBusinessInfo ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-              <p className="text-[var(--text-muted)]">Loading business info...</p>
+        {/* BUSINESS INFORMATION SECTION - COLLAPSIBLE */}
+        <details
+          open={businessInfoExpanded}
+          onToggle={(e) => setBusinessInfoExpanded(e.currentTarget.open)}
+          className="group border-t border-[var(--border)] pt-8"
+        >
+          <summary className="cursor-pointer flex items-center gap-3 py-2 hover:opacity-80 transition-opacity">
+            <ChevronDown className="w-5 h-5 text-[var(--text-muted)] group-open:rotate-180 transition-transform" />
+            <div>
+              <h2 className="text-lg font-semibold text-[var(--text)]">Advanced Setup</h2>
+              <p className="text-sm text-[var(--text-muted)]">Business information and 10DLC registration</p>
             </div>
-          ) : (
-            <>
-              {/* Step Indicator */}
-              <div className="flex items-center gap-3 overflow-x-auto pb-2">
-                {businessInfoSteps.map((step, idx) => (
-                  <div key={step.id} className="flex items-center gap-2 flex-shrink-0">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold ${
-                      idx === businessInfoStep ? 'bg-primary-500 text-white' : 'border border-[var(--border)] text-[var(--text)]'
-                    }`}>
-                      {idx + 1}
-                    </div>
-                    <span className={`text-sm whitespace-nowrap ${idx === businessInfoStep ? 'font-semibold text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
-                      {step.label}
-                    </span>
-                    {idx < businessInfoSteps.length - 1 && <div className="w-6 h-px bg-[var(--border)] flex-shrink-0" />}
+          </summary>
+
+          <div className="pt-6 space-y-8">
+            {/* Business Information */}
+            <div className="space-y-4">
+              <h3 className="text-base font-semibold text-[var(--text)]">Business Information</h3>
+              <p className="text-sm text-[var(--text-muted)]">Complete for 10DLC registration</p>
+
+              {loadingBusinessInfo ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-[var(--text-muted)]">Loading business info...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Step Indicator */}
+                  <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                    {businessInfoSteps.map((step, idx) => (
+                      <div key={step.id} className="flex items-center gap-2 flex-shrink-0">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold ${
+                          idx === businessInfoStep ? 'bg-primary-500 text-white' : 'border border-[var(--border)] text-[var(--text)]'
+                        }`}>
+                          {idx + 1}
+                        </div>
+                        <span className={`text-sm whitespace-nowrap ${idx === businessInfoStep ? 'font-semibold text-[var(--text)]' : 'text-[var(--text-muted)]'}`}>
+                          {step.label}
+                        </span>
+                        {idx < businessInfoSteps.length - 1 && <div className="w-6 h-px bg-[var(--border)] flex-shrink-0" />}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
 
-              {businessInfoError && (
-                <Alert type="error" title="Validation Error">
-                  {businessInfoError}
-                </Alert>
+                  {businessInfoError && (
+                    <Alert type="error" title="Validation Error">
+                      {businessInfoError}
+                    </Alert>
+                  )}
+
+                  {/* Step Content */}
+                  <div className="min-h-96">
+                    {renderBusinessInfoStep()}
+                  </div>
+
+                  {/* Navigation Buttons */}
+                  <div className="flex justify-between pt-4 border-t border-[var(--border)]">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={goToPrevBusinessStep}
+                      disabled={businessInfoStep === 0}
+                    >
+                      Previous
+                    </Button>
+
+                    {businessInfoStep < businessInfoSteps.length - 1 ? (
+                      <Button type="button" onClick={goToNextBusinessStep}>
+                        Next
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        onClick={saveBusinessInfo}
+                        disabled={savingBusinessInfo}
+                      >
+                        {savingBusinessInfo ? 'Saving...' : 'Save Business Info'}
+                      </Button>
+                    )}
+                  </div>
+                </>
               )}
+            </div>
 
-              {/* Step Content */}
-              <div className="min-h-96">
-                {renderBusinessInfoStep()}
-              </div>
-
-              {/* Navigation Buttons */}
-              <div className="flex justify-between pt-4 border-t border-[var(--border)]">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={goToPrevBusinessStep}
-                  disabled={businessInfoStep === 0}
-                >
-                  Previous
-                </Button>
-
-                {businessInfoStep < businessInfoSteps.length - 1 ? (
-                  <Button type="button" onClick={goToNextBusinessStep}>
-                    Next
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    onClick={saveBusinessInfo}
-                    disabled={savingBusinessInfo}
-                  >
-                    {savingBusinessInfo ? 'Saving...' : 'Save Business Info'}
-                  </Button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* 10DLC REGISTRATION SECTION */}
-        {render10DLCSection()}
+            {/* 10DLC REGISTRATION SECTION - Now inside collapsible */}
+            <div className="border-t border-[var(--border)] pt-8">
+              {render10DLCSection()}
+            </div>
+          </div>
+        </details>
         </>
           );
         })()
