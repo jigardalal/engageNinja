@@ -13,15 +13,11 @@ import {
   Button,
   ErrorState,
   EmptyState,
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell
+  DataTable,
+  toast
 } from '../components/ui'
 import { PrimaryAction } from '../components/ui/ActionButtons'
-import { Building2, ShieldCheck, Users } from 'lucide-react'
+import { Building2, ShieldCheck, Users, ArrowUpDown } from 'lucide-react'
 
 const PLAN_COLORS = {
   Starter: 'bg-amber-100 text-amber-800 border-amber-200',
@@ -49,13 +45,93 @@ export const TenantsPage = () => {
   const activeTenantMeta = tenants.find((t) => t.tenant_id === activeTenant)
   const isSwitching = Boolean(isSwitchingTenant || switchingTenantId || loadingTenant)
 
+  const sortHeader = (label) => ({ column }) => (
+    <Button
+      variant="ghost"
+      onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--text-muted)] hover:bg-transparent px-0"
+    >
+      {label}
+      <ArrowUpDown className="ml-1 h-4 w-4 text-[var(--text-muted)]" />
+    </Button>
+  )
+
+  const columns = useMemo(() => [
+    {
+      accessorKey: 'name',
+      header: sortHeader('Tenant'),
+      cell: ({ row }) => {
+        const tenant = row.original
+        const isActive = tenant.tenant_id === activeTenant
+        return (
+          <div className={`flex items-center gap-3 ${isActive ? 'font-bold text-primary' : ''}`}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500/20 to-primary-500/40 text-primary-700 font-bold">
+              {tenant.name.slice(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">Workspace</p>
+              <p className="text-base font-semibold text-[var(--text)]">{tenant.name}</p>
+            </div>
+          </div>
+        )
+      }
+    },
+    {
+      accessorKey: 'plan',
+      header: sortHeader('Plan'),
+      cell: ({ row }) => {
+        const plan = row.getValue('plan') || 'Starter'
+        return <Badge className={`text-xs font-semibold ${getPlanColor(plan)}`}>{plan}</Badge>
+      }
+    },
+    {
+      accessorKey: 'tenant_id',
+      header: sortHeader('ID'),
+      cell: ({ row }) => (
+        <p className="text-sm text-[var(--text-muted)]">{row.getValue('tenant_id')}</p>
+      )
+    },
+    {
+      id: 'actions',
+      header: sortHeader('Action'),
+      cell: ({ row }) => {
+        const tenant = row.original
+        const isActive = tenant.tenant_id === activeTenant
+        const isSwitchingThis = loadingTenant === tenant.tenant_id || switchingTenantId === tenant.tenant_id
+        return (
+          <Button
+            size="sm"
+            variant={isActive ? 'secondary' : 'primary'}
+            disabled={isActive || isSwitchingThis}
+            onClick={() => handleSwitch(tenant.tenant_id)}
+          >
+            {isActive ? 'Active' : isSwitchingThis ? 'Switching…' : 'Switch'}
+          </Button>
+        )
+      }
+    }
+  ], [activeTenant, loadingTenant, switchingTenantId])
+
   const handleSwitch = async (tenantId) => {
     if (!tenantId) return
     setError('')
     setLoadingTenant(tenantId)
     const result = await switchTenant(tenantId)
     if (!result?.success) {
-      setError(result?.error || 'Failed to switch tenant')
+      const errorMsg = result?.error || 'Failed to switch tenant'
+      setError(errorMsg)
+      toast({
+        title: 'Failed to switch tenant',
+        description: errorMsg,
+        variant: 'error'
+      })
+    } else {
+      const switchingTenant = tenants.find(t => t.tenant_id === tenantId)
+      toast({
+        title: 'Tenant switched',
+        description: `Now viewing ${switchingTenant?.name || 'tenant'}`,
+        variant: 'success'
+      })
     }
     setLoadingTenant(null)
     if (result?.success) {
@@ -95,37 +171,13 @@ export const TenantsPage = () => {
           </CardHeader>
           <CardContent>
             {error && <ErrorState title="Switch failed" description={error} />}
-            {tenants.length === 0 ? (
-              <EmptyState
-                title="No tenants yet"
-                description="You will see workspaces after you join or invite a team."
-                icon={ShieldCheck}
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tenant</TableHead>
-                      <TableHead>Plan</TableHead>
-                      <TableHead className="text-left">ID</TableHead>
-                      <TableHead>Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tenants.map((tenant) => (
-                      <TenantRow
-                        key={tenant.tenant_id}
-                        tenant={tenant}
-                        isActive={tenant.tenant_id === activeTenant}
-                        isSwitching={loadingTenant === tenant.tenant_id || switchingTenantId === tenant.tenant_id}
-                        onSwitch={handleSwitch}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            <DataTable
+              columns={columns}
+              data={tenants}
+              emptyIcon={ShieldCheck}
+              emptyTitle="No tenants yet"
+              emptyDescription="You will see workspaces after you join or invite a team."
+            />
           </CardContent>
         </Card>
 
@@ -174,39 +226,5 @@ export const TenantsPage = () => {
     </div>
   )
 }
-
-const TenantRow = React.memo(({ tenant, isActive, isSwitching, onSwitch }) => (
-  <TableRow className={`transition ${isActive ? 'bg-white/10' : 'hover:bg-white/5'}`}>
-    <TableCell>
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500/20 to-primary-500/40 text-primary-700 font-bold">
-          {tenant.name.slice(0, 2).toUpperCase()}
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-wide text-[var(--text-muted)]">Workspace</p>
-          <p className="text-base font-semibold text-[var(--text)]">{tenant.name}</p>
-        </div>
-      </div>
-    </TableCell>
-    <TableCell>
-      <Badge className={`text-xs font-semibold ${getPlanColor(tenant.plan)}`}>{tenant.plan || 'Starter'}</Badge>
-    </TableCell>
-    <TableCell>
-      <p className="text-sm text-[var(--text-muted)]">{tenant.tenant_id}</p>
-    </TableCell>
-    <TableCell>
-      <Button
-        size="sm"
-        variant={isActive ? 'secondary' : 'primary'}
-        disabled={isActive || isSwitching}
-        onClick={() => onSwitch(tenant.tenant_id)}
-      >
-        {isActive ? 'Active' : isSwitching ? 'Switching…' : 'Switch'}
-      </Button>
-    </TableCell>
-  </TableRow>
-))
-
-TenantRow.displayName = 'TenantRow'
 
 export default TenantsPage
