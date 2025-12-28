@@ -258,7 +258,7 @@ async function seed() {
 
         await query(
           `INSERT INTO tenant_channel_settings (id, tenant_id, channel, provider, credentials_encrypted, provider_config_json, is_connected, is_enabled, is_verified, webhook_url, phone_number, messaging_service_sid, created_at, updated_at)
-           VALUES (?, ?, 'sms', 'twilio', ?, ?, 0, 1, 1, ?, ?, ?, ?, ?)
+           VALUES (?, ?, 'sms', 'twilio', ?, ?, false, true, true, ?, ?, ?, ?, ?)
            ON CONFLICT(tenant_id, channel) DO UPDATE SET
              provider = excluded.provider,
              credentials_encrypted = excluded.credentials_encrypted,
@@ -288,6 +288,25 @@ async function seed() {
     } else if (process.env.TWILIO_ACCOUNT_SID || process.env.TWILIO_AUTH_TOKEN) {
       console.log('⚠️  Twilio SMS: Missing TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN - skipping\n');
     }
+
+    // 8. Seed Subscriptions (CRITICAL for Demo Tenant)
+    console.log('💳 Seeding subscriptions...');
+    const subscriptions = [
+      { tenant: tenantDemo, planKey: 'growth', providerId: 'sub_demo_growth_1' },
+      { tenant: tenantBeta, planKey: 'starter', providerId: 'sub_beta_starter_1' }
+    ];
+
+    const now = new Date();
+    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
+
+    for (const sub of subscriptions) {
+      await query(
+        `INSERT INTO subscriptions (id, tenant_id, provider, provider_subscription_id, plan_key, status, current_period_start, current_period_end, cancel_at_period_end, created_at, updated_at)
+         VALUES (?, ?, 'stripe', ?, ?, 'active', ?, ?, 0, ?, ?)`,
+        [uuidv4(), sub.tenant, sub.providerId, sub.planKey, now.toISOString(), periodEnd.toISOString(), now.toISOString(), now.toISOString()]
+      );
+    }
+    console.log(`  ✓ ${subscriptions.length} subscriptions seeded\n`);
 
     console.log('✅ Seeding complete!');
     console.log('\n🔐 Test Credentials:');

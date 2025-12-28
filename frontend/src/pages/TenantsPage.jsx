@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import AppShell from '../components/layout/AppShell'
 import PageHeader from '../components/layout/PageHeader'
 import {
   Card,
@@ -65,22 +64,23 @@ export const TenantsPage = () => {
   }
 
   return (
-    <AppShell hideTitleBlock title="Tenants" subtitle="Switch between your EngageNinja workspaces">
-      <PageHeader
-        icon={Building2}
-        title="Workspace switcher"
-        description="Jump between tenants without losing your context or permissions."
-        helper="Your active tenant determines the campaigns and contacts you see."
-        actions={
-          <PrimaryAction asChild>
-            <Button asChild variant="ghost">
-              <Link to="/settings?tab=tenant">Tenant settings</Link>
-            </Button>
-          </PrimaryAction>
-        }
-      />
+    <div className="min-h-screen bg-[var(--bg-gradient)]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <PageHeader
+          icon={Building2}
+          title="Workspace switcher"
+          description="Jump between tenants without losing your context or permissions."
+          helper="Your active tenant determines the campaigns and contacts you see."
+          actions={
+            <PrimaryAction asChild>
+              <Button asChild variant="ghost">
+                <Link to="/settings?tab=tenant">Tenant settings</Link>
+              </Button>
+            </PrimaryAction>
+          }
+        />
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr,0.6fr] mt-6">
+        <div className="grid gap-6 lg:grid-cols-[1.4fr,0.6fr] mt-6">
         <Card variant="glass">
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -170,7 +170,8 @@ export const TenantsPage = () => {
           </div>
         </div>
       )}
-    </AppShell>
+      </div>
+    </div>
   )
 }
 

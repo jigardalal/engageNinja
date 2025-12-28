@@ -8,8 +8,10 @@ const router = express.Router();
 const db = require('../db');
 const crypto = require('crypto');
 const AWS = require('aws-sdk');
+// Configure AWS region explicitly
+AWS.config.update({ region: process.env.AWS_REGION || 'us-east-1' });
 const sqs = new AWS.SQS();
-const SQS_MESSAGES_URL = process.env.SQS_MESSAGES_URL;
+const SQS_MESSAGES_URL = process.env.SQS_OUTBOUND_MESSAGES_URL || process.env.SQS_MESSAGES_URL;
 const { v4: uuidv4 } = require('uuid');
 const metricsEmitter = require('../services/metricsEmitter');
 const { requireMember, requireAdmin } = require('../middleware/rbac');
@@ -2215,29 +2217,42 @@ async function enqueueCampaignMessages({ messageIds, contacts, campaign, tenantI
   }
 
   if (!Array.isArray(messageIds) || messageIds.length === 0) {
+    console.warn('No message IDs to enqueue');
     return;
   }
 
-  const items = contacts.map((contact, index) => ({
-    Id: `${campaign.id}-${contact.id}-${messageIds[index]}`,
-    MessageBody: JSON.stringify({
-      messageId: messageIds[index],
-      tenantId,
-      campaignId: campaign.id,
-      channel: campaign.channel,
-      contactId: contact.id
-    })
-  }));
+  console.log(`[SQS] Enqueueing ${messageIds.length} messages to ${SQS_MESSAGES_URL}`);
+
+  const items = contacts.map((contact, index) => {
+    // Create a short ID for SQS batch (max 80 chars with alphanumeric, hyphens, underscores)
+    // Use hash of message ID to create a unique identifier
+    const shortId = messageIds[index].substring(0, 20);
+    return {
+      Id: shortId,
+      MessageBody: JSON.stringify({
+        messageId: messageIds[index],
+        tenantId,
+        campaignId: campaign.id,
+        channel: campaign.channel,
+        contactId: contact.id
+      })
+    };
+  });
 
   const batches = chunkArray(items, 10);
   for (const batch of batches) {
     try {
-      await sqs.sendMessageBatch({
+      console.log(`[SQS] Sending batch of ${batch.length} messages...`);
+      const result = await sqs.sendMessageBatch({
         QueueUrl: SQS_MESSAGES_URL,
         Entries: batch
       }).promise();
+      console.log(`[SQS] Batch sent successfully. ${result.Successful.length} successful, ${result.Failed.length} failed`);
+      if (result.Failed.length > 0) {
+        console.error('[SQS] Failed messages:', result.Failed);
+      }
     } catch (error) {
-      console.error('Failed to enqueue campaign messages to SQS', error.message);
+      console.error('[SQS] Failed to enqueue campaign messages to SQS', error.message, error);
     }
   }
 }
