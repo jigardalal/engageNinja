@@ -85,7 +85,9 @@ export const DataTable = ({
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
   const [showColumnsMenu, setShowColumnsMenu] = useState(false)
   const [openMenuId, setOpenMenuId] = useState(null)
+  const [menuPositions, setMenuPositions] = useState({}) // Track position for each menu
   const menuRef = useRef(null)
+  const rowMenuRefs = useRef({})
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -101,6 +103,21 @@ export const DataTable = ({
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [openMenuId, showColumnsMenu])
+
+  // Check menu position and adjust if it goes off-screen
+  const checkMenuPosition = (menuId) => {
+    const menuElement = rowMenuRefs.current[menuId]
+    if (!menuElement) return 'below'
+
+    const rect = menuElement.getBoundingClientRect()
+    const isOffBottom = rect.bottom > window.innerHeight - 10
+
+    return isOffBottom ? 'above' : 'below'
+  }
+
+  const setMenuPosition = (menuId, position) => {
+    setMenuPositions(prev => ({ ...prev, [menuId]: position }))
+  }
 
   const selectionColumn = enableSelection
     ? {
@@ -135,13 +152,24 @@ export const DataTable = ({
           if (!actionsForRow || actionsForRow.length === 0) {
             return null
           }
+          const menuPosition = menuPositions[row.id] || 'below'
+
           return (
             <div className="relative" ref={menuRef}>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 p-0 hover:bg-white/20 dark:hover:bg-white/10"
-                onClick={() => setOpenMenuId(openMenuId === row.id ? null : row.id)}
+                onClick={() => {
+                  const newOpen = openMenuId === row.id ? null : row.id
+                  setOpenMenuId(newOpen)
+                  if (newOpen) {
+                    setTimeout(() => {
+                      const pos = checkMenuPosition(newOpen)
+                      setMenuPosition(newOpen, pos)
+                    }, 0)
+                  }
+                }}
               >
                 <span className="sr-only">Open menu</span>
                 <MoreVertical className="h-4 w-4" />
@@ -157,7 +185,14 @@ export const DataTable = ({
                     document.body
                   )}
                   {/* Menu - styled like Settings dropdown */}
-                  <div className="absolute right-0 top-full mt-2 w-48 rounded-2xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-50 overflow-hidden">
+                  <div
+                    ref={(el) => {
+                      if (el) rowMenuRefs.current[row.id] = el
+                    }}
+                    className={`absolute right-0 w-48 rounded-2xl border border-[var(--border)] bg-white/95 dark:bg-slate-900/95 shadow-2xl backdrop-blur-sm p-2 z-50 overflow-hidden ${
+                      menuPosition === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'
+                    }`}
+                  >
                     {actionsForRow.map((action, index) => (
                       <button
                         key={`${action.label}-${index}`}
