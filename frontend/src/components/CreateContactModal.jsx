@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, Button, Input, Label, Alert, Badge } from './ui';
+import { Dialog, Button, Input, Label, Alert, Badge, toast } from './ui';
 
 /**
  * Create Contact Modal
@@ -23,7 +23,6 @@ export const CreateContactModal = ({
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
 
   // Reset form when modal opens
   useEffect(() => {
@@ -37,7 +36,6 @@ export const CreateContactModal = ({
         tags: []
       });
       setErrors({});
-      setSuccessMessage('');
     }
   }, [isOpen]);
 
@@ -95,7 +93,6 @@ export const CreateContactModal = ({
 
     try {
       setLoading(true);
-      setSuccessMessage('');
 
       const response = await fetch('/api/contacts', {
         method: 'POST',
@@ -115,11 +112,21 @@ export const CreateContactModal = ({
 
       if (!response.ok) {
         const errorData = await response.json();
-        setErrors({ submit: errorData.message || 'Failed to create contact' });
+        const errorMsg = errorData.message || 'Failed to create contact';
+        setErrors({ submit: errorMsg });
+        toast({
+          title: 'Failed to create contact',
+          description: errorMsg,
+          variant: 'error'
+        });
         return;
       }
 
-      setSuccessMessage('Contact created successfully!');
+      toast({
+        title: 'Contact created',
+        description: `${formData.name} has been added to your contacts`,
+        variant: 'success'
+      });
 
       setTimeout(() => {
         if (onContactCreated) onContactCreated();
@@ -129,7 +136,13 @@ export const CreateContactModal = ({
 
     } catch (error) {
       console.error('Create contact error:', error);
-      setErrors({ submit: error.message || 'An error occurred while creating the contact' });
+      const errorMsg = error.message || 'An error occurred while creating the contact';
+      setErrors({ submit: errorMsg });
+      toast({
+        title: 'Failed to create contact',
+        description: errorMsg,
+        variant: 'error'
+      });
     } finally {
       setLoading(false);
     }
@@ -151,10 +164,6 @@ export const CreateContactModal = ({
       }
     >
       <div className="space-y-4">
-        {successMessage && (
-          <Alert variant="success">{successMessage}</Alert>
-        )}
-
         {errors.submit && (
           <Alert variant="error">{errors.submit}</Alert>
         )}

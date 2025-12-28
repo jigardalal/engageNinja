@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Papa from 'papaparse';
+import { toast } from './ui';
 
 /**
  * CSV Import Modal Component
@@ -23,7 +24,13 @@ export const CSVImportModal = ({ isOpen, onClose, onImportComplete }) => {
     if (!selectedFile) return;
 
     if (!selectedFile.name.endsWith('.csv')) {
-      setError('Please select a CSV file');
+      const errorMsg = 'Please select a CSV file';
+      setError(errorMsg);
+      toast({
+        title: 'Invalid file type',
+        description: errorMsg,
+        variant: 'error'
+      });
       return;
     }
 
@@ -35,7 +42,13 @@ export const CSVImportModal = ({ isOpen, onClose, onImportComplete }) => {
       header: true,
       complete: (results) => {
         if (results.errors.length > 0) {
-          setError('Error parsing CSV file');
+          const errorMsg = 'Error parsing CSV file';
+          setError(errorMsg);
+          toast({
+            title: 'CSV parsing failed',
+            description: errorMsg,
+            variant: 'error'
+          });
           return;
         }
 
@@ -54,7 +67,13 @@ export const CSVImportModal = ({ isOpen, onClose, onImportComplete }) => {
         setStep(2);
       },
       error: (error) => {
-        setError(`CSV parsing error: ${error.message}`);
+        const errorMsg = `CSV parsing error: ${error.message}`;
+        setError(errorMsg);
+        toast({
+          title: 'CSV parsing error',
+          description: error.message,
+          variant: 'error'
+        });
       }
     });
   };
@@ -97,7 +116,14 @@ export const CSVImportModal = ({ isOpen, onClose, onImportComplete }) => {
 
   // Handle import
   const handleImport = async () => {
-    if (!validateMapping()) return;
+    if (!validateMapping()) {
+      toast({
+        title: 'Mapping validation failed',
+        description: 'Name and Phone fields are required',
+        variant: 'error'
+      });
+      return;
+    }
 
     setImporting(true);
     setError('');
@@ -106,7 +132,13 @@ export const CSVImportModal = ({ isOpen, onClose, onImportComplete }) => {
       const transformedData = transformData();
 
       if (transformedData.length === 0) {
-        setError('No valid contacts to import');
+        const errorMsg = 'No valid contacts to import';
+        setError(errorMsg);
+        toast({
+          title: 'No valid contacts',
+          description: errorMsg,
+          variant: 'error'
+        });
         setImporting(false);
         return;
       }
@@ -127,13 +159,26 @@ export const CSVImportModal = ({ isOpen, onClose, onImportComplete }) => {
       setResults(data.data);
       setStep(4);
 
+      // Show success toast
+      toast({
+        title: 'Import complete',
+        description: `${data.data.imported} contacts imported successfully`,
+        variant: 'success'
+      });
+
       // Notify parent after delay
       setTimeout(() => {
         onImportComplete?.();
       }, 2000);
 
     } catch (err) {
-      setError(err.message || 'Import failed');
+      const errorMsg = err.message || 'Import failed';
+      setError(errorMsg);
+      toast({
+        title: 'Import failed',
+        description: errorMsg,
+        variant: 'error'
+      });
     } finally {
       setImporting(false);
     }

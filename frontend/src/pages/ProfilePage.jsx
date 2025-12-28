@@ -10,7 +10,8 @@ import {
   Button,
   Input,
   Label,
-  Alert
+  Alert,
+  toast
 } from '../components/ui'
 import { User, KeyRound } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -81,9 +82,20 @@ export default function ProfilePage() {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.message || 'Failed to update profile')
       }
+      toast({
+        title: 'Profile updated',
+        description: 'Your profile has been saved successfully',
+        variant: 'success'
+      })
       setProfileMessage('Profile updated')
     } catch (err) {
-      setProfileError(err.message || 'Could not save profile')
+      const errorMsg = err.message || 'Could not save profile'
+      setProfileError(errorMsg)
+      toast({
+        title: 'Failed to update profile',
+        description: errorMsg,
+        variant: 'error'
+      })
     } finally {
       setSavingProfile(false)
     }
@@ -94,11 +106,23 @@ export default function ProfilePage() {
     setPasswordMessage('')
     setPasswordError('')
     if (!passwords.next || passwords.next.length < 8) {
-      setPasswordError('New password must be at least 8 characters')
+      const errorMsg = 'New password must be at least 8 characters'
+      setPasswordError(errorMsg)
+      toast({
+        title: 'Invalid password',
+        description: errorMsg,
+        variant: 'error'
+      })
       return
     }
     if (passwords.next !== passwords.confirm) {
-      setPasswordError('Passwords do not match')
+      const errorMsg = 'Passwords do not match'
+      setPasswordError(errorMsg)
+      toast({
+        title: 'Passwords do not match',
+        description: errorMsg,
+        variant: 'error'
+      })
       return
     }
     try {
@@ -116,10 +140,21 @@ export default function ProfilePage() {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.message || 'Failed to change password')
       }
+      toast({
+        title: 'Password changed',
+        description: 'Your password has been updated successfully',
+        variant: 'success'
+      })
       setPasswordMessage('Password updated')
       setPasswords({ current: '', next: '', confirm: '' })
     } catch (err) {
-      setPasswordError(err.message || 'Could not change password')
+      const errorMsg = err.message || 'Could not change password'
+      setPasswordError(errorMsg)
+      toast({
+        title: 'Failed to change password',
+        description: errorMsg,
+        variant: 'error'
+      })
     } finally {
       setChangingPassword(false)
     }

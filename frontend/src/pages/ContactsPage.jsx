@@ -13,7 +13,8 @@ import {
   Alert,
   Badge,
   Dialog,
-  DataTable
+  DataTable,
+  toast
 } from '../components/ui'
 import { PrimaryAction, SecondaryAction } from '../components/ui/ActionButtons'
 import PageHeader from '../components/layout/PageHeader'
@@ -89,7 +90,13 @@ export const ContactsPage = () => {
       setAvailableTags(Array.from(tags).sort())
     } catch (err) {
       console.error('Fetch contacts error:', err)
-      setError(err.message || 'Failed to load contacts')
+      const errorMsg = err.message || 'Failed to load contacts'
+      setError(errorMsg)
+      toast({
+        title: 'Failed to load contacts',
+        description: errorMsg,
+        variant: 'error'
+      })
     } finally {
       setLoading(false)
     }
@@ -274,9 +281,54 @@ export const ContactsPage = () => {
       link.click()
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
+
+      toast({
+        title: 'Contacts exported',
+        description: 'Your contacts have been downloaded as CSV',
+        variant: 'success'
+      })
     } catch (err) {
       console.error('Export error:', err)
-      setError(err.message || 'Failed to export contacts')
+      const errorMsg = err.message || 'Failed to export contacts'
+      setError(errorMsg)
+      toast({
+        title: 'Export failed',
+        description: errorMsg,
+        variant: 'error'
+      })
+    }
+  }
+
+  const handleDeleteContact = async (contact) => {
+    if (!window.confirm(`Are you sure you want to delete ${contact.name}? This cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/contacts/${contact.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete contact')
+      }
+
+      toast({
+        title: 'Contact deleted',
+        description: `${contact.name} has been removed from your contacts`,
+        variant: 'success'
+      })
+
+      // Refresh the contacts list
+      fetchContacts()
+    } catch (err) {
+      console.error('Delete contact error:', err)
+      toast({
+        title: 'Failed to delete contact',
+        description: err.message || 'Please try again',
+        variant: 'error'
+      })
     }
   }
 
@@ -292,8 +344,7 @@ export const ContactsPage = () => {
       label: 'Delete',
       icon: <Trash2 className="h-4 w-4" />,
       onClick: (contact) => {
-        // Delete action - you can implement this as needed
-        console.log('Delete contact:', contact)
+        handleDeleteContact(contact)
       },
       variant: 'destructive'
     }
