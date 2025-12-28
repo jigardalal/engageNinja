@@ -467,17 +467,12 @@ Enforce 4px/8px grid:
 - [ ] **Keyboard navigation**: Focus states visible, logical tab order
 - [ ] **Screen reader**: Headings announced correctly (h1→h2→h3 hierarchy)
 
-### Existing Puppeteer Tests
+### Testing Updates
 
-**Update these scripts** to work with new layouts:
-- `scripts/ui/smoke.js` - Dashboard + Campaigns navigation
-- `scripts/ui/whatsapp-campaign.js` - Campaign creation flow
-- `scripts/ui/contacts-crud.js` - Contact CRUD operations
-
-**New assertions**:
-- Verify StatBlock renders on Dashboard
-- Verify no `max-w-7xl` in computed styles
-- Verify responsive grid collapses on mobile viewport
+Note: Previous Puppeteer-based UI tests have been archived and replaced with a new testing strategy. When implementing this design redesign:
+- Consider how new layouts affect accessibility (keyboard navigation, screen reader compatibility)
+- Validate responsive behavior at multiple breakpoints (375px, 768px, 1440px, 1920px)
+- Ensure touch targets are ≥ 44px on mobile devices
 
 ### Lighthouse Audit
 

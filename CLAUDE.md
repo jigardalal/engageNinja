@@ -59,10 +59,7 @@ cd frontend && npm run lint
 # Backend webhook integration tests
 npm run test:webhooks --prefix backend
 
-# UI automation (Puppeteer) - smoke test
-npm run ui:test:smoke
-
-# See README.md for full UI automation test options
+# See docs/TESTING.md for full backend testing documentation
 ```
 
 ### Build and Production
@@ -212,11 +209,6 @@ router.get('/', validateTenantAccess, requireTenantRole('member'), async (req, r
 # Backend webhook integration test
 npm run test:webhooks --prefix backend
 
-# UI automation test (specific script)
-node scripts/ui/whatsapp-campaign.js
-
-# UI automation with custom base URL
-BASE_URL=http://localhost:3174 node scripts/ui/smoke.js
 ```
 
 ### Working with Database Migrations
@@ -251,31 +243,13 @@ BASE_URL=http://localhost:3174 node scripts/ui/smoke.js
 
 ## Testing Strategy
 
-### Unit and Integration Tests
+### Backend Testing
 
-The codebase uses Puppeteer for UI automation rather than traditional unit tests. All major workflows have corresponding Puppeteer scripts.
-
-### UI Automation Tests (Puppeteer)
-
-Located in `scripts/ui/`, these scripts test critical user journeys:
-
-- **Smoke Test**: `smoke.js` - Quick login → dashboard → contacts → campaigns check
-- **Campaign Creation**: `whatsapp-campaign.js`, `email-campaign.js` - Full campaign workflows
-- **Contact Management**: `contacts-crud.js` - Create, edit, delete operations
-- **Admin Tasks**: `admin-global-tags.js`, `admin-sync-tags.js`, `admin-audit-logs.js`
-- **Settings**: `settings-templates.js` - Channel configuration and template sync
-
-Run all: `npm run ui:test:all`
-
-Default URLs: Frontend `http://localhost:3173`, Backend `http://localhost:5173`
-
-Override with: `BASE_URL=http://localhost:3174 npm run ui:test:smoke`
-
-### API Integration Tests
-
-- **Webhook Integration**: `npm run test:webhooks --prefix backend` - Tests WhatsApp/Email webhook signature verification
-- **Workflow Tests**: `npm run api:test:workflow` - End-to-end API flow
-- **SSE Test**: `npm run api:test:sse` - Real-time message status streaming
+See **docs/TESTING.md** for comprehensive backend testing documentation covering:
+- RBAC tests (role-based access control verification)
+- Integration tests (API endpoint validation)
+- Database tests (schema and integrity checks)
+- Webhook signature verification
 
 ## Important Notes
 
@@ -360,7 +334,6 @@ Override with: `BASE_URL=http://localhost:3174 npm run ui:test:smoke`
 - `express-session@1.17.3`: Session management
 - `stripe@14.25.0`: Stripe SDK for billing
 - `csv-parser@3.2.0`: CSV import support
-- `puppeteer@24.33.1`: UI automation
 
 **Frontend**:
 - `react@18.2.0`: UI framework

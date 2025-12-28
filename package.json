@@ -14,20 +14,7 @@
     "db:init": "npm run db:init --prefix backend",
     "db:seed": "npm run db:seed --prefix backend",
     "db:reset": "npm run db:reset --prefix backend",
-    "db:reset:test": "DATABASE_URL=postgresql://engageninja:engageninja@localhost:5433/engageninja_test npm run db:reset --prefix backend",
-    "ui:test:whatsapp": "node scripts/ui/whatsapp-campaign.js",
-    "ui:test:email": "node scripts/ui/email-campaign.js",
-    "ui:test:settings": "node scripts/ui/settings-templates.js",
-    "ui:test:settings-connect": "node scripts/ui/settings-connect-email.js",
-    "ui:test:smoke": "node scripts/ui/smoke.js",
-    "ui:test:contacts": "node scripts/ui/contacts-crud.js",
-    "ui:test:all": "node scripts/ui/run-all.js",
-    "ui:test:templates": "node scripts/ui/templates-create-list-delete.js",
-    "api:test:workflow": "node scripts/api/workflow.js",
-    "api:test:sse": "node scripts/api/metrics-sse.js",
-    "api:test:send-webhooks": "node scripts/api/send-and-webhooks.js",
-    "test:templates:api": "node scripts/manual-tests/test-templates-api.js",
-    "test:templates:e2e": "node scripts/manual-tests/test-templates-e2e.js"
+    "db:reset:test": "DATABASE_URL=postgresql://engageninja:engageninja@localhost:5433/engageninja_test npm run db:reset --prefix backend"
   },
   "keywords": [
     "whatsapp",
@@ -38,8 +25,7 @@
   "author": "EngageNinja Team",
   "license": "MIT",
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "puppeteer-core": "^21.11.0"
+    "concurrently": "^8.2.2"
   },
   "dependencies": {
     "@tanstack/react-table": "^8.21.3"

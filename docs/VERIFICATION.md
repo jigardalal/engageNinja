@@ -103,8 +103,6 @@ node scripts/verification/verify-comprehensive-testing-security-audit.js
 ✓ Backend RBAC enforcement tests
 ✓ Security vulnerability tests (SQL injection, XSS, auth bypass)
 ✓ Audit log security tests
-✓ UI RBAC automated tests (Puppeteer)
-✓ E2E workflow tests
 ✓ Test file structure and patterns
 ✓ 150+ implementation checks
 
@@ -202,9 +200,8 @@ For detailed information on each RBAC phase:
 
 Other test and verification tools:
 - Backend tests: `npm test`
-- UI tests: `node scripts/ui/rbac/{test-name}.js`
-- E2E tests: `node scripts/e2e/{test-name}.js`
 - Database verification: `node backend/tests/database/verify-db.js`
+- See `docs/TESTING.md` for comprehensive backend testing documentation
 
 ---
 

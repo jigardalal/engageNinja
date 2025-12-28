@@ -11,7 +11,7 @@ Consolidated documentation for the EngageNinja platform. Keep root directory cle
 
 ### Development
 - **[BACKEND_SCRIPTS.md](./BACKEND_SCRIPTS.md)** - Database setup and maintenance scripts (db-init, db-seed, db-reset)
-- **[TESTING.md](./TESTING.md)** - Comprehensive testing infrastructure (backend tests, UI automation, E2E coverage)
+- **[TESTING.md](./TESTING.md)** - Backend testing infrastructure (RBAC, integration, database tests)
 - **[DATABASE.md](./DATABASE.md)** - Database schema, migrations, and relationships
 
 ### Design & UI
@@ -63,12 +63,12 @@ This replaces the need for multiple scattered documentation files that would clu
 
 ---
 
-## Recent Consolidations (December 28, 2025)
+## Recent Changes (December 28, 2025)
 
-- **Merged testing docs**: Consolidated TESTING.md, TEST_COVERAGE.md, and UI_AUTOMATION.md into comprehensive TESTING.md
-- **Merged Terraform guides**: Combined TERRAFORM_SETUP_GUIDE.md and ENGAGENINJA_AWS_SETUP_GUIDE.md into ENGAGENINJA_AWS_SETUP_GUIDE.md
-- **Organized planning docs**: Moved DESIGN_REDESIGN_PLAN.md to docs/planning/
-- **Cleaner structure**: Reduced from 9 to 6 docs/ files while consolidating content
+- **Consolidated docs**: Merged testing docs into TESTING.md, merged Terraform guides, organized planning docs
+- **Removed UI testing**: Deleted outdated Puppeteer-based UI tests from `/scripts/ui/`, `/scripts/e2e/`, `/scripts/api/`, `/scripts/manual-tests/`, `/scripts/verification/`
+- **Cleaned package.json**: Removed UI test scripts and puppeteer-core dependency
+- **Cleaner structure**: Reduced documentation from 9 to 6 docs/ files, removed 50+ test files
 
 ---
 
