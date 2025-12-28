@@ -151,7 +151,7 @@ export const DataTable = ({
                   {/* Backdrop portal - prevents text bleed and allows outside click */}
                   {createPortal(
                     <div
-                      className="fixed inset-0 z-40"
+                      className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
                       onClick={() => setOpenMenuId(null)}
                     />,
                     document.body
@@ -329,7 +329,7 @@ export const DataTable = ({
                         {/* Backdrop portal - prevents text bleed and allows outside click */}
                         {createPortal(
                           <div
-                            className="fixed inset-0 z-40"
+                            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
                             onClick={() => setShowColumnsMenu(false)}
                           />,
                           document.body
