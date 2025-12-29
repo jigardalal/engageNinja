@@ -290,12 +290,16 @@ test.describe('Create Template Flow', () => {
 
       // Look for preview section
       const preview = page.locator(
-        "[data-testid='template-preview'], div.preview, text=/preview/i"
+        "[data-testid='template-preview'], div.preview"
       );
 
-      const previewCount = await preview.count();
+      // Also check for text-based preview indicators
+      const previewText = page.locator("text=/preview/i");
 
-      if (previewCount > 0) {
+      const previewCount = await preview.count();
+      const previewTextCount = await previewText.count();
+
+      if (previewCount > 0 || previewTextCount > 0) {
         console.log('✓ Template preview available');
       } else {
         console.log('⚠ Template preview not found');
