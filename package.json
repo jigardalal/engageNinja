@@ -21,6 +21,7 @@
     "test:contact": "playwright test add-contact",
     "test:billing": "playwright test billing-upgrade",
     "test:dashboard": "playwright test dashboard-overview",
+    "test:contact-details": "playwright test view-contact-details",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:headed:signup": "playwright test signup --headed",
     "test:e2e:headed:login": "playwright test login --headed",
@@ -29,6 +30,7 @@
     "test:e2e:headed:contact": "playwright test add-contact --headed",
     "test:e2e:headed:billing": "playwright test billing-upgrade --headed",
     "test:e2e:headed:dashboard": "playwright test dashboard-overview --headed",
+    "test:e2e:headed:contact-details": "playwright test view-contact-details --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:codegen": "playwright codegen http://localhost:3173"
