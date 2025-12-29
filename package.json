@@ -29,6 +29,7 @@
     "test:analytics": "playwright test view-analytics",
     "test:channels": "playwright test channel-configuration",
     "test:edit-campaign": "playwright test edit-campaign-draft",
+    "test:logout": "playwright test logout-flow",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:headed:signup": "playwright test signup --headed",
     "test:e2e:headed:login": "playwright test login --headed",
@@ -44,6 +45,7 @@
     "test:e2e:headed:analytics": "playwright test view-analytics --headed",
     "test:e2e:headed:channels": "playwright test channel-configuration --headed",
     "test:e2e:headed:edit-campaign": "playwright test edit-campaign-draft --headed",
+    "test:e2e:headed:logout": "playwright test logout-flow --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:codegen": "playwright codegen http://localhost:3173"
