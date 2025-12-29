@@ -40,6 +40,7 @@
     "test:e2e:headed:dashboard": "playwright test dashboard-overview --headed",
     "test:e2e:headed:contact-details": "playwright test view-contact-details --headed",
     "test:e2e:headed:edit-contact": "playwright test edit-contact --headed",
+    "test:e2e:headed:template": "playwright test create-template --headed",
     "test:e2e:headed:campaign-details": "playwright test campaign-detail-tracking --headed",
     "test:e2e:headed:invite-team": "playwright test invite-team-member --headed",
     "test:e2e:headed:analytics": "playwright test view-analytics --headed",
