@@ -93,6 +93,13 @@ export const SignupPage = () => {
       return
     }
 
+    // Validate email format (strict)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email.trim())) {
+      setError('Please enter a valid email address')
+      return
+    }
+
     if (!formData.password) {
       setError('Password is required')
       return
@@ -105,12 +112,6 @@ export const SignupPage = () => {
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
-      return
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(formData.email)) {
-      setError('Invalid email format')
       return
     }
 
