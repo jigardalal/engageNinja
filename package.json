@@ -16,9 +16,13 @@
     "test:e2e": "playwright test",
     "test:signup": "playwright test signup",
     "test:login": "playwright test login",
+    "test:tenant": "playwright test tenant-selection",
+    "test:campaign": "playwright test create-campaign",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:headed:signup": "playwright test signup --headed",
     "test:e2e:headed:login": "playwright test login --headed",
+    "test:e2e:headed:tenant": "playwright test tenant-selection --headed",
+    "test:e2e:headed:campaign": "playwright test create-campaign --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:codegen": "playwright codegen http://localhost:3173"
