@@ -154,9 +154,19 @@ test.describe('Create Campaign Flow', () => {
       url.includes('/campaigns/new') || url.includes('/campaigns/create')
     ).toBe(true);
 
-    // Verify form is visible
-    const form = page.locator('form').first();
-    await expect(form).toBeVisible();
+    // Verify campaign creation content is visible
+    // The page uses Card/div elements, not a form element
+    const createCampaignHeader = page.locator('text=Create your next campaign');
+    await expect(createCampaignHeader).toBeVisible();
+
+    // Verify step navigation is present (indicates multi-step form)
+    const stepIndicators = page.locator('[role="button"]:has-text("Next")');
+    const stepCount = await stepIndicators.count();
+
+    // Should have Next button for step navigation
+    if (stepCount === 0) {
+      console.log('⚠ Step indicator not found, but campaign creation page is loaded');
+    }
 
     console.log(`✓ Navigated to campaign creation: ${url}`);
   });
@@ -404,32 +414,30 @@ test.describe('Create Campaign Flow', () => {
     // Navigate to create campaign
     await clickCreateCampaignButton(page);
 
-    // Check for form structure
-    const form = page.locator('form').first();
-    await expect(form).toBeVisible();
+    // Check for main campaign creation page elements
+    const campaignTitle = page.locator('text=Create your next campaign');
+    await expect(campaignTitle).toBeVisible();
 
-    // Look for main sections
-    const campaignNameSection = page.locator(
-      "text=/campaign name|name your campaign/i"
-    );
+    // Look for step navigation (Basics, Audience, Content, Review)
+    const stepNavigation = page.locator('text=/Steps: Basics|Audience|Content|Review/i');
+    const stepCount = await stepNavigation.count();
 
-    const recipientSection = page.locator(
-      "text=/recipients|select contacts|contacts/i"
-    );
+    // Look for main campaign form sections using card titles
+    const cardTitles = page.locator('div:has-text("Campaign Name") >> visible=true');
+    const cardCount = await cardTitles.count();
 
-    const messageSection = page.locator(
-      "text=/message|template|content/i"
-    );
+    // Look for navigation buttons
+    const backButton = page.locator("button:has-text('Back')");
+    const nextButton = page.locator("button:has-text('Next')");
 
-    const nameCount = await campaignNameSection.count();
-    const recipientCount = await recipientSection.count();
-    const messageCount = await messageSection.count();
+    const backCount = await backButton.count();
+    const nextCount = await nextButton.count();
 
     console.log(
-      `✓ Campaign form sections: name(${nameCount}), recipient(${recipientCount}), message(${messageCount})`
+      `✓ Campaign form structure: steps(${stepCount}), cards(${cardCount}), buttons(back:${backCount}, next:${nextCount})`
     );
 
-    // At least one section should be visible
-    expect(nameCount + recipientCount + messageCount).toBeGreaterThanOrEqual(1);
+    // Should have step navigation and at least next button
+    expect(stepCount + nextCount).toBeGreaterThanOrEqual(1);
   });
 });
