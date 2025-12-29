@@ -73,6 +73,15 @@ scripts/ui/.chrome-*/
 # Puppeteer artifacts
 logs/ui-*.png
 
+# Playwright E2E test artifacts
+test-results/
+tests/reports/
+tests/playwright-report/
+playwright-report/
+.playwright/
+*.webm
+*.mp4
+
 # Build output
 dist/
 build/
