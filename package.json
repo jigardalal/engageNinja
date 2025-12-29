@@ -25,6 +25,7 @@
     "test:edit-contact": "playwright test edit-contact",
     "test:template": "playwright test create-template",
     "test:campaign-details": "playwright test campaign-detail-tracking",
+    "test:invite-team": "playwright test invite-team-member",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:headed:signup": "playwright test signup --headed",
     "test:e2e:headed:login": "playwright test login --headed",
@@ -36,6 +37,7 @@
     "test:e2e:headed:contact-details": "playwright test view-contact-details --headed",
     "test:e2e:headed:edit-contact": "playwright test edit-contact --headed",
     "test:e2e:headed:campaign-details": "playwright test campaign-detail-tracking --headed",
+    "test:e2e:headed:invite-team": "playwright test invite-team-member --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:codegen": "playwright codegen http://localhost:3173"
